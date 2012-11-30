@@ -2159,8 +2159,8 @@ static int mistouch_gpio_active() {
 
 static struct gpio_keys_button ENRC2_PROJECT_keys[] = {
 	[0] = GPIO_KEY(KEY_POWER, PU6, 1),
-	[1] = GPIO_KEY(KEY_VOLUMEUP, PI6, 0),
-	[2] = GPIO_KEY(KEY_VOLUMEDOWN, PW3, 0),
+	[1] = GPIO_KEY(KEY_VOLUMEUP, PI6, 1),
+	[2] = GPIO_KEY(KEY_VOLUMEDOWN, PW3, 1),
  };
 
 static struct gpio_keys_platform_data ENRC2_PROJECT_keys_platform_data = {
