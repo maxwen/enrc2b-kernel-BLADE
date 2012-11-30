@@ -1744,7 +1744,7 @@ struct work_struct	ums_do_reserve_work;
 static char usb_function_ebl;
 static void handle_reserve_cmd(struct work_struct *work)
 {
-	pr_info("[USB] %s enable:%d\n",usb_function_ebl);
+	pr_info("[USB] %s enable:%d\n",__func__, usb_function_ebl);
 	htc_usb_enable_function("adb", usb_function_ebl);
 }
 

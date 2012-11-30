@@ -1229,13 +1229,20 @@ static ssize_t ps_parameters_store(struct device *dev,
 	struct cm3628_info *lpi = lp_info;
 	char *token[10];
 	int i;
+    int err;
 
 	printk(KERN_INFO "[PS][CM3628] %s\n", buf);
 	for (i = 0; i < 2; i++)
 		token[i] = strsep((char **)&buf, " ");
 
-	lpi->ps_thd_set = strict_strtoul(token[0], NULL, 16);
-	PS_cmd_test_value = strict_strtoul(token[1], NULL, 16);
+	err = strict_strtoul(token[0], 16, (unsigned long *)&(lpi->ps_thd_set));
+    if (err )
+        return -EINVAL;
+
+	err = strict_strtoul(token[1], 16, (unsigned long *)&(PS_cmd_test_value));
+    if (err )
+        return -EINVAL;
+
 	printk(KERN_INFO
 		"[PS][CM3628]Set lpi->ps_thd_set = 0x%x, PS_cmd_cmd:value = 0x%x\n",
 		lp_info->ps_thd_set, PS_cmd_test_value);
@@ -1612,12 +1619,13 @@ static ssize_t ls_adc_table_store(struct device *dev,
 	char *token[10];
 	uint16_t tempdata[10];
 	int i;
+    int err;
 
 	printk(KERN_INFO "[LS][CM3628]%s\n", buf);
 	for (i = 0; i < 10; i++) {
 		token[i] = strsep((char **)&buf, " ");
-		tempdata[i] = strict_strtoul(token[i], NULL, 16);
-		if (tempdata[i] < 1 || tempdata[i] > 0xffff) {
+	    err = strict_strtoul(token[i], 16, (unsigned long *)&(tempdata[i]));
+		if (err || tempdata[i] < 1 || tempdata[i] > 0xffff) {
 			printk(KERN_ERR
 			"[LS][CM3628 error] adc_table[%d] =  0x%x Err\n",
 			i, tempdata[i]);

@@ -141,7 +141,7 @@ static ssize_t IMEI_read(struct file *file, char __user *buf, size_t len, loff_t
 }
 
 static const struct file_operations IMEI_file_ops = {
-	.owner = "system",
+	.owner = THIS_MODULE,
 	.read = IMEI_read,
 };
 
@@ -620,7 +620,7 @@ static ssize_t SKUID_read(struct file *file, char __user *buf,
 }
 
 static const struct file_operations SKUID_file_ops = {
-	.owner = "system",
+	.owner = THIS_MODULE,
 	.read = SKUID_read,
 };
 

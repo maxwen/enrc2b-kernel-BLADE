@@ -76,8 +76,9 @@ struct lp5521_chip {
 static long unsigned int lp5521_led_tag_status = 0;
 static int __init lp5521_led_tag(char *tag)
 {
+    int rc = 0;
 	if (strlen(tag))
-		strict_strtoul(tag, 16, &lp5521_led_tag_status);
+		rc = strict_strtoul(tag, 16, &lp5521_led_tag_status);
 	/* mapping */
 	if (lp5521_led_tag_status == 2)
 		lp5521_led_tag_status = DUAL_COLOR_BLINK;

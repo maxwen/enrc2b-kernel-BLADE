@@ -117,7 +117,7 @@ static int enrc2b_wifi_reset(int on);
 //static int enrc2b_wifi_set_carddetect(int val);
 int enrc2b_wifi_power(int on);
 int enrc2b_wifi_set_carddetect(int val);
-int enrc2b_wifi_status(struct device *dev);
+unsigned int enrc2b_wifi_status(struct device *dev);
 static int enrc2b_wifi_cd;		/* WIFI virtual 'card detect' status */
 /* HTC_WIFI_END */
 
@@ -246,7 +246,7 @@ int enrc2b_wifi_suspend_gpio(void)
 	return 0;
 }
 
-int enrc2b_wifi_resume_gpio(void)
+void enrc2b_wifi_resume_gpio(void)
 {
 	printk("[WLAN] restore SDIO pins config by resume\n");
 	
@@ -262,8 +262,6 @@ int enrc2b_wifi_resume_gpio(void)
 	tegra_gpio_disable(WIFI_SDIO_D1);
 	tegra_gpio_disable(WIFI_SDIO_D2);
 	tegra_gpio_disable(WIFI_SDIO_D3);
-	
-	return 0;
 }
 
 // No uSD
@@ -363,7 +361,7 @@ static int enrc2b_wifi_status_register(
 }
 
 /* HTC_WIFI_START */
-int enrc2b_wifi_status(struct device *dev)
+unsigned int enrc2b_wifi_status(struct device *dev)
 {
 	return enrc2b_wifi_cd;
 }
@@ -389,6 +387,7 @@ int enrc2b_wifi_sdclk (int enable){
         tegra_gpio_enable(WIFI_SDIO_CLK);
         gpio_direction_output(WIFI_SDIO_CLK, 0);
     }
+    return 0;
 }
 
 //static int enrc2b_wifi_power(int on)
@@ -458,13 +457,11 @@ static int __init enrc2b_wifi_init(void)
 
 	return 0;
 }
-extern bool wifi_isEvitarel;
 
 int __init enrc2b_sdhci_init(void)
 {
 	platform_device_register(&tegra_sdhci_device3);
 	platform_device_register(&tegra_sdhci_device2);
-	wifi_isEvitarel = false;
 	enrc2b_wifi_init();
 	return 0;
 }

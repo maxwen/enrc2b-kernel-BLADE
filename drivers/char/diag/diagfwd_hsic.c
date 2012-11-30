@@ -38,6 +38,7 @@ static void diag_read_hsic_work_fn(struct work_struct *work)
 {
 	static int error_count = 0,timer_count = 0;
 	unsigned long diff;
+	int err;
 
 	if (!driver->hsic_ch) {
 		pr_err("DIAG in %s: driver->hsic_ch == 0\n", __func__);
@@ -64,7 +65,6 @@ static void diag_read_hsic_work_fn(struct work_struct *work)
 		 * asynchronous.  Once the read is complete the read
 		 * callback function will be called.
 		 */
-		int err;
 		driver->in_busy_hsic_read = 1;
 		APPEND_DEBUG('i');
 		pr_debug("diag: read from HSIC\n");

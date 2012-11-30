@@ -2400,6 +2400,7 @@ int uhsic_phy_remove(struct tegra_usb_phy *phy)
 		phy->phy_clk_on = true;
 		uhsic_phy_disable_pmc_bus_ctrl(phy);
 	}
+    return 0;
 }
 EXPORT_SYMBOL(uhsic_phy_remove);
 

@@ -86,8 +86,7 @@ static int polling = 1;
 
 struct nct1008_data *get_pwr_data()
 {
-	if (pwr_data != NULL)
-		return pwr_data;
+	return pwr_data;
 }
 
 static int conv_period_ms_table[] =
@@ -548,7 +547,8 @@ static void nct1008_work_func(struct work_struct *work)
 
 static void nct1008_polling_func(struct work_struct *work)
 {
-	struct nct1008_data *data = container_of(work, struct nct1008_data,
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct nct1008_data *data = container_of(dwork, struct nct1008_data,
 						polling_work);
 	struct nct1008_platform_data *pdata = data->client->dev.platform_data;
 	u8 temp_ext_lo;
@@ -590,7 +590,8 @@ error:
 
 static void nct1008_read_temp_func(struct work_struct *work)
 {
-	struct nct1008_data *data = container_of(work, struct nct1008_data,
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct nct1008_data *data = container_of(dwork, struct nct1008_data,
 						read_temp_work);
 	struct nct1008_platform_data *pdata = data->client->dev.platform_data;
 	u8 temp_ext_lo;

@@ -1693,7 +1693,7 @@ static int acm_resume(struct usb_interface *intf)
 			__func__, acm->minor, acm->susp_count);
 		return 0;
 	} else {
-		pr_info(MODULE_NAME": %s ttyACM%d resuming.....\n",
+		pr_info(MODULE_NAME": %s ttyACM%d resuming..... %d\n",
 			__func__, acm->minor, acm->susp_count);
 	}
 

@@ -674,7 +674,7 @@ static int __devexit ina230_remove(struct i2c_client *client)
 }
 
 
-static int ina230_suspend(struct i2c_client *client)
+static int ina230_suspend(struct i2c_client *client, pm_message_t mesg)
 {
 	printk(KERN_INFO "[BPC] ina230_suspend\n");
 	return power_down_ina230(client);

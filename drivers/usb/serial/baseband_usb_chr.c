@@ -407,7 +407,6 @@ static ssize_t baseband_ipc_file_read(struct baseband_ipc *ipc,
 	}
 
 	/* acquire rx buffer semaphores */
-retry:
 	if (down_interruptible(&ipc->buf_sem)) {
 		pr_err("baseband_ipc_file_read - "
 			"cannot acquire buffer semaphore\n");
@@ -1338,7 +1337,8 @@ static struct baseband_usb *baseband_usb_open(unsigned int vid,
 	err = baseband_usb_chr_rx_urb_submit(usb);
 	if (err < 0) {
 		pr_err("submit rx failed - err %d\n", err);
-		return -ENODEV;
+		usb_free_urb(urb);
+		goto error_exit;
 	}
 
 	chrlog4("baseband_usb_open }\n");

@@ -1808,7 +1808,7 @@ int autosuspend_check(struct usb_device *udev)
 				if (!driver->reset_resume ||
 						intf->needs_remote_wakeup) {
 					//HTC_DBG
-					dev_err(&intf->dev, "%s: EOPNOTSUPP, reset_resume %d, needs_remote_wakeup %d\n", __func__, driver->reset_resume, intf->needs_remote_wakeup);
+					dev_err(&intf->dev, "%s: EOPNOTSUPP, reset_resume %p, needs_remote_wakeup %d\n", __func__, driver->reset_resume, intf->needs_remote_wakeup);
 					return -EOPNOTSUPP;
 				}
 			}

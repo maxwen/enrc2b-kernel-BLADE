@@ -1453,34 +1453,31 @@ static int __init enrc2b_touch_init(void)
 	return retval;
 }
 
-static int enrc2b_usb_hsic_postsupend(void)
+static void enrc2b_usb_hsic_postsupend(void)
 {
 	pr_debug("%s\n", __func__);
 #ifdef CONFIG_TEGRA_BB_XMM_POWER
 	baseband_xmm_set_power_status(BBXMM_PS_L2);
 #endif
-	return 0;
 }
 
-static int enrc2b_usb_hsic_preresume(void)
+static void enrc2b_usb_hsic_preresume(void)
 {
 	pr_debug("%s\n", __func__);
 #ifdef CONFIG_TEGRA_BB_XMM_POWER
 	baseband_xmm_set_power_status(BBXMM_PS_L2TOL0);
 #endif
-	return 0;
 }
 
-static int enrc2b_usb_hsic_phy_ready(void)
+static void enrc2b_usb_hsic_phy_ready(void)
 {
 	pr_debug("%s\n", __func__);
 #ifdef CONFIG_TEGRA_BB_XMM_POWER
 	baseband_xmm_set_power_status(BBXMM_PS_L0);
 #endif
-	return 0;
 }
 
-static int enrc2b_usb_hsic_phy_off(void)
+static void enrc2b_usb_hsic_phy_off(void)
 {
 	pr_debug("%s\n", __func__);
 #ifdef CONFIG_TEGRA_BB_XMM_POWER
@@ -1490,7 +1487,6 @@ static int enrc2b_usb_hsic_phy_off(void)
 	baseband_xmm_set_power_status(BBXMM_PS_L3);
 #endif
 #endif
-	return 0;
 }
 
 static struct tegra_usb_phy_platform_ops hsic_xmm_plat_ops = {
@@ -2276,7 +2272,8 @@ static struct i2c_board_info i2c_mhl_sii_info[] =
 static void __init enrc2b_init(void)
 {
 	struct kobject *properties_kobj;
-
+	struct proc_dir_entry* proc;
+    int rc = 0;
 	tegra_thermal_init(&thermal_data,
 				throttle_list,
 				ARRAY_SIZE(throttle_list));
@@ -2313,8 +2310,11 @@ static void __init enrc2b_init(void)
 		printk(KERN_WARNING "[KEY]%s: register reset key fail\n", __func__);
         properties_kobj = kobject_create_and_add("board_properties", NULL);
 	if (properties_kobj) {
-		sysfs_create_group(properties_kobj, &Aproj_properties_attr_group_XC);
+		rc = sysfs_create_group(properties_kobj, &Aproj_properties_attr_group_XC);
 	}
+    if (!properties_kobj || rc)
+        pr_err("failed to create board_properties\n");
+
 	enrc2b_audio_init();
 	enrc2b_gps_init();
 	enrc2b_baseband_init();
@@ -2333,7 +2333,6 @@ static void __init enrc2b_init(void)
 #endif
 	config_tegra_usb_reset_wdt_gpios();
 	//enrc2b_nfc_init();
-	struct proc_dir_entry* proc;
 	proc = create_proc_read_entry("dying_processes", 0, NULL, dying_processors_read_proc, NULL);
 	if (!proc)
 		printk(KERN_ERR"Create /proc/dying_processes FAILED!\n");

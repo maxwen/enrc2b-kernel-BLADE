@@ -53,7 +53,7 @@ unsigned long last_key_jiffies = 0;
 unsigned long unstable_jiffies = 0.02 * HZ;
 unsigned long irq_delay = 0.010 * HZ;
 
-static headset_uart_enable = 0;
+static int headset_uart_enable = 0;
 
 /*
  * This function should be called while caller thread holding a

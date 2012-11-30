@@ -71,7 +71,7 @@ struct tegra_otg_data {
 	bool clk_enabled;
 	bool interrupt_mode;
 	bool builtin_host;
-	bool suspended
+	bool suspended;
 };
 
 static struct tegra_otg_data *tegra_clone;
@@ -88,14 +88,13 @@ enum {
 };
 
 #if defined(CONFIG_CABLE_DETECT_ACCESSORY)
-extern void cable_detection_queue_recovery_host_work(time);
+extern void cable_detection_queue_recovery_host_work(int time);
 #endif
 
 #if (defined(CONFIG_USB_OTG) && defined(CONFIG_USB_OTG_HOST))
-void usb_host_status_notifier_func(int isEnable)
+void usb_host_status_notifier_func(bool cable_in)
 {
-	unsigned long flags, val;
-	if (isEnable) {
+	if (cable_in) {
 		enable_interrupt(tegra_clone, false);
 		tegra_change_otg_state(tegra_clone, OTG_STATE_A_SUSPEND);
 		tegra_change_otg_state(tegra_clone, OTG_STATE_A_HOST);
@@ -238,7 +237,7 @@ static void dump_otg_state(void)
 	status = tegra_clone->int_status;
 
 	/* Debug prints */
-	USBH_INFO("%s(%d) status = 0x%x\n", __func__, __LINE__, status);
+	USBH_INFO("%s(%d) status = %ld\n", __func__, __LINE__, status);
 	if ((status & USB_ID_INT_STATUS) &&
 			(status & USB_VBUS_INT_STATUS))
 		USBH_INFO("%s(%d) got vbus & id interrupt\n", __func__, __LINE__);
@@ -252,9 +251,9 @@ static void dump_otg_state(void)
 	spin_lock_irqsave(&tegra_clone->lock, flags);
 	val = otg_readl(tegra_clone, USB_PHY_WAKEUP);
 	spin_unlock_irqrestore(&tegra_clone->lock, flags);
-	USBH_INFO("%s(%d) USB_PHY_WAKEUP val = 0x%x\n", __func__, __LINE__, val);
+	USBH_INFO("%s(%d) USB_PHY_WAKEUP val = %ld\n", __func__, __LINE__, val);
 	if (val & (USB_VBUS_INT_EN | USB_ID_INT_EN)) {
-		USBH_INFO("%s(%d) PHY_WAKEUP = 0x%x\n", __func__, __LINE__, val);
+		USBH_INFO("%s(%d) PHY_WAKEUP = %ld\n", __func__, __LINE__, val);
 	}
 
 
@@ -683,7 +682,7 @@ static void tegra_otg_resume(struct device *dev)
 	DBG("%s(%d) END\n", __func__, __LINE__);
 }
 
-static void tegra_otg_shutdown(struct device *dev)
+static void tegra_otg_shutdown(struct platform_device *pdev)
 {
 	DBG("%s(%d) BEGIN\n", __func__, __LINE__);
 	struct otg_transceiver *otg = &tegra_clone->otg;

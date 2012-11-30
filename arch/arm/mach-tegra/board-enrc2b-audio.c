@@ -195,5 +195,7 @@ int __init enrc2b_audio_codec_init(struct htc_asoc_platform_data *pdata)
 	aic3008_power_ctl->i2s_control = aic3008_i2s_control;
 	aic3008_power_ctl->headset_vol_control = aic3008_hs_vol_control;
 	aic3008_power_ctl->modem_coredump = aic3008_modem_coredump;
+    
+    return 0;
 }
 

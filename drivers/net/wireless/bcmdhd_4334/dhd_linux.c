@@ -3482,7 +3482,6 @@ dhd_change_nvram_path(void)
 	}
 return 0;
 }
-extern bool wifi_isEvitarel;
 /*HTC_CSP_END*/
 
 dhd_pub_t *
@@ -3509,10 +3508,6 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 				strcpy(fw_path, fwb2_path);
 		}
 	}
-	/*HTC_CSP_START*/
-	if (wifi_isEvitarel)
-		dhd_change_nvram_path();
-	/*HTC_CPS_END*/
 	if (strlen(nvram_path) != 0) {
 		strncpy(nv_path, nvram_path, sizeof(nv_path) -1);
 		nv_path[sizeof(nv_path) -1] = '\0';

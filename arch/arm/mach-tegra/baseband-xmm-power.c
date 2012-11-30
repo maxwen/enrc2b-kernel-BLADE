@@ -315,6 +315,7 @@ int trigger_radio_fatal_get_coredump(char *reason)
 #else
 	pr_info("Didn't trigger fatal for better user experience");
 #endif
+    return 0;
 }
 EXPORT_SYMBOL_GPL(trigger_radio_fatal_get_coredump);
 
@@ -339,6 +340,7 @@ int trigger_silent_reset(char *reason)
 	{
 		pr_err("%s: kobj is NULL.", __func__);
 	}
+    return 0;
 }
 EXPORT_SYMBOL_GPL(trigger_silent_reset);
 
@@ -458,8 +460,8 @@ int gpio_request_only_one(unsigned gpio,const char *label)
 	int err=0;
 
 	err = gpio_request(gpio, label);
-	if (err)
-		return err;
+
+	return err;
 }
 
 
@@ -496,6 +498,7 @@ static int gpio_o_l_uart(int gpio, char* name)
 	}
 	tegra_gpio_enable(gpio);
 	gpio_export(gpio, true);
+    return ret;
 }
 
 void modem_on_for_uart_config()

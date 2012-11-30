@@ -1030,7 +1030,7 @@ static long mtp_ioctl(struct file *fp, unsigned code, unsigned long value)
 	}
 	case MTP_SET_CPU_PERF:
 	{
-		pr_info("[USB] MTP_SET_CPU_PERF(%d)\n", value);
+		pr_info("[USB] MTP_SET_CPU_PERF(%ld)\n", value);
 		mtp_qos_enable(value);
 		break;
 	}

@@ -1108,9 +1108,9 @@ void clear_usb_reset_wdt()
 	struct cable_detect_info *pInfo = &the_cable_info;
 	if (pInfo->reset_en_clr_gpio > 0) {
 		if (gpio_direction_output(pInfo->reset_en_clr_gpio, 0) < 0)
-			pr_info("[CABLE] %s: GPIO RESET_EN_CLR(%d) dir NG %d\n", __func__,pInfo->reset_en_clr_gpio);
+			pr_info("[CABLE] %s: GPIO RESET_EN_CLR(%d) dir NG\n", __func__,pInfo->reset_en_clr_gpio);
 		else
-			pr_info("[CABLE] %s: GPIO RESET_EN_CLR(%d) O(L) ok %d\n", __func__,pInfo->reset_en_clr_gpio);
+			pr_info("[CABLE] %s: GPIO RESET_EN_CLR(%d) O(L) ok\n", __func__,pInfo->reset_en_clr_gpio);
 	}
 }
 void enable_usb_reset_wdt(struct work_struct *w)

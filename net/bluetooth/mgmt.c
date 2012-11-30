@@ -1503,7 +1503,6 @@ static int cancel_resolve_name(struct sock *sk, u16 index, unsigned char *data, 
 		mgmt_pending_remove(cmd);
 	*/
 
-failed:
 	hci_dev_unlock_bh(hdev);
 	hci_dev_put(hdev);
 
