@@ -2025,14 +2025,15 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_SWEEP2WAKE
 						//left->right
 						if ((ts->finger_count == 1) && (scr_suspended == true) && (s2w_switch > 0)) {
+              // 30 - 270 - 660 - 880
 							prevx = 30;
-							nextx = 270;
+							nextx = 162;
 							if ((barrier[0] == true) ||
 							   ((finger_data[i][0] > prevx) &&
 							    (finger_data[i][0] < nextx) &&
 							    (finger_data[i][1] > 1780))) {
 								prevx = nextx;
-								nextx = 660;
+								nextx = 396;
 								barrier[0] = true;
 								if ((barrier[1] == true) ||
 								   ((finger_data[i][0] > prevx) &&
@@ -2042,7 +2043,7 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 									barrier[1] = true;
 									if ((finger_data[i][0] > prevx) &&
 									    (finger_data[i][1] > 1780)) {
-										if (finger_data[i][0] > 880) {
+										if (finger_data[i][0] > 528) {
 											if (exec_count) {
 												printk(KERN_INFO "[TP] [sweep2wake]: ON");
 												mode=true;
@@ -2056,14 +2057,16 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 							}
 						//right->left
 						} else if ((ts->finger_count == 1) && (scr_suspended == false) && (s2w_switch > 0)) {
+              // 1100 - 968 - 734 - 602
+              // 30 - 270 - 660 - 880
 							prevx = 1100;
-							nextx = 880;
+							nextx = 968;
 							if ((barrier[0] == true) ||
 							   ((finger_data[i][0] < prevx) &&
 							    (finger_data[i][0] > nextx) &&
 							    (finger_data[i][1] > 1780))) {
 								prevx = nextx;
-								nextx = 500;
+								nextx = 734;
 								barrier[0] = true;
 								if ((barrier[1] == true) ||
 								   ((finger_data[i][0] < prevx) &&
@@ -2073,7 +2076,7 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 									barrier[1] = true;
 									if ((finger_data[i][0] < prevx) &&
 									    (finger_data[i][1] > 1780)) {
-										if (finger_data[i][0] < 270) {
+										if (finger_data[i][0] < 602) {
 											if (exec_count) {
 												printk(KERN_INFO "[TP] [sweep2wake]: OFF");
 												mode=false;
