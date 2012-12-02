@@ -395,6 +395,7 @@ try_preserve_large_page(pte_t *kpte, unsigned long address,
 	if (numpages < cpa->numpages)
 		cpa->numpages = numpages;
 
+	old_pte = *kpte;
 	old_prot = new_prot = req_prot = pmd_to_pte_pgprot(pmd_val(*kpte),
 						&ext_prot);
 
