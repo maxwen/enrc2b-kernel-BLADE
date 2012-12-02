@@ -33,7 +33,7 @@
 #define ADB_ERR_PAYLOAD_STUCK       _IOW(ADB_IOCTL_MAGIC, 0, unsigned)
 #define ADB_ATS_ENABLE       		_IOR(ADB_IOCTL_MAGIC, 1, unsigned)
 
-#define ADB_BULK_BUFFER_SIZE           4096
+#define ADB_BULK_BUFFER_SIZE           131072
 
 /* number of tx requests to allocate */
 #define TX_REQ_MAX 4
