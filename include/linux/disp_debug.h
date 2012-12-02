@@ -54,7 +54,7 @@
 	if (reg == NULL) { \
 		reg = regulator_get(NULL, name); \
 		if (IS_ERR_OR_NULL(reg)) { \
-			printk(KERN_ERR "[DISP][ERR] %s(%d) Could not get regulator %d\r\n", __func__, __LINE__, name); \
+			printk(KERN_ERR "[DISP][ERR] %s(%d) Could not get regulator %s\r\n", __func__, __LINE__, name); \
 			reg = NULL; \
 			goto failed; \
 		} \
