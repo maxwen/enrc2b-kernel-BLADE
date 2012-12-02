@@ -1646,6 +1646,7 @@ static int tegra3_pll_clk_set_rate(struct clk *c, unsigned long rate)
 {
 	u32 val, p_div, old_base;
 	unsigned long input_rate;
+	unsigned long flags = 0;
 	const struct clk_pll_freq_table *sel;
 	struct clk_pll_freq_table cfg;
 
@@ -1765,7 +1766,6 @@ static int tegra3_pll_clk_set_rate(struct clk *c, unsigned long rate)
 	}
 	MF_DEBUG("00000001");
 
-	unsigned long flags;
 	if (c->reg == 0xd0)
 		spin_lock_irqsave(&dc_spinlock_clk, flags);
 	clk_writel(val, c->reg + PLL_BASE);
