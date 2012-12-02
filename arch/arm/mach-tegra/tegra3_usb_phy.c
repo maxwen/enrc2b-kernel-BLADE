@@ -2099,7 +2099,7 @@ static void uhsic_phy_restore_start(struct tegra_usb_phy *phy)
 		pr_info("%s: uhsic remote wakeup detected\n", __func__);
 	} else {
 		if (UHSIC_WALK_PTR_VAL & val)
-			pr_err("%s: PMC remote_wakeup register was set. <%d>", __func__, val);
+			pr_err("%s: PMC remote_wakeup register was set. <%ld>", __func__, val);
 
 		if (!((UHSIC_STROBE_VAL_P0 | UHSIC_DATA_VAL_P0) & val)) {
 				uhsic_phy_disable_pmc_bus_ctrl(phy);
