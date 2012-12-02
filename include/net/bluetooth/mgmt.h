@@ -69,10 +69,6 @@ struct mgmt_mode {
 #define MGMT_OP_SET_POWERED		0x0005
 
 #define MGMT_OP_SET_DISCOVERABLE	0x0006
-struct mgmt_cp_set_discoverable {
-	__u8 val;
-	__u16 timeout;
-} __packed;
 
 #define MGMT_OP_SET_CONNECTABLE		0x0007
 
@@ -94,28 +90,34 @@ struct mgmt_cp_set_dev_class {
 	__u8 major;
 	__u8 minor;
 } __packed;
+#define MGMT_MAJOR_CLASS_MASK		0x1F
+#define MGMT_MAJOR_CLASS_LIMITED	0x20
 
 #define MGMT_OP_SET_SERVICE_CACHE	0x000C
 struct mgmt_cp_set_service_cache {
 	__u8 enable;
 } __packed;
 
-struct mgmt_link_key_info {
+struct mgmt_key_info {
 	bdaddr_t bdaddr;
-	u8 type;
+	u8 addr_type;
+	u8 key_type;
 	u8 val[16];
 	u8 pin_len;
+	u8 auth;
+	u8 dlen;
+	u8 data[10];
 } __packed;
 
-#define MGMT_OP_LOAD_LINK_KEYS		0x000D
-struct mgmt_cp_load_link_keys {
+#define MGMT_OP_LOAD_KEYS		0x000D
+struct mgmt_cp_load_keys {
 	__u8 debug_keys;
 	__le16 key_count;
-	struct mgmt_link_key_info keys[0];
+	struct mgmt_key_info keys[0];
 } __packed;
 
-#define MGMT_OP_REMOVE_KEYS		0x000E
-struct mgmt_cp_remove_keys {
+#define MGMT_OP_REMOVE_KEY		0x000E
+struct mgmt_cp_remove_key {
 	bdaddr_t bdaddr;
 	__u8 disconnect;
 } __packed;
@@ -128,20 +130,10 @@ struct mgmt_rp_disconnect {
 	bdaddr_t bdaddr;
 } __packed;
 
-#define MGMT_ADDR_BREDR			0x00
-#define MGMT_ADDR_LE			0x01
-#define MGMT_ADDR_BREDR_LE		0x02
-#define MGMT_ADDR_INVALID		0xff
-
-struct mgmt_addr_info {
-	bdaddr_t bdaddr;
-	__u8 type;
-} __packed;
-
 #define MGMT_OP_GET_CONNECTIONS		0x0010
 struct mgmt_rp_get_connections {
 	__le16 conn_count;
-	struct mgmt_addr_info addr[0];
+	bdaddr_t conn[0];
 } __packed;
 
 #define MGMT_OP_PIN_CODE_REPLY		0x0011
@@ -213,49 +205,45 @@ struct mgmt_cp_remove_remote_oob_data {
 
 #define MGMT_OP_STOP_DISCOVERY		0x001C
 
-#define MGMT_OP_BLOCK_DEVICE		0x001D
-struct mgmt_cp_block_device {
+#define MGMT_OP_USER_PASSKEY_REPLY	0x001D
+struct mgmt_cp_user_passkey_reply {
 	bdaddr_t bdaddr;
+	__le32 passkey;
 } __packed;
 
-#define MGMT_OP_UNBLOCK_DEVICE		0x001E
-struct mgmt_cp_unblock_device {
-	bdaddr_t bdaddr;
-} __packed;
-
-#define MGMT_OP_SET_FAST_CONNECTABLE	0x001F
-struct mgmt_cp_set_fast_connectable {
-	__u8 enable;
-} __packed;
-
-#define MGMT_OP_ENCRYPT_LINK		0x0020
-struct mgmt_cp_encrypt_link {
-	bdaddr_t bdaddr;
-} __packed;
-struct mgmt_rp_encrypt_link {
-	bdaddr_t bdaddr;
-	__u8 status;
-} __packed;
-
-#define MGMT_OP_RESOLVE_NAME		0x0021
-#define MGMT_OP_CANCEL_RESOLVE_NAME 0x0022
+#define MGMT_OP_RESOLVE_NAME		0x001E
 struct mgmt_cp_resolve_name {
 	bdaddr_t bdaddr;
 } __packed;
 
-#define MGMT_OP_READ_RSSI_LEVEL		0x00F1
-struct mgmt_cp_read_rssi_level {
+#define MGMT_OP_SET_LIMIT_DISCOVERABLE	0x001F
+
+#define MGMT_OP_SET_CONNECTION_PARAMS	0x0020
+struct mgmt_cp_set_connection_params {
 	bdaddr_t bdaddr;
-} __packed;
-struct mgmt_rp_read_rssi_level {
-	bdaddr_t bdaddr;
-	__s8 rssi;
+	__le16 interval_min;
+	__le16 interval_max;
+	__le16 slave_latency;
+	__le16 timeout_multiplier;
 } __packed;
 
-#define MGMT_EV_REMOTE_FEATURES		0x00F2
-struct mgmt_ev_remote_features {
+#define MGMT_OP_ENCRYPT_LINK		0x0021
+struct mgmt_cp_encrypt_link {
 	bdaddr_t bdaddr;
-	uint8_t features[8];
+	__u8 enable;
+} __packed;
+
+#define MGMT_OP_SET_RSSI_REPORTER		0x0022
+struct mgmt_cp_set_rssi_reporter {
+	bdaddr_t	bdaddr;
+	__s8		rssi_threshold;
+	__le16	interval;
+	__u8		updateOnThreshExceed;
+} __packed;
+
+#define MGMT_OP_UNSET_RSSI_REPORTER		0x0023
+struct mgmt_cp_unset_rssi_reporter {
+	bdaddr_t	bdaddr;
 } __packed;
 
 #define MGMT_EV_CMD_COMPLETE		0x0001
@@ -287,19 +275,26 @@ struct mgmt_ev_controller_error {
 
 #define MGMT_EV_PAIRABLE		0x0009
 
-#define MGMT_EV_NEW_LINK_KEY		0x000A
-struct mgmt_ev_new_link_key {
+#define MGMT_EV_NEW_KEY			0x000A
+struct mgmt_ev_new_key {
 	__u8 store_hint;
-	struct mgmt_link_key_info key;
+	struct mgmt_key_info key;
 } __packed;
 
 #define MGMT_EV_CONNECTED		0x000B
+struct mgmt_ev_connected {
+	bdaddr_t bdaddr;
+	__u8 le;
+} __packed;
 
 #define MGMT_EV_DISCONNECTED		0x000C
+struct mgmt_ev_disconnected {
+	bdaddr_t bdaddr;
+} __packed;
 
 #define MGMT_EV_CONNECT_FAILED		0x000D
 struct mgmt_ev_connect_failed {
-	struct mgmt_addr_info addr;
+	bdaddr_t bdaddr;
 	__u8 status;
 } __packed;
 
@@ -312,7 +307,8 @@ struct mgmt_ev_pin_code_request {
 #define MGMT_EV_USER_CONFIRM_REQUEST	0x000F
 struct mgmt_ev_user_confirm_request {
 	bdaddr_t bdaddr;
-	__u8 confirm_hint;
+	__u8 auto_confirm;
+	__u8 event;
 	__le32 value;
 } __packed;
 
@@ -329,33 +325,57 @@ struct mgmt_ev_local_name_changed {
 
 #define MGMT_EV_DEVICE_FOUND		0x0012
 struct mgmt_ev_device_found {
-	struct mgmt_addr_info addr;
+	bdaddr_t bdaddr;
 	__u8 dev_class[3];
 	__s8 rssi;
+	__u8 le;
+	__u8 type;
 	__u8 eir[HCI_MAX_EIR_LENGTH];
 } __packed;
 
 #define MGMT_EV_REMOTE_NAME		0x0013
 struct mgmt_ev_remote_name {
 	bdaddr_t bdaddr;
-	__u8 name[MGMT_MAX_NAME_LENGTH];
 	__u8 status;
+	__u8 name[MGMT_MAX_NAME_LENGTH];
 } __packed;
 
 #define MGMT_EV_DISCOVERING		0x0014
 
-#define MGMT_EV_DEVICE_BLOCKED		0x0015
-struct mgmt_ev_device_blocked {
+#define MGMT_EV_USER_PASSKEY_REQUEST	0x0015
+struct mgmt_ev_user_passkey_request {
 	bdaddr_t bdaddr;
 } __packed;
 
-#define MGMT_EV_DEVICE_UNBLOCKED	0x0016
-struct mgmt_ev_device_unblocked {
+#define MGMT_EV_ENCRYPT_CHANGE		0x0016
+struct mgmt_ev_encrypt_change {
 	bdaddr_t bdaddr;
+	__u8 status;
 } __packed;
 
-#define MGMT_EV_REMOTE_CLASS     0x0017
+
+#define MGMT_EV_REMOTE_CLASS		0x0017
 struct mgmt_ev_remote_class {
-    bdaddr_t bdaddr;
-    __u8 dev_class[3];
+	bdaddr_t bdaddr;
+	__u8 dev_class[3];
+} __packed;
+
+#define MGMT_EV_REMOTE_VERSION		0x0018
+struct mgmt_ev_remote_version {
+	bdaddr_t bdaddr;
+	__u8	lmp_ver;
+	__u16	manufacturer;
+	__u16	lmp_subver;
+} __packed;
+
+#define MGMT_EV_REMOTE_FEATURES		0x0019
+struct mgmt_ev_remote_features {
+	bdaddr_t bdaddr;
+	uint8_t features[8];
+} __packed;
+
+#define MGMT_EV_RSSI_UPDATE		0x0020
+struct mgmt_ev_rssi_update {
+	bdaddr_t	bdaddr;
+	__s8			rssi;
 } __packed;
