@@ -298,7 +298,7 @@ struct mtp_device_status {
 /* temporary variable used between mtp_open() and mtp_gadget_bind() */
 static struct mtp_dev *_mtp_dev;
 
-static void mtp_setup_perflock(struct work_struct *data)
+static void mtp_setup_perflock()
 {
 	struct mtp_dev *dev = _mtp_dev;
 

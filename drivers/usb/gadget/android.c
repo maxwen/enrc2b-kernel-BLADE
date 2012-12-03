@@ -345,7 +345,7 @@ static void android_work(struct work_struct *data)
 	if (atomic_read(&connect2pc) != dev->sw_connected) {
 		atomic_set(&connect2pc, dev->sw_connected);
 		switch_set_state(&cdev->sw_connect2pc, atomic_read(&connect2pc) ? 1 : 0);
-		USB_INFO("set usb_connect2pc = %d\n", connect2pc);
+		USB_INFO("set usb_connect2pc = %d\n", atomic_read(&connect2pc) ? 1 : 0);
 		if (!atomic_read(&connect2pc)) {
 			USB_INFO("%s: OS_NOT_YET\n", __func__);
 			os_type = OS_NOT_YET;
@@ -934,7 +934,7 @@ static int mtp_function_init(struct android_usb_function *f, struct usb_composit
 	struct android_dev *dev = _android_dev;
 	int ret;
 	ret = mtp_setup();
-	mtp_setup_perflock(dev->pdata->mtp_perf_lock_on?true:false);
+	mtp_setup_perflock();
 	return ret;
 }
 
