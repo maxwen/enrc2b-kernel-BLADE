@@ -46,7 +46,7 @@
 
 #undef AUDIO_DEBUG_BEEP
 #undef AUDIO_DEBUG
-#define AUDIO_DEBUG 0
+#define AUDIO_DEBUG 1
 
 #if AUDIO_DEBUG
 #define AUDIO_DEBUG_BEEP 1
@@ -529,7 +529,7 @@ static void aic3008_sw_reset(struct snd_soc_codec *codec)
 	aic3008_config(CODEC_SW_RESET, ARRAY_SIZE(CODEC_SW_RESET));
 }
 
-static int aic3008_volatile_register(unsigned int reg)
+static int aic3008_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
 {
 	/* check which registers are volatile on the T30S side */
 	return 0;
@@ -883,6 +883,8 @@ static int aic3008_set_config(int config_tbl, int idx, int en)
 		return -EFAULT;
 	}
 
+	AUD_INFO("%s: %d %d %d", __func__, config_tbl, idx, en);
+
 	mutex_lock(&lock);
 /*	spi_aic3008_prevent_sleep(); */
 
@@ -966,7 +968,12 @@ static int aic3008_set_config(int config_tbl, int idx, int en)
 		}
 		break;
 	case AIC3008_IO_CONFIG_MEDIA:
-		if(idx == 49)
+		if(idx == 20)
+		{
+				mutex_unlock(&lock);
+	            return rc;
+		}
+		else if(idx == 49)
 		{
 			AUD_DBG("[DSP] idx = %d, Mic Mute!!", idx);
 			if (aic3008_tx_mode == UPLINK_BT_AP ||
@@ -1100,11 +1107,16 @@ static int aic3008_set_config(int config_tbl, int idx, int en)
 
 		/* i2s config */
 		if (aic3008_power_ctl->i2s_switch) {
+// maxwen TODO
+#if 0
 			if (aic3008_dspindex[idx] != -1) {
 				aic3008_power_ctl->i2s_control(aic3008_dspindex[idx]);
 			} else {
+#endif
 				AUD_ERR("[DSP] AIC3008_IO_CONFIG_MEDIA: unknown dsp index %d\n", idx);
+#if 0
 			}
+#endif
 		}
 
 		if (aic3008_minidsp == NULL) {
@@ -1249,8 +1261,12 @@ static long aic3008_ioctl(struct file *file, unsigned int cmd,
 	switch (cmd) {
 	/* first IO command from HAL */
 	case AIC3008_IO_SET_TX_PARAM:
+	    AUD_INFO("AIC3008_IO_SET_TX_PARAM\n");
 	/* second IO command from HAL */
 	case AIC3008_IO_SET_RX_PARAM:
+        if (cmd != AIC3008_IO_SET_TX_PARAM)
+	        AUD_INFO("AIC3008_IO_SET_RX_PARAM\n");
+
 		if (copy_from_user(&para, (void *) argc, sizeof(para))) {
 			AUD_ERR("failed on copy_from_user\n");
 			ret = -EFAULT;
@@ -1290,7 +1306,9 @@ static long aic3008_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	/* third io command from HAL */
+    case 0x40047320:
 	case AIC3008_IO_SET_DSP_PARAM:
+	    AUD_INFO("AIC3008_IO_SET_DSP_PARAM\n");
 		if (copy_from_user(&para, (void *) argc, sizeof(para))) {
 			AUD_ERR("failed on copy_from_user\n");
 			ret = -EFAULT;
@@ -1320,10 +1338,12 @@ static long aic3008_ioctl(struct file *file, unsigned int cmd,
 
 		AUD_INFO("update dsp table(%d, %d) successfully\n",
 				para.row_num, para.col_num);
+
 		break;
 
 	/* fourth io command from HAL */
 	case AIC3008_IO_SET_DSP_INDEX:
+	    AUD_INFO("AIC3008_IO_SET_DSP_INDEX\n");
 		if (copy_from_user(&para, (void *) argc, sizeof(para))) {
 			AUD_ERR("failed on copy_from_user\n");
 			ret = -EFAULT;
@@ -1357,8 +1377,14 @@ static long aic3008_ioctl(struct file *file, unsigned int cmd,
 
 	/* these IO commands are called to set path */
 	case AIC3008_IO_CONFIG_TX:
+	    AUD_INFO("AIC3008_IO_CONFIG_TX\n");
 	case AIC3008_IO_CONFIG_RX:
+        if (cmd != AIC3008_IO_CONFIG_TX)
+	        AUD_INFO("AIC3008_IO_CONFIG_RX\n");
 	case AIC3008_IO_CONFIG_MEDIA:
+        if (cmd != AIC3008_IO_CONFIG_TX && cmd !=AIC3008_IO_CONFIG_RX)
+	        AUD_INFO("AIC3008_IO_CONFIG_MEDIA\n");
+
 		if (copy_from_user(&i, (void *) argc, sizeof(int))) {
 			AUD_ERR("failed on copy_from_user\n");
 			ret = -EFAULT;
@@ -1448,7 +1474,7 @@ static long aic3008_ioctl(struct file *file, unsigned int cmd,
 		AUD_INFO("len = %d", len);
 
 		for (i = 0; i < len; i++) {
-			AUD_INFO("{'%s', 0x%02X, 0x%02X},\n",
+			AUD_INFO("{'%d', 0x%02X, 0x%02X},\n",
 				aic3008_minidsp[aic3008_dsp_mode][i].act,
 				aic3008_minidsp[aic3008_dsp_mode][i].reg,
 				aic3008_minidsp[aic3008_dsp_mode][i].data);
