@@ -33,13 +33,13 @@ static struct kobj_attribute attrbute##_attr = {	\
 	.store	= attrbute##_store,			\
 }
 
-#define DEF_TARGET_FREQ (1700000)
-#define DEF_POKE_FREQ (1700000)
+#define DEF_TARGET_FREQ (760000)
+#define DEF_POKE_FREQ (1300000)
 #define DEF_POKE_MS (100)
 #define DEF_IDLE_MS (300)
 
 #ifndef CONFIG_POWER_SAVE_FREQ
-#define CONFIG_POWER_SAVE_FREQ (1300000)
+#define CONFIG_POWER_SAVE_FREQ (1150000)
 #endif
 unsigned int powersave_freq = CONFIG_POWER_SAVE_FREQ;
 
