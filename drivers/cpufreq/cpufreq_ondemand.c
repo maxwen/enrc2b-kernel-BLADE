@@ -41,26 +41,26 @@
  * It helps to keep variable names smaller, simpler
  */
 
-#define DEF_FREQUENCY_DOWN_DIFFERENTIAL		(10)
+#define DEF_FREQUENCY_DOWN_DIFFERENTIAL		(15)
 #define DEF_FREQUENCY_UP_THRESHOLD		(80)
-#define DEF_SAMPLING_DOWN_FACTOR		(1)
+#define DEF_SAMPLING_DOWN_FACTOR		(5)
 #define MAX_SAMPLING_DOWN_FACTOR		(100000)
-#define MICRO_FREQUENCY_DOWN_DIFFERENTIAL	(3)
-#define MICRO_FREQUENCY_UP_THRESHOLD		(95)
+#define MICRO_FREQUENCY_DOWN_DIFFERENTIAL	(5)
+#define MICRO_FREQUENCY_UP_THRESHOLD		(85)
 #define MICRO_FREQUENCY_MIN_SAMPLE_RATE		(10000)
-#define MIN_FREQUENCY_UP_THRESHOLD		(11)
-#define MAX_FREQUENCY_UP_THRESHOLD		(100)
-#define DEF_SAMPLING_RATE			(50000)
+#define MIN_FREQUENCY_UP_THRESHOLD		(25)
+#define MAX_FREQUENCY_UP_THRESHOLD		(85)
+#define DEF_SAMPLING_RATE			(30000)
 #define DEF_IO_IS_BUSY				(1)
-#define DEF_UI_DYNAMIC_SAMPLING_RATE		(30000)
-#define DEF_UI_COUNTER				(5)
-#define DEF_TWO_PHASE_FREQ			(1000000)
-#define DEF_TWO_PHASE_BOTTOM_FREQ   (340000)
-#define DEF_TWO_PHASE_GO_MAX_LOAD   (95)
-#define DEF_UX_LOADING              (30)
-#define DEF_UX_FREQ                 (0)
-#define DEF_UX_BOOST_THRESHOLD      (0)
-#define DEF_INPUT_BOOST_DURATION    (100000000)
+#define DEF_UI_DYNAMIC_SAMPLING_RATE		(20000)
+#define DEF_UI_COUNTER				(3)
+#define DEF_TWO_PHASE_FREQ			(340000)
+#define DEF_TWO_PHASE_BOTTOM_FREQ   (51000)
+#define DEF_TWO_PHASE_GO_MAX_LOAD   (90)
+#define DEF_UX_LOADING              (20)
+#define DEF_UX_FREQ                 (760000)
+#define DEF_UX_BOOST_THRESHOLD      (66)
+#define DEF_INPUT_BOOST_DURATION    (3000000)
 
 /*
  * The polling frequency of this governor depends on the capability of
@@ -327,6 +327,63 @@ show_one(ui_counter, ui_counter);
 show_one(ux_freq, ux.freq);
 show_one(ux_loading, ux.loading);
 show_one(ux_boost_threshold, ux.boost_threshold);
+
+/**
+ * update_sampling_rate - update sampling rate effective immediately if needed.
+ * @new_rate: new sampling rate
+ *
+ * If new rate is smaller than the old, simply updaing
+ * dbs_tuners_int.sampling_rate might not be appropriate. For example,
+ * if the original sampling_rate was 1 second and the requested new sampling
+ * rate is 10 ms because the user needs immediate reaction from ondemand
+ * governor, but not sure if higher frequency will be required or not,
+ * then, the governor may change the sampling rate too late; up to 1 second
+ * later. Thus, if we are reducing the sampling rate, we need to make the
+ * new value effective immediately.
+ */
+static void update_sampling_rate(unsigned int new_rate)
+{
+	int cpu;
+
+	dbs_tuners_ins.sampling_rate = new_rate
+				     = max(new_rate, min_sampling_rate);
+
+	for_each_online_cpu(cpu) {
+		struct cpufreq_policy *policy;
+		struct cpu_dbs_info_s *dbs_info;
+		unsigned long next_sampling, appointed_at;
+
+		policy = cpufreq_cpu_get(cpu);
+		if (!policy)
+			continue;
+		dbs_info = &per_cpu(od_cpu_dbs_info, policy->cpu);
+		cpufreq_cpu_put(policy);
+
+		mutex_lock(&dbs_info->timer_mutex);
+
+		if (!delayed_work_pending(&dbs_info->work)) {
+			mutex_unlock(&dbs_info->timer_mutex);
+			continue;
+		}
+
+		next_sampling  = jiffies + usecs_to_jiffies(new_rate);
+		appointed_at = dbs_info->work.timer.expires;
+
+
+		if (time_before(next_sampling, appointed_at)) {
+
+			mutex_unlock(&dbs_info->timer_mutex);
+			cancel_delayed_work_sync(&dbs_info->work);
+			mutex_lock(&dbs_info->timer_mutex);
+
+			schedule_delayed_work_on(dbs_info->cpu, &dbs_info->work,
+						 usecs_to_jiffies(new_rate));
+
+		}
+		mutex_unlock(&dbs_info->timer_mutex);
+	}
+}
+
 static ssize_t store_sampling_rate(struct kobject *a, struct attribute *b,
 				   const char *buf, size_t count)
 {
@@ -335,7 +392,8 @@ static ssize_t store_sampling_rate(struct kobject *a, struct attribute *b,
 	ret = sscanf(buf, "%u", &input);
 	if (ret != 1)
 		return -EINVAL;
-	dbs_tuners_ins.sampling_rate = max(input, min_sampling_rate);
+	//dbs_tuners_ins.sampling_rate = max(input, min_sampling_rate);
+	update_sampling_rate(input);
 	dbs_tuners_ins.origin_sampling_rate = dbs_tuners_ins.sampling_rate;
 	return count;
 }
