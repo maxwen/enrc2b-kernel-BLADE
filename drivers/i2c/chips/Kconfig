@@ -62,13 +62,6 @@ config INPUT_ISL29028
           Say Y here to enable the ISL29028 Short Distance Proximity
           Sensor with Ambient Light Sensor.
 
-config INPUT_CAPELLA_CM3628
-	tristate "CM3628 proximity and light sensor"
-	default n
-	help
-	  Say Y here to enable the CM3628 Short Distance Proximity
-	  Sensor with Ambient Light Sensor.
-
 config INPUT_CAPELLA_CM3629
 	tristate "CM3629 proximity and light sensor"
 	default n
@@ -94,6 +87,12 @@ config SND_AMP_TFA9887
 	depends on I2C=y
 	help
 	  Say Y here to enable the TFA9887 amplifier driver
+
+config SND_AMP_TFA9887_CONFIG
+	tristate "TFA9887 amplifier init config"
+	depends on SND_AMP_TFA9887=y
+	help
+	  Say Y here to enable the TFA9887 amplifier driver initial config on power on
 
 config SND_AMP_TPA6185
 	tristate "TPA6185 amplifier"

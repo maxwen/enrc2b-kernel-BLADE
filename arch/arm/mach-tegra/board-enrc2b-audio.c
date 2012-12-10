@@ -74,6 +74,9 @@ static void aic3008_amp_powerup(int type)
 		if (pcbid >= PROJECT_PHASE_XB || board_get_sku_tag() == 0x34600) {
 #if (defined(CONFIG_SND_AMP_TFA9887))
 			set_tfa9887_spkamp(1, 0);
+#if (defined(CONFIG_SND_AMP_TFA9887_CONFIG))
+            set_tfa9887_config();
+#endif
 #endif
 		} else {
 			power_config("AUD_SPK_EN", TEGRA_GPIO_PP6, GPIO_OUTPUT);

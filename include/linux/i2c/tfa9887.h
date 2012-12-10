@@ -15,5 +15,6 @@ struct tfa9887_platform_data {
 };
 
 void set_tfa9887_spkamp(int en, int dsp_mode);
+void set_tfa9887_config();
 #endif
 
