@@ -2119,8 +2119,8 @@ struct early_suspend tegra_cpufreq_powersave_early_suspender;
 struct early_suspend tegra_cpufreq_performance_early_suspender;
 static struct pm_qos_request_list boost_cpu_freq_req;
 static struct pm_qos_request_list cap_cpu_freq_req;
-#define BOOST_CPU_FREQ_MIN 1700000
-#define CAP_CPU_FREQ_MAX 475000
+#define BOOST_CPU_FREQ_MIN 102000
+#define CAP_CPU_FREQ_MAX 340000
 #endif
 static int enter_early_suspend = 0;
 static int perf_early_suspend = 0;

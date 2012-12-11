@@ -122,7 +122,7 @@ static ssize_t host_dbg_store(struct device *dev,
 /*============================================================*/
 struct pm_qos_request_list modem_boost_cpu_freq_req;
 EXPORT_SYMBOL_GPL(modem_boost_cpu_freq_req);
-#define BOOST_CPU_FREQ_MIN	1500000
+#define BOOST_CPU_FREQ_MIN	760000
 
 EXPORT_SYMBOL(modem_ver);
 

@@ -1021,7 +1021,7 @@ void cpufreq_set_governor(char *governor)
 	old_fs = get_fs();
 	set_fs(KERNEL_DS);
 #ifndef CONFIG_TEGRA_AUTO_HOTPLUG
-//	for_each_online_cpu(i)
+	for_each_online_cpu(i)
 #endif
 	{
 		sprintf(buf, CPUFREQ_SYSFS_PLACE_HOLDER, i);
