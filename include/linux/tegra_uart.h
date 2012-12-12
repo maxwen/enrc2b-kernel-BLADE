@@ -57,8 +57,8 @@ void tegra_uart_set_mctrl(struct uart_port *, unsigned int);
 void tegra_uart_request_clock_off(struct uart_port *uport);
 
 #ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
-void tegra_lpm_on(struct uart_port *);
-void tegra_lpm_off(struct uart_port *u);
+void tegra_lpm_on_locked(struct uart_port *);
+void tegra_lpm_off_locked(struct uart_port *u);
 #endif
 
 #endif /* _TEGRA_UART_H_ */

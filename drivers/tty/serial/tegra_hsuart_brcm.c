@@ -56,7 +56,7 @@
 #endif
 
 #ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
-#include "mach/bcm_bt_lpm.h"
+#include <linux/bcm_bt_lpm.h>
 #endif
 
 #define UARTDM_TO_TEGRA(uart_port) \
@@ -453,6 +453,7 @@ static void tegra_start_tx(struct uart_port *u)
 	struct circ_buf *xmit;
 
 	t = container_of(u, struct tegra_uart_port, uport);
+
 #ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
 	if (t->exit_lpm_cb)
 		t->exit_lpm_cb(u);
@@ -1101,10 +1102,10 @@ static int tegra_startup(struct uart_port *u)
 	struct tegra_uart_port *t = container_of(u,
 		struct tegra_uart_port, uport);
 	int ret = 0;
+	struct tegra_uart_platform_data *pdata;
 #ifdef BCM_BT_DEBUG
 	dev_info(t->uport.dev, "[SER_BRCM] +tegra_startup start\n");
 #endif //BCM_BT_DEBUG
-	struct tegra_uart_platform_data *pdata;
 
 	t = container_of(u, struct tegra_uart_port, uport);
 	sprintf(t->port_name, "tegra_uart_%d", u->line);
@@ -1734,7 +1735,7 @@ static int tegra_ioctl(struct uart_port *u, unsigned int cmd, unsigned long arg)
 			tbt_wakeup_level = !tegra_uport->bt_wakeup_level;
 
 #ifdef BCM_BT_DEBUG
-			dev_info(u->dev, "[SER_BRCM] tbt_wakeup_level: %d\n", tbt_wakeup_level);
+			dev_info(u->dev, "[SER_BRCM] tbt_wakeup_level: %ld\n", tbt_wakeup_level);
 #endif //BCM_BT_DEBUG
 			if (copy_to_user(argp, &tbt_wakeup_level, sizeof(tbt_wakeup_level)))
 				return -EFAULT;
@@ -2104,7 +2105,9 @@ void tegra_brcm_uart_request_clock_off(struct uart_port *uport)
 	if (IS_ERR_OR_NULL(uport))
 		BUG();
 
-	dev_vdbg(uport->dev, "tegra_uart_request_clock_off");
+#ifdef BCM_BT_DEBUG
+	dev_info(uport->dev, "[SER_BRCM] clock off\n");
+#endif //BCM_BT_DEBUG
 
 	t = container_of(uport, struct tegra_uart_port, uport);
 	spin_lock_irqsave(&uport->lock, flags);
@@ -2120,12 +2123,41 @@ void tegra_brcm_uart_request_clock_off(struct uart_port *uport)
 	return;
 }
 
+void tegra_brcm_uart_request_clock_off_locked(struct uart_port *uport)
+{
+	unsigned long flags;
+	struct tegra_uart_port *t;
+	bool is_clk_disable = false;
+
+	if (IS_ERR_OR_NULL(uport))
+		BUG();
+
+#ifdef BCM_BT_DEBUG
+	dev_info(uport->dev, "[SER_BRCM] clock off\n");
+#endif //BCM_BT_DEBUG
+
+	t = container_of(uport, struct tegra_uart_port, uport);
+	if (t->uart_state == TEGRA_UART_OPENED) {
+		is_clk_disable = true;
+		t->uart_state = TEGRA_UART_CLOCK_OFF;
+	}
+
+	if (is_clk_disable)
+		clk_disable(t->clk);
+
+	return;
+}
+
 /* Switch on the clock of the uart controller */
 void tegra_brcm_uart_request_clock_on(struct uart_port *uport)
 {
 	unsigned long flags;
 	struct tegra_uart_port *t;
 	bool is_clk_enable = false;
+
+#ifdef BCM_BT_DEBUG
+	dev_info(uport->dev, "[SER_BRCM] clock on\n");
+#endif //BCM_BT_DEBUG
 
 	if (IS_ERR_OR_NULL(uport))
 		BUG();
@@ -2137,6 +2169,31 @@ void tegra_brcm_uart_request_clock_on(struct uart_port *uport)
 		t->uart_state = TEGRA_UART_OPENED;
 	}
 	spin_unlock_irqrestore(&uport->lock, flags);
+
+	if (is_clk_enable)
+		clk_enable(t->clk);
+
+	return;
+}
+
+void tegra_brcm_uart_request_clock_on_locked(struct uart_port *uport)
+{
+	unsigned long flags;
+	struct tegra_uart_port *t;
+	bool is_clk_enable = false;
+
+#ifdef BCM_BT_DEBUG
+	dev_info(uport->dev, "[SER_BRCM] clock on\n");
+#endif //BCM_BT_DEBUG
+
+	if (IS_ERR_OR_NULL(uport))
+		BUG();
+
+	t = container_of(uport, struct tegra_uart_port, uport);
+	if (t->uart_state == TEGRA_UART_CLOCK_OFF) {
+		is_clk_enable = true;
+		t->uart_state = TEGRA_UART_OPENED;
+	}
 
 	if (is_clk_enable)
 		clk_enable(t->clk);
@@ -2175,55 +2232,63 @@ void tegra_brcm_uart_set_mctrl(struct uart_port *uport, unsigned int mctrl)
 
 #ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
 
-void tegra_lpm_on(struct uart_port *u)
+void tegra_lpm_on_locked(struct uart_port *u)
 {
 #ifdef USE_BCM_BT_CHIP /*bt for brcm*/
 	struct tegra_uart_port *tegra_uport = container_of(u, struct tegra_uart_port, uport);
 
+    if (tegra_uport->host_wakeup_level == 1){
+        return;
+    }
 #ifdef BCM_BT_DEBUG
 	dev_info(u->dev, "[SER_BRCM]tegra_lpm_on\n");
 #endif //BCM_BT_DEBUG
 
-	tegra_uport->host_want_sleep = 1;
-	if(tegra_uport->host_want_sleep) {
-	        //if((tegra_uport->bt_wakeup_level == 0) || (tegra_uport->bt_wakeup_assert_inadvance == 1)) {
-		    //    gpio_set_value(tegra_uport->bt_wakeup_pin, T_HIGH);
-			tegra_uport->bt_wakeup_level = 1;
-			tegra_uport->bt_wakeup_assert_inadvance = 0;
-			dev_info(u->dev, "[SER_BRCM] BT_WAKE=HIGH\n");
-		}
+#ifdef BCM_BT_DEBUG
+	dev_info(tegra_uport->uport.dev, "[SER_BRCM]-- CHIP HOST_WAKE=HIGH\n");
+#endif
+	tegra_uport->host_wakeup_level = 1;
+
+	/* release rx wake lock */
+	if (tegra_uport->is_brcm_rx_wake_locked == 1) {
+		dev_info(tegra_uport->uport.dev, "[SER_BRCM]release brcm_rx_wake_lock\n");
+		wake_unlock(&tegra_uport->brcm_rx_wake_lock);
+		tegra_uport->is_brcm_rx_wake_locked = 0;
 	}
 
-	/* release tx wakelock */
-	wake_lock_timeout(&tegra_uport->brcm_tx_wake_lock, HZ / 2);
-
-    tegra_brcm_uart_request_clock_off(u);
+    // maxwen TODO is not working
+    //tegra_brcm_uart_request_clock_off_locked(u);
 #endif /*USE_BCM_BT_CHIP*/
 }
 
-void tegra_lpm_off(struct uart_port *u)
+void tegra_lpm_off_locked(struct uart_port *u)
 {
 #ifdef USE_BCM_BT_CHIP /*bt for brcm*/
 	struct tegra_uart_port *tegra_uport = container_of(u, struct tegra_uart_port, uport);
 	unsigned long tflags;
 
+    if (tegra_uport->host_wakeup_level == 0){
+        return;
+    }
+
 #ifdef BCM_BT_DEBUG
 	dev_info(u->dev, "[SER_BRCM]tegra_lpm_off\n");
 #endif //BCM_BT_DEBUG
 
-    tegra_brcm_uart_request_clock_on(u);
+    // maxwen TODO is not working
+    //tegra_brcm_uart_request_clock_on_locked(u);
 
-	spin_lock_irqsave(&u->lock, tflags);
+#ifdef BCM_BT_DEBUG
+	dev_info(tegra_uport->uport.dev, "[SER_BRCM]-- CHIP HOST_WAKE=LOW\n");
+#endif
 
-	/* aquire tx wakelock */
-	wake_lock(&tegra_uport->brcm_tx_wake_lock);
-	if (tegra_uport->bt_wakeup_pin_supported) {
-		//gpio_set_value(tegra_uport->bt_wakeup_pin, T_LOW);
-		tegra_uport->bt_wakeup_level = 0;
-		tegra_uport->host_want_sleep = 0;
-		dev_info(u->dev, "[BT]-- HOST BT_WAKE=LOW --\n");
+	/* aquire rx wake lock */
+	if (tegra_uport->is_brcm_rx_wake_locked == 0) {
+		tegra_uport->is_brcm_rx_wake_locked = 1;
+		wake_lock(&tegra_uport->brcm_rx_wake_lock);
 	}
-	spin_unlock_irqrestore(&u->lock, tflags);
+
+	tegra_uport->host_wakeup_level = 0;
 
 #endif /*USE_BCM_BT_CHIP*/
 }
