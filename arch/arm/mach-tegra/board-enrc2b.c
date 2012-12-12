@@ -861,7 +861,11 @@ static void __init enrc2b_uart_init(void)
 
 #ifdef CONFIG_SERIAL_TEGRA_BRCM
 	enrc2b_brcm_uart_pdata = enrc2b_uart_pdata;
+#ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
+	enrc2b_brcm_uart_pdata.bt_wakeup_pin_supported = 0;
+#else
 	enrc2b_brcm_uart_pdata.bt_wakeup_pin_supported = 1;
+#endif
 	enrc2b_brcm_uart_pdata.bt_wakeup_pin = ENRC2B_GPIO_BT_WAKE;
 	enrc2b_brcm_uart_pdata.host_wakeup_pin = ENRC2B_GPIO_BT_HOST_WAKE;
 	tegra_uartc_device.dev.platform_data = &enrc2b_brcm_uart_pdata;
