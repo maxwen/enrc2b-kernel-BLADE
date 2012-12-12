@@ -47,6 +47,7 @@ obj-$(CONFIG_SERIAL_S5PV210) += s5pv210.o
 obj-$(CONFIG_SERIAL_TEGRA) += tegra_hsuart.o
 obj-$(CONFIG_SERIAL_SC8800G) += serial_sc8800g_v1.o
 obj-$(CONFIG_SERIAL_TEGRA_BRCM) += tegra_hsuart_brcm.o
+obj-$(CONFIG_SERIAL_TEGRA_BRCM_LPM) += bcm_bt_lpm.o
 obj-$(CONFIG_SERIAL_MAX3100) += max3100.o
 obj-$(CONFIG_SERIAL_MAX3107) += max3107.o
 obj-$(CONFIG_SERIAL_MAX3107_AAVA) += max3107-aava.o

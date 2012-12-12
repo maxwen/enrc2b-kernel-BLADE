@@ -38,6 +38,11 @@ struct tegra_uart_platform_data {
 	unsigned char bt_wakeup_pin_supported;
 	unsigned char bt_wakeup_pin;    /* Device to Chip */
 	unsigned char host_wakeup_pin;  /* Chip to Device */
+
+#ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
+	/* optional callback to exit low power mode */
+	void (*exit_lpm_cb)(struct uart_port *);
+#endif
 #endif /* BRCM_BT */
 #ifdef CONFIG_BT_CTS_WAKEUP
 	bool uart_bt;

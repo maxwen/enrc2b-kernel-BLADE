@@ -542,6 +542,13 @@ config SERIAL_TEGRA_BRCM
        depends on SERIAL_TEGRA=y
        help
          Enable a Broadcom UART port
+
+config SERIAL_TEGRA_BRCM_LPM
+       bool "Broadcom UART LPM support"
+       depends on SERIAL_TEGRA_BRCM=y
+       help
+         Enable a Broadcom UART port LPM mode
+
 config SERIAL_SC8800G
        tristate "Spreadtrum SC8800G support"
        depends on SPI

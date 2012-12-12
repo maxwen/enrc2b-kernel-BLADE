@@ -55,6 +55,10 @@
 #include <linux/pm_qos_params.h>
 #endif
 
+#ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
+#include "mach/bcm_bt_lpm.h"
+#endif
+
 #define UARTDM_TO_TEGRA(uart_port) \
         container_of((uart_port), struct tegra_uart_port, uport)
 
@@ -116,7 +120,7 @@ const int dma_req_sel_brcm[] = {
 #define T_HIGH 1
 
 #define USE_BCM_BT_CHIP
-//#define BCM_BT_DEBUG
+#define BCM_BT_DEBUG
 
 #define TX_EMPTY_TIMEOUT_CNT	10000
 
@@ -182,6 +186,12 @@ struct tegra_uart_port {
 	struct wake_lock brcm_tx_wake_lock;
 	struct wake_lock brcm_rx_wake_lock;
 	unsigned int is_brcm_rx_wake_locked;
+
+#ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
+	/* optional callback to exit low power mode */
+	void (*exit_lpm_cb)(struct uart_port *);
+#endif
+
 #endif /* USE_BCM_BT_CHIP */
 
 };
@@ -443,6 +453,10 @@ static void tegra_start_tx(struct uart_port *u)
 	struct circ_buf *xmit;
 
 	t = container_of(u, struct tegra_uart_port, uport);
+#ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
+	if (t->exit_lpm_cb)
+		t->exit_lpm_cb(u);
+#endif
 	xmit = &u->state->xmit;
 
 	if (!uart_circ_empty(xmit) && !t->tx_in_progress)
@@ -1149,10 +1163,11 @@ static int tegra_startup(struct uart_port *u)
 #ifdef BCM_BT_DEBUG
 		dev_info(t->uport.dev, "[SER_BRCM] BT_ON_SYS_IDLE\n");
 #endif //BCM_BT_DEBUG
+#ifndef CONFIG_SERIAL_TEGRA_BRCM_LPM
 		/* disable irq wakeup when system is up */
 		disable_irq_wake(t->wakeup_irq);
 		//free_irq(t->wakeup_irq, t);
-
+#endif
 	} else { /* BT_OFF_SYS_IDLE */
 #ifdef BCM_BT_DEBUG
 		dev_info(t->uport.dev, "[SER_BRCM] BT_OFF_SYS_IDLE -> BT_ON_SYS_IDLE\n");
@@ -1160,9 +1175,11 @@ static int tegra_startup(struct uart_port *u)
 		t->host_wakeup_level = 1;
 		t->is_brcm_rx_wake_locked = 0;
 
+#ifndef CONFIG_SERIAL_TEGRA_BRCM_LPM
 		dev_info(u->dev,"[SER_BRCM] Requesting HOSTWAKE IRQ %d\n", t->wakeup_irq);
 		ret = request_irq(t->wakeup_irq, bluesleep_hostwake_isr, IRQF_TRIGGER_HIGH,
 			"bluetooth hostwake", t);
+#endif
 
 		if (ret < 0) {
 			dev_info(u->dev, "[SER_BRCM]Couldn't acquire BT_HOST_WAKE IRQ, (errno = %d)", ret);
@@ -1213,20 +1230,23 @@ static void tegra_shutdown(struct uart_port *u)
 #ifdef BCM_BT_DEBUG
 		dev_info(t->uport.dev, "[SER_BRCM] BT_ON_SYS_IDLE -> BT_OFF_SYS_IDLE\n");
 #endif //BCM_BT_DEBUG
+#ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
 		/* disable irq wakeup when shutdown **/
 		free_irq(t->wakeup_irq, t);
+#endif
 		gpio_direction_output(t->bt_wakeup_pin, T_LOW);
 		t->bt_state = BT_OFF_SYS_IDLE;//close BT
 	} else { /* BT_ON_SYS_SUSPEND */
 #ifdef BCM_BT_DEBUG
 		dev_info(t->uport.dev, "[SER_BRCM] BT_ON_SYS_SUSPEND\n");
 #endif //BCM_BT_DEBUG
+#ifndef CONFIG_SERIAL_TEGRA_BRCM_LPM
 		ret = enable_irq_wake(t->wakeup_irq);
 		if (ret < 0) {
 			dev_err(u->dev, "[SER_BRCM]Couldn't enable BT_HOST_WAKE as wakeup interrupt, (errno = %d)", ret);
 			free_irq(t->wakeup_irq, NULL);
 		}
-
+#endif
 		t->bt_state = BT_ON_SYS_SUSPEND;//suspend BT
 	}
 
@@ -1874,12 +1894,18 @@ static int __init tegra_uart_probe(struct platform_device *pdev)
 		pr_info("[SER_BRCM] %s: could not find pdev\n", __func__);
 		t->wakeup_irq = -1;
 	} else {
+#ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
+        t->exit_lpm_cb = pdata->exit_lpm_cb;
+#endif
+
+#ifndef CONFIG_SERIAL_TEGRA_BRCM_LPM
 		t->wakeup_irq = gpio_to_irq(pdata->host_wakeup_pin);
 
 		if (unlikely(t->wakeup_irq < 0)) {
 			pr_err("[SER_BRCM] %s: Failed to add wakeup irq\n", __func__);
 			return -ENXIO;
 		}
+#endif
 	}
 
 	if (pdata->bt_wakeup_pin_supported) {
@@ -2146,6 +2172,62 @@ void tegra_brcm_uart_set_mctrl(struct uart_port *uport, unsigned int mctrl)
 	return;
 }
 
+#ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
+
+void tegra_lpm_on(struct uart_port *u)
+{
+#ifdef USE_BCM_BT_CHIP /*bt for brcm*/
+	struct tegra_uart_port *tegra_uport = container_of(u, struct tegra_uart_port, uport);
+
+#ifdef BCM_BT_DEBUG
+	dev_info(u->dev, "[SER_BRCM]tegra_lpm_on\n");
+#endif //BCM_BT_DEBUG
+
+	tegra_uport->host_want_sleep = 1;
+	if(tegra_uport->host_want_sleep) {
+	        if((tegra_uport->bt_wakeup_level == 0) || (tegra_uport->bt_wakeup_assert_inadvance == 1)) {
+		        gpio_set_value(tegra_uport->bt_wakeup_pin, T_HIGH);
+			tegra_uport->bt_wakeup_level = 1;
+			tegra_uport->bt_wakeup_assert_inadvance = 0;
+			dev_info(u->dev, "[SER_BRCM] BT_WAKE=HIGH\n");
+		}
+	}
+
+	/* release tx wakelock */
+	wake_lock_timeout(&tegra_uport->brcm_tx_wake_lock, HZ / 2);
+
+    tegra_brcm_uart_request_clock_off(u);
+#endif /*USE_BCM_BT_CHIP*/
+}
+
+void tegra_lpm_off(struct uart_port *u)
+{
+#ifdef USE_BCM_BT_CHIP /*bt for brcm*/
+	struct tegra_uart_port *tegra_uport = container_of(u, struct tegra_uart_port, uport);
+	unsigned long tflags;
+
+#ifdef BCM_BT_DEBUG
+	dev_info(u->dev, "[SER_BRCM]tegra_lpm_off\n");
+#endif //BCM_BT_DEBUG
+
+    tegra_brcm_uart_request_clock_on(u);
+
+	spin_lock_irqsave(&u->lock, tflags);
+
+	/* aquire tx wakelock */
+	wake_lock(&tegra_uport->brcm_tx_wake_lock);
+	if (tegra_uport->bt_wakeup_pin_supported) {
+		gpio_set_value(tegra_uport->bt_wakeup_pin, T_LOW);
+		tegra_uport->bt_wakeup_level = 0;
+		tegra_uport->host_want_sleep = 0;
+		dev_info(u->dev, "[BT]-- HOST BT_WAKE=LOW --\n");
+	}
+	spin_unlock_irqrestore(&u->lock, tflags);
+
+#endif /*USE_BCM_BT_CHIP*/
+}
+
+#endif
 /*
  * Return the status of the transmit fifo whether empty or not.
  * Return 0 if tx fifo is not empty.
