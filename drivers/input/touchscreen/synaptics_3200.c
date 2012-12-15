@@ -157,7 +157,7 @@ static irqreturn_t synaptics_irq_thread(int irq, void *ptr);
  *  S2W free swipe and stroke variables
  */
 // beyond this threshold the panel will not register to apps
-int s2w_register_threshold = 5;
+int s2w_register_threshold = 9;
 // power will toggle at this distance from start point
 int s2w_min_distance = 325;
 // use either direction for on/off
