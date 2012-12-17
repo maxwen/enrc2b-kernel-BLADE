@@ -968,6 +968,7 @@ static int aic3008_set_config(int config_tbl, int idx, int en)
 		}
 		break;
 	case AIC3008_IO_CONFIG_MEDIA:
+        // maxwen TODO
 		if(idx == 20)
 		{
 				mutex_unlock(&lock);
@@ -978,6 +979,7 @@ static int aic3008_set_config(int config_tbl, int idx, int en)
 			AUD_DBG("[DSP] idx = %d, Mic Mute!!", idx);
 			if (aic3008_tx_mode == UPLINK_BT_AP ||
 				aic3008_tx_mode == UPLINK_BT_BB ){
+			    AUD_DBG("[DSP] idx = %d, BT Mic mute!!", idx);
 				aic3008_config(BT_MIC_MUTE, ARRAY_SIZE(BT_MIC_MUTE));		// mute mic
 			}
 			else{
@@ -1000,6 +1002,7 @@ static int aic3008_set_config(int config_tbl, int idx, int en)
 			AUD_DBG("[DSP] idx = %d, Mic unMute!!", idx);
 			if (aic3008_tx_mode == UPLINK_BT_AP ||
 				aic3008_tx_mode == UPLINK_BT_BB ){
+			    AUD_DBG("[DSP] idx = %d, BT Mic unMute!!", idx);
 				aic3008_config(BT_MIC_UNMUTE, ARRAY_SIZE(BT_MIC_UNMUTE));		// mute mic
 			}
 			else{
@@ -1107,16 +1110,25 @@ static int aic3008_set_config(int config_tbl, int idx, int en)
 
 		/* i2s config */
 		if (aic3008_power_ctl->i2s_switch) {
-// maxwen TODO
-#if 0
+            // maxwen TODO
 			if (aic3008_dspindex[idx] != -1) {
+				AUD_ERR("[DSP] AIC3008_IO_CONFIG_MEDIA: dsp index %d %d\n", idx, aic3008_dspindex[idx]);
 				aic3008_power_ctl->i2s_control(aic3008_dspindex[idx]);
 			} else {
-#endif
-				AUD_ERR("[DSP] AIC3008_IO_CONFIG_MEDIA: unknown dsp index %d\n", idx);
-#if 0
+                AUD_INFO("[DSP] AIC3008_IO_CONFIG_MEDIA: hardcoded i2s_switch\n");
+			    if (idx == 6){
+                    AUD_INFO("[DSP] AIC3008_IO_CONFIG_MEDIA: hardcoded i2s_switch %d %d\n", idx, Phone_BT);
+				    aic3008_power_ctl->i2s_control(Phone_BT);
+                } else if (idx == 1){
+                    AUD_INFO("[DSP] AIC3008_IO_CONFIG_MEDIA: hardcoded i2s_switch %d %d\n", idx, Phone_Default);
+				    aic3008_power_ctl->i2s_control(Phone_Default);
+                } else if (idx == 8){
+                    AUD_INFO("[DSP] AIC3008_IO_CONFIG_MEDIA: hardcoded i2s_switch %d %d\n", idx, Playback_Default);
+				    aic3008_power_ctl->i2s_control(Playback_Default);
+                } else {
+			    	AUD_ERR("[DSP] AIC3008_IO_CONFIG_MEDIA: unknown dsp index %d\n", idx);
+			    }
 			}
-#endif
 		}
 
 		if (aic3008_minidsp == NULL) {
@@ -1139,6 +1151,7 @@ static int aic3008_set_config(int config_tbl, int idx, int en)
 		len = (((int)(aic3008_minidsp[idx][0].reg) & 0xFF) << 8) | ((int)(aic3008_minidsp[idx][0].data) & 0xFF);
 
 		t1 = ktime_to_ms(ktime_get());
+
 		/* step 1: path off first
 			Symptom:
 				If downlink wasn't path_off, it could have noise when config DSP.
@@ -1739,6 +1752,7 @@ static int __devinit aic3008_probe(struct snd_soc_codec *codec)
 {
 	AUD_INFO("aic3008_probe() start... aic3008_codec:%p", codec);
 	int ret = 0;
+    int i = 0;
 
 	struct aic3008_priv *aic3008 = snd_soc_codec_get_drvdata(codec);
 	if (!aic3008) {
@@ -1767,6 +1781,10 @@ static int __devinit aic3008_probe(struct snd_soc_codec *codec)
 		AUD_ERR("aic3008_probe() aic3008_minidsp alloc failed.");
 		goto minidsp_failed;
 	}
+
+    for (i=0; i<MINIDSP_ROW_MAX; i++){
+        aic3008_dspindex[i] = -1;
+    }
 
 	bulk_tx = kcalloc(MINIDSP_COL_MAX * 2 , sizeof(uint8_t), GFP_KERNEL);
 	if (bulk_tx == NULL) {

@@ -130,6 +130,7 @@ static void aic3008_amp_powerdown(int type)
 
 static void aic3008_i2s_control(int dsp_enum)
 {
+    AUD_INFO("%s %d\n", __func__, dsp_enum);
 	switch (dsp_enum) {
 	case Phone_Default:
 	case Phone_BT:
