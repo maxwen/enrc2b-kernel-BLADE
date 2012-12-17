@@ -11,7 +11,7 @@
  * This program is distributed in the hope that it will be useful, but WITHOUT
  * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
  * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
- * more details.
+ * more details.l
  *
  * You should have received a copy of the GNU General Public License along
  * with this program; if not, write to the Free Software Foundation, Inc.,
@@ -35,7 +35,6 @@
 #include <linux/spi/spi.h>
 #include <linux/tegra_uart.h>
 #include <linux/fsl_devices.h>
-#include <linux/i2c/atmel_mxt_ts.h>
 #include <linux/memblock.h>
 #include <linux/gpio_keys.h>
 #include <linux/synaptics_i2c_rmi.h>
@@ -1019,31 +1018,6 @@ static const u8 config[] = {
         0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
         0x00, 0x00, 0x00, 0x01, 0x00, 0x03, 0x08, 0x10,
         0x00
-};
-
-static struct mxt_platform_data atmel_mxt_info = {
-        .x_line         = 19,
-        .y_line         = 11,
-        .x_size         = 960,
-        .y_size         = 540,
-        .blen           = 0x10,
-        .threshold      = 0x32,
-        .voltage        = 3300000,              /* 3.3V */
-        .orient         = 3,
-        .config         = config,
-        .config_length  = 168,
-        .config_crc     = MXT_CONFIG_CRC,
-        .irqflags       = IRQF_TRIGGER_FALLING,
-/*      .read_chg       = &read_chg, */
-        .read_chg       = NULL,
-};
-
-static struct i2c_board_info __initdata atmel_i2c_info[] = {
-	{
-		I2C_BOARD_INFO("atmel_mxt_ts", MXT224_I2C_ADDR1),
-		.irq = TEGRA_GPIO_TO_IRQ(TEGRA_GPIO_PH6),
-		.platform_data = &atmel_mxt_info,
-	}
 };
 
 //virtual key for XC board and later (3 virtual keys)
