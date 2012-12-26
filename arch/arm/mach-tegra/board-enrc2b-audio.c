@@ -75,7 +75,7 @@ static void aic3008_amp_powerup(int type)
 #if (defined(CONFIG_SND_AMP_TFA9887))
 			set_tfa9887_spkamp(1, 0);
 #if (defined(CONFIG_SND_AMP_TFA9887_CONFIG))
-            set_tfa9887_config();
+ 			set_tfa9887_config();
 #endif
 #endif
 		} else {

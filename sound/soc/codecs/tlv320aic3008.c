@@ -1027,8 +1027,8 @@ static int aic3008_set_config(int config_tbl, int idx, int en)
         // maxwen TODO
 		if(idx == 20)
 		{
-				mutex_unlock(&lock);
-	            return rc;
+			mutex_unlock(&lock);
+	    	return rc;
 		}
 		else if(idx == 49)
 		{
@@ -1166,13 +1166,13 @@ static int aic3008_set_config(int config_tbl, int idx, int en)
 
 		/* i2s config */
 		if (aic3008_power_ctl->i2s_switch) {
-            // maxwen TODO
-            if (!dspindex_init_done){
-                init_default_dspindex();
-                dump_dspindex();
-            }
+			// maxwen TODO
+			if (!dspindex_init_done){
+            	init_default_dspindex();
+				dump_dspindex();
+			}
 #if 0
-            dump_dspindex();
+			dump_dspindex();
 #endif
 
 			if (aic3008_dspindex[idx] != -1) {
@@ -1180,28 +1180,7 @@ static int aic3008_set_config(int config_tbl, int idx, int en)
 				aic3008_power_ctl->i2s_control(aic3008_dspindex[idx]);
 			} else {
 			    AUD_ERR("[DSP] AIC3008_IO_CONFIG_MEDIA: unknown dsp index %d\n", idx);
-            }
-
-# if 0
-			if (aic3008_dspindex[idx] != -1) {
-				AUD_ERR("[DSP] AIC3008_IO_CONFIG_MEDIA: dsp index %d %d\n", idx, aic3008_dspindex[idx]);
-				aic3008_power_ctl->i2s_control(aic3008_dspindex[idx]);
-			} else {
-                AUD_INFO("[DSP] AIC3008_IO_CONFIG_MEDIA: hardcoded i2s_switch\n");
-			    if (idx == 6){
-                    AUD_INFO("[DSP] AIC3008_IO_CONFIG_MEDIA: hardcoded i2s_switch %d %d\n", idx, Phone_BT);
-				    aic3008_power_ctl->i2s_control(Phone_BT);
-                } else if (idx == 1){
-                    AUD_INFO("[DSP] AIC3008_IO_CONFIG_MEDIA: hardcoded i2s_switch %d %d\n", idx, Phone_Default);
-				    aic3008_power_ctl->i2s_control(Phone_Default);
-                } else if (idx == 8){
-                    AUD_INFO("[DSP] AIC3008_IO_CONFIG_MEDIA: hardcoded i2s_switch %d %d\n", idx, Playback_Default);
-				    aic3008_power_ctl->i2s_control(Playback_Default);
-                } else {
-			    	AUD_ERR("[DSP] AIC3008_IO_CONFIG_MEDIA: unknown dsp index %d\n", idx);
-			    }
-			}
-#endif
+                        }
 		}
 
 		if (aic3008_minidsp == NULL) {
@@ -1392,6 +1371,7 @@ static long aic3008_ioctl(struct file *file, unsigned int cmd,
 		break;
 
 	/* third io command from HAL */
+	// maxwen TODO
     case 0x40047320:
 	case AIC3008_IO_SET_DSP_PARAM:
 	    AUD_INFO("AIC3008_IO_SET_DSP_PARAM\n");
@@ -1457,7 +1437,7 @@ static long aic3008_ioctl(struct file *file, unsigned int cmd,
 			break;
 		}
 
-        dspindex_init_done = true;
+		dspindex_init_done = true;
 		AUD_INFO("update dsp index table(%d, %d) successfully\n",
 				para.row_num, para.col_num);
 		break;

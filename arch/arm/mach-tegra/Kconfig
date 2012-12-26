@@ -266,8 +266,6 @@ config MACH_ENRC2B
        bool "EndeavorC2#B board"
        depends on ARCH_TEGRA_3x_SOC
        depends on HTC_PROJECT
-       select MACH_HAS_SND_SOC_TEGRA_MAX98088 if SND_SOC
-       select MACH_HAS_SND_SOC_TEGRA_TLV320AIC326X if SND_SOC
        select TEGRA_SLOW_CSITE
        select VIDEO_CHANGE_IN_AD5823
        select RAWCHIP_ENABLE

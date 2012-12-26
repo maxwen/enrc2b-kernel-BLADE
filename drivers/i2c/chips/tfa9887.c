@@ -326,7 +326,6 @@ static int tfa9887_i2c_read(char *rxData, int length)
 		return rc;
 	}
 
-#if 0
 #if AUDIO_DEBUG
 	{
 		int i = 0;
@@ -334,7 +333,6 @@ static int tfa9887_i2c_read(char *rxData, int length)
 			AUD_INFO("i2c_read %s: rx[%d] = %2x\n", __func__, i, \
 				rxData[i]);
 	}
-#endif
 #endif
 	return 0;
 }
