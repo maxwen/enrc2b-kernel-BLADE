@@ -673,8 +673,8 @@ extern char gatewaybuf[8+1]; //HTC_KlocWork
 char ip_str[32];
 bool hasDLNA = false;
 bool allowMulticast = false;
-int dhd_set_keepalive(int value);
 #endif
+int dhd_set_keepalive(int value);
 extern int wl_pattern_atoh(char *src, char *dst);
 int is_screen_off = 0;
 /* HTC_CSP_END */
@@ -684,8 +684,8 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 /* HTC_CSP_START */
 #ifdef BCM4329_LOW_POWER
 	int ignore_bcmc = 1;
-	char iovbuf[32];
 #endif
+	char iovbuf[32];
 /* HTC_CSP_END */
 
 #ifdef CUSTOMER_HW2
@@ -822,7 +822,6 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
 	return 0;
 }
 /* HTC_CSP_START */
-#ifdef BCM4329_LOW_POWER
 int dhd_set_keepalive(int value)
 {
     char *str;
@@ -843,7 +842,7 @@ int dhd_set_keepalive(int value)
     buf_len = str_len + 1;
     keep_alive_pktp = (wl_keep_alive_pkt_t *) (buf + str_len + 1);
 
-	keep_alive_pkt.period_msec = htod32(60000); // Default 60s NULL keepalive packet
+	keep_alive_pkt.period_msec = htod32(30000); // Default 30s NULL keepalive packet
 	/* Setup keep alive zero for null packet generation */
 	keep_alive_pkt.len_bytes = 0;
 	buf_len += WL_KEEP_ALIVE_FIXED_LEN;
@@ -859,7 +858,6 @@ int dhd_set_keepalive(int value)
 
     return 0;
 }
-#endif
 
 /* bitmask, bit value: 1 - enable, 0 - disable
  */
@@ -884,8 +882,8 @@ int dhdhtc_update_wifi_power_mode(int is_screen_off)
 		pm_type = PM_OFF;
 		dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&pm_type, sizeof(pm_type), TRUE, 0);
 	}  else if  (dhdcdc_power_active_while_plugin && usb_get_connect_type()) {
-		printf("power active. usb_type:%d\n", usb_get_connect_type());
-		pm_type = PM_OFF;
+		printf("update pm: PM_FAST. usb_type:%d\n", usb_get_connect_type());
+		pm_type = PM_FAST;
 		dhd_wl_ioctl_cmd(dhd, WLC_SET_PM, (char *)&pm_type, sizeof(pm_type), TRUE, 0);
 	} else {
 		if (is_screen_off && !dhdcdc_wifiLock)
@@ -3371,7 +3369,9 @@ dhd_osl_detach(osl_t *osh)
 	dhd_registration_check = FALSE;
 	up(&dhd_registration_sem);
 #if	defined(BCMLXSDMMC)
+#if 0
 	up(&dhd_chipup_sem);
+#endif
 #endif
 #endif 
 }
@@ -3966,7 +3966,7 @@ dhd_preinit_ioctls(dhd_pub_t *dhd)
 	uint32 dongle_align = DHD_SDALIGN;
 	uint32 glom = CUSTOM_GLOM_SETTING;
 	uint32 txlazydelay = 0;
-	uint32 lvtrigtime = 6;
+	uint32 lvtrigtime = 250;
 #if defined(VSDB) || defined(ROAM_ENABLE)
 	uint bcn_timeout = 8;
 #else
@@ -5843,6 +5843,8 @@ static void dhd_hang_process(struct work_struct *work)
 {
 	dhd_info_t *dhd;
 	struct net_device *dev;
+	int ret;
+	s32 updown = 0;
 
 	dhd = (dhd_info_t *)container_of(work, dhd_info_t, work_hang);
 	dev = dhd->iflist[0]->net;
@@ -5851,6 +5853,10 @@ static void dhd_hang_process(struct work_struct *work)
 		//rtnl_lock();
 		//dev_close(dev);
 		//rtnl_unlock();
+		printf(" %s before send hang messages, do wlc down to prevent get additional event from firmware\n",__FUNCTION__);
+		if ((ret = wldev_ioctl(dev, WLC_DOWN, &updown, sizeof(s32), false))) {
+			WL_ERR(("fail to set wlc down"));
+		}
 #if defined(WL_WIRELESS_EXT)
 		wl_iw_send_priv_event(dev, "HANG");
 #endif

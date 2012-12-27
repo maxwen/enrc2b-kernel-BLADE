@@ -53,6 +53,7 @@ extern int trigger_radio_fatal_get_coredump(char *reason);
 //#define verbose	0
 //#endif
 static int verbose = 0;
+static bool module_exiting;
 module_param(verbose, int, 0644);
 MODULE_PARM_DESC(verbose, "raw ip (cdc-acm) - verbose debug messages");
 
@@ -347,6 +348,8 @@ static int baseband_usb_driver_suspend(struct usb_interface *intf,
 	save_dbg(dbg_flag);/* HTC */
 	pr_debug("%s intf %p\n", __func__, intf);
 
+	if (module_exiting)
+		return -EBUSY;
 
 	//pr_info("%s: cnt %d intf=%p &intf->dev=%p kobje=%s\n",
 		//	__func__, atomic_read(&intf->dev.power.usage_count),intf,&intf->dev,kobject_name(&intf->dev.kobj));
@@ -450,6 +453,11 @@ static int baseband_usb_driver_resume(struct usb_interface *intf)
 		/* acquire semaphore */
 		if (down_interruptible(&baseband_usb_net[i]->sem)) {
 			pr_err("%s: cannot acquire semaphore\n", __func__);
+			continue;
+		}
+		if (module_exiting) {
+			pr_debug("%s: module is unloading, do not submit urb\n", __func__);
+			up(&baseband_usb_net[i]->sem);
 			continue;
 		}
 		/* start usb rx */
@@ -1468,6 +1476,16 @@ static void usb_net_raw_ip_exit(void)
 
 	/* destroy multiple raw-ip network devices */
 	for (i = 0; i < max_intfs; i++) {
+		if (baseband_usb_net[i] && baseband_usb_net[i]->urb_r)
+			if (!down_interruptible(&baseband_usb_net[i]->sem)) {
+				module_exiting = true;
+				usb_kill_urb(baseband_usb_net[i]->urb_r);
+				up(&baseband_usb_net[i]->sem);
+			} else {
+				module_exiting = true;
+				usb_poison_urb(baseband_usb_net[i]->urb_r);
+				pr_debug("%s: cannot acquire semaphore\n", __func__);
+			}
 		/* unregister network device */
 		if (usb_net_raw_ip_dev[i]) {
 			unregister_netdev(usb_net_raw_ip_dev[i]);

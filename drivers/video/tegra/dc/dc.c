@@ -922,7 +922,9 @@ int tegra_dc_wait_for_vsync(struct tegra_dc *dc)
 	tegra_dc_hold_dc_out(dc);
 	dc->out->user_needs_vblank = true;
 
-	ret = wait_for_completion_interruptible(&dc->out->user_vblank_comp);
+	ret = wait_for_completion_interruptible_timeout(&dc->out->user_vblank_comp, HZ);
+	if (ret == 0)
+		printk(KERN_WARNING "[DISP] wait dc->out->user_vblank_comp timeout\n");
 	init_completion(&dc->out->user_vblank_comp);
 	tegra_dc_release_dc_out(dc);
 	mutex_unlock(&dc->vsync_lock);

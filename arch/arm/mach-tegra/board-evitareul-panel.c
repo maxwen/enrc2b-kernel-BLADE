@@ -77,6 +77,8 @@ static struct regulator *evitareul_hdmi_pll = NULL;
 static struct regulator *evitareul_hdmi_vddio = NULL;
 #endif
 
+#define LCM_ID0 	TEGRA_GPIO_PM0
+#define LCM_ID1 	TEGRA_GPIO_PM1
 #define LCM_TE		TEGRA_GPIO_PJ1
 #define LCM_PWM 	TEGRA_GPIO_PW1
 #define LCM_RST 	TEGRA_GPIO_PN6
@@ -418,8 +420,13 @@ static int bridge_reset(void)
 	/*TODO delay for DSI hardware stable*/
 	hr_msleep(10);
 
-	/*change LCM_TE to SFIO(NP) & LCM_PWM to SFIO*/
+	/*change LCM_TE to SFIO(NP) & LCM_PWM to SFIO
+	 *set LCM_ID0 and ID1 to I(NP)*/
 	//tegra_gpio_disable(LCM_PWM);
+	gpio_direction_input(LCM_ID0);
+	gpio_direction_input(LCM_ID1);
+	tegra_pinmux_set_pullupdown(gpio_to_pingroup[LCM_ID0],  TEGRA_PUPD_NORMAL);
+	tegra_pinmux_set_pullupdown(gpio_to_pingroup[LCM_ID1],  TEGRA_PUPD_NORMAL);
 	tegra_pinmux_set_pullupdown(gpio_to_pingroup[LCM_TE],  TEGRA_PUPD_NORMAL);
 	tegra_gpio_disable(LCM_TE);
 
@@ -514,8 +521,11 @@ static int evitareul_dsi_panel_disable(void)
 	REGULATOR_GET(evitareul_dsi_reg, "avdd_dsi_csi");
 	regulator_disable(evitareul_dsi_reg);
 
-	/*change LCM_TE to GPIO I(PD) & LCM_PWM to GPIO*/
+	/*change LCM_TE to GPIO I(PD) & LCM_PWM to GPIO
+	 *set LCM_ID0 and ID1 to O(L)*/
 	//tegra_gpio_enable(LCM_PWM);
+	gpio_direction_output(LCM_ID0, 0);
+	gpio_direction_output(LCM_ID1, 0);
 	tegra_gpio_enable(LCM_TE);
 	tegra_pinmux_set_pullupdown(gpio_to_pingroup[LCM_TE],  TEGRA_PUPD_PULL_DOWN);
 

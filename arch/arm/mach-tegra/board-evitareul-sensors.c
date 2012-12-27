@@ -498,7 +498,7 @@ struct evitareul_battery_gpio {
 	}
 
 static struct htc_battery_platform_data htc_battery_pdev_data = {
-	.gpio_mbat_in = 0,
+	.gpio_mbat_in = -1,
 	.gpio_mbat_in_trigger_level = MBAT_IN_LOW_TRIGGER,
 	.guage_driver = GUAGE_TPS80032,
 	.charger = SWITCH_CHARGER_TPS80032,

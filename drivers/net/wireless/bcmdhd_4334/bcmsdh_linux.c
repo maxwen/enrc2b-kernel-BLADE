@@ -609,22 +609,24 @@ bcmsdh_unregister(void)
 }
 
 #if defined(OOB_INTR_ONLY) || defined(BCMSPI_ANDROID)
-static int bcmsdh_irq_status = FALSE;
+static atomic_t bcmsdh_irq_status = ATOMIC_INIT(1);
 void bcmsdh_oob_intr_set(bool enable)
 {
 	static bool curstate = 1;
 	unsigned long flags;
 
-	//bcmsdh_irq_status = enable;
 	spin_lock_irqsave(&sdhcinfo->irq_lock, flags);
 	if (curstate != enable) {
-		if (enable)
+		if (enable) {
+			curstate = 1;
+			atomic_set(&bcmsdh_irq_status, 1);
 			enable_irq(sdhcinfo->oob_irq);
-		else
+		} else {
 			disable_irq_nosync(sdhcinfo->oob_irq);
-		curstate = enable;
+			atomic_set(&bcmsdh_irq_status, 0);
+			curstate = 0;
+		}
 	}
-	bcmsdh_irq_status = enable;
 	spin_unlock_irqrestore(&sdhcinfo->irq_lock, flags);
 }
 
@@ -635,9 +637,8 @@ static irqreturn_t wlan_oob_irq(int irq, void *dev_id)
 	dhdp = (dhd_pub_t *)dev_get_drvdata(sdhcinfo->dev);
 
 #if defined(OOB_INTR_ONLY)
-	if (!bcmsdh_irq_status) {
-		printf("GPIO IRQ disabled, skip and disable IRQ again!\n");
-		bcmsdh_oob_intr_set(0);
+	if (atomic_read(&bcmsdh_irq_status) == 0) {
+		printf("GPIO IRQ disabled, skip it!\n");
 		return IRQ_HANDLED;
 	}
 #endif

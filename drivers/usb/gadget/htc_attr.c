@@ -272,7 +272,7 @@ int android_show_function(char *buf)
 	return length;
 }
 
-
+void tegra_udc_set_phy_clk(bool pull_up);
 int android_switch_function(unsigned func)
 {
 	struct android_dev *dev = _android_dev;
@@ -310,6 +310,11 @@ int android_switch_function(unsigned func)
 		pr_debug("%s enter offmode-charging\n", __func__);
 		tegra_otg_set_disable_usb(1);
 	}
+
+	if (func & (1 << USB_FUNCTION_RNDIS))
+		tegra_udc_set_phy_clk(true);
+	else
+		tegra_udc_set_phy_clk(false);
 
 	while ((f = *functions++)) {
 		if ((func & (1 << USB_FUNCTION_UMS)) &&
@@ -766,9 +771,8 @@ static ssize_t store_usb_host_mode(struct device *dev,
 	}
 
 	enable = u ? 1 : 0;
+	USB_INFO("%s (%s)\n", __func__, enable ? "Enable" : "Disable");
 	usb_host_status_notifier_func(enable);
-
-	USB_INFO("%s USB host\n", enable ? "Enable" : "Disable");
 
 	return count;
 }

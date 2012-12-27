@@ -139,8 +139,15 @@ static __initdata struct tegra_pingroup_config evitareul_pinmux_common[] = {
 
 };
 
+static void evitareul_pinmux_suspend_unused_pins(void)
+{
+	gpio_direction_output(TEGRA_GPIO_PO2, 1);
+}
+extern void (*tegra_gpio_special_suspend_pins)(void);
+
 int __init evitareul_pinmux_init(void)
 {
+	int ret;
 	struct board_info board_info;
 	tegra_get_board_info(&board_info);
 	tegra_pinmux_config_table(evitareul_pinmux_common, ARRAY_SIZE(evitareul_pinmux_common));
@@ -148,5 +155,12 @@ int __init evitareul_pinmux_init(void)
 	 * remove all pin config but drive config here
 	 */
 	tegra_drive_pinmux_config_table(evitareul_drive_pinmux,ARRAY_SIZE(evitareul_drive_pinmux));
+
+	ret = gpio_request(TEGRA_GPIO_PO2, "TEGRA_GPIO_PO2");
+	if (ret)
+		WARN(1, "fail on gpio_request the unused pins. errno: %d\n", ret);
+	else
+		tegra_gpio_special_suspend_pins = evitareul_pinmux_suspend_unused_pins;
+
 	return 0;
 }

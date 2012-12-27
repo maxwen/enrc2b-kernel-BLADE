@@ -1446,11 +1446,11 @@ static struct mutex wl_wificall_mutex;
 static struct mutex wl_wifionoff_mutex;
 #ifdef BCM4329_LOW_POWER
 extern int LowPowerMode;
-char wl_abdroid_gatewaybuf[8+1]; /* HTC_KlocWork */
 extern bool hasDLNA;
 extern bool allowMulticast;
 extern int dhd_set_keepalive(int value);
 #endif
+char wl_abdroid_gatewaybuf[8+1]; /* HTC_KlocWork */
 
 static int active_level = -80;
 static int active_period = 20000; /*in mini secs*/

@@ -1262,6 +1262,7 @@ extern struct net_device *ap_net_dev;
 /* HTC_CSP_START */
 extern bool hasDLNA;
 extern char ip_str[32];
+extern int is_screen_off;
 /* HTC_CSP_END */
 int dhd_set_pktfilter(dhd_pub_t * dhd, int add, int id, int offset, char *mask, char *pattern)
 {
@@ -1348,6 +1349,11 @@ int dhd_set_pktfilter(dhd_pub_t * dhd, int add, int id, int offset, char *mask, 
 		}
 	}
 #endif
+    /* if wifi connected while screen off, we need update dtim to 3 */
+	if (add == 1 && id == 101) {
+		printf("Update dtim after connected AP, screen_off:%d\n", is_screen_off);
+		dhdhtc_update_dtim_listen_interval(is_screen_off);
+	}
 /* HTC_CSP_END */
 
 	/* Parse pattern filter pattern. */

@@ -4169,6 +4169,9 @@ void snd_hda_power_up(struct hda_codec *codec)
 {
 	struct hda_bus *bus = codec->bus;
 
+	if(cancel_delayed_work(&codec->power_work)){
+		codec->power_transition = 0;
+	}
 	codec->power_count++;
 	if (codec->power_on || codec->power_transition)
 		return;

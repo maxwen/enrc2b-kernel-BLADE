@@ -630,7 +630,7 @@ struct enrc2u_battery_gpio enrc2u_battery_gpio_data[] ={
 };
 
 static struct htc_battery_platform_data htc_battery_pdev_data = {
-	.gpio_mbat_in = 0,
+	.gpio_mbat_in = -1,
 	.gpio_mbat_in_trigger_level = MBAT_IN_LOW_TRIGGER,
 	.guage_driver = GUAGE_TPS80032,
 	.charger = SWITCH_CHARGER_TPS80032,
@@ -647,6 +647,17 @@ static struct platform_device htc_battery_pdev = {
 	        .platform_data = &htc_battery_pdev_data,
 	},
 };
+
+#if 1	/* fixme: for MFG build to disable mbat_in check */
+static int __init check_mbat_in_tag(char *get_mbat_in)
+{
+	if (strlen(get_mbat_in) && !strcmp(get_mbat_in, "false")) {
+		htc_battery_pdev_data.power_off_by_id = 0;
+	}
+	return 1;
+}
+__setup("mbat_in_check=", check_mbat_in_tag);
+#endif
 
 #define TMUS_SKUID_BATT	0x00032900
 static void enrc2u_battery_init(void)

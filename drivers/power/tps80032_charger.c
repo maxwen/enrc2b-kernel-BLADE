@@ -94,6 +94,7 @@ static struct tps80032_charger_data *charger_data;
 static int tps80032_charger_initial = -1;
 static unsigned int tps80032_low_chg;
 static unsigned int tps80032_over_vchg;
+static unsigned int tps80032_icl_750;
 
 static int tps80032_charger_state = -1;
 
@@ -149,14 +150,20 @@ void tps80032_charger_dump_status(int cond)
 			CHARGERUSB_CTRLLIMIT1, &regh[7]);
 	tps80031_read(charger_data->parent_dev, SLAVE_ID2,
 			CHARGERUSB_CTRLLIMIT2, &regh[8]);
+	tps80031_read(charger_data->parent_dev, SLAVE_ID2,
+			ANTICOLLAPSE_CTRL1, &regh[9]);
+	tps80031_read(charger_data->parent_dev, SLAVE_ID2,
+			CHARGERUSB_CTRL1, &regh[10]);
 	pr_info("Check %d: "
 			"STS=0x%X, STAT1=0x%X, INT1=0x%X, "
 			"INT2=0x%X, CINL=0x%X, VO=0x%X, "
-			"VI=0x%X, VOL=0x%X, VIL=0x%X\n",
+			"VI=0x%X, VOL=0x%X, VIL=0x%X, "
+			"DPPM=0x%X, CC1=0x%X\n",
 			cond,
 			regh[0], regh[1], regh[2],
 			regh[3], regh[4], regh[5],
-			regh[6], regh[7], regh[8]);
+			regh[6], regh[7], regh[8],
+			regh[9], regh[10]);
 }
 EXPORT_SYMBOL_GPL(tps80032_charger_dump_status);
 
@@ -248,14 +255,17 @@ int tps80032_charger_set_ctrl(u32 ctl)
 		else
 			TPS80032_ID2_I2C_WRITE(CHARGERUSB_VICHRG, 0x0A);
 
-		TPS80032_ID2_I2C_UPDATE(CHARGERUSB_CINLIMIT, 0x2A, 0x3F);
+		if (!!tps80032_icl_750)
+			TPS80032_ID2_I2C_UPDATE(CHARGERUSB_CINLIMIT, 0x0E, 0x3F);
+		else
+			TPS80032_ID2_I2C_UPDATE(CHARGERUSB_CINLIMIT, 0x2A, 0x3F);
 		tps80032_charger_regulation_voltage_set(-1);
 		TPS80032_ID2_I2C_READ(CONTROLLER_WDG, &regh);
 		regh |= 0x80;
 		TPS80032_ID2_I2C_WRITE(CONTROLLER_WDG, regh);
 		TPS80032_ID2_I2C_WRITE(CHARGERUSB_CTRL1, 0x10);
 
-		tps80032_charger_state = 1;
+		tps80032_charger_state = 2;
 		tps80032_charger_dump_status(1);
 
 		break;
@@ -279,6 +289,13 @@ int tps80032_charger_set_ctrl(u32 ctl)
 		tps80032_charger_regulation_voltage_set(regh);
 		TPS80032_ID2_I2C_READ(CHARGERUSB_VOREG, &regh);
 		pr_info("Switch charger OVERTEMP_VREG: regh 0x%X=%x\n", CHARGERUSB_VOREG, regh);
+
+		break;
+	case UNDERTEMP_VREG:
+		regh = 0x1E;
+		tps80032_charger_regulation_voltage_set(regh);
+		TPS80032_ID2_I2C_READ(CHARGERUSB_VOREG, &regh);
+		pr_info("Switch charger UNDERTEMP_VREG: regh 0x%X=%x\n", CHARGERUSB_VOREG, regh);
 
 		break;
 	case NORMALTEMP_VREG:
@@ -361,6 +378,13 @@ int tps80032_charger_set_ctrl(u32 ctl)
 		pr_info("Switch charger OVERTEMP_VSYS_4140: regh 0x%X=%x\n", CHARGERUSB_VSYSREG, regh);
 
 		break;
+	case UNDERTEMP_VSYS_4200:
+		regh = 0x23 | 0x80;
+		TPS80032_ID2_I2C_WRITE(CHARGERUSB_VSYSREG, regh);
+		TPS80032_ID2_I2C_READ(CHARGERUSB_VSYSREG, &regh);
+		pr_info("Switch charger UNDERTEMP_VSYS_4200: regh 0x%X=%x\n", CHARGERUSB_VSYSREG, regh);
+
+		break;
 	case CHECK_INT1:
 		TPS80032_ID2_I2C_READ(CHARGERUSB_STATUS_INT1, &regh);
 		pr_info("Switch charger CHECK_INT1: regh 0x%xh=%x\n", CHARGERUSB_STATUS_INT1, regh);
@@ -382,6 +406,24 @@ int tps80032_charger_set_ctrl(u32 ctl)
 		TPS80032_ID2_I2C_WRITE(CHARGERUSB_VICHRG, 0x0A);
 		TPS80032_ID2_I2C_READ(CHARGERUSB_VICHRG, &regh);
 		pr_info("Switch charger OFF (LIMITED): regh 0x%x=%x low_chg=%u\n", CHARGERUSB_VICHRG, regh, tps80032_low_chg);
+		break;
+	case SET_ICL_NORMAL:
+		tps80032_icl_750 = 0;
+		if (tps80032_charger_state == 2) {
+			TPS80032_ID2_I2C_UPDATE(CHARGERUSB_CINLIMIT, 0x2A, 0x3F);
+			TPS80032_ID2_I2C_READ(CHARGERUSB_CINLIMIT, &regh);
+			pr_info("Switch charger SET_ICL_NORMAL: regh 0x%x=0x%x\n", CHARGERUSB_CINLIMIT, regh);
+		} else
+			pr_info("Switch charger SET_ICL_NORMAL \n");
+		break;
+	case SET_ICL750:
+		tps80032_icl_750 = 1;
+		if (tps80032_charger_state == 2) {
+			TPS80032_ID2_I2C_UPDATE(CHARGERUSB_CINLIMIT, 0x0E, 0x3F);
+			TPS80032_ID2_I2C_READ(CHARGERUSB_CINLIMIT, &regh);
+			pr_info("Switch charger SET_ICL750: regh 0x%x=0x%x\n", CHARGERUSB_CINLIMIT, regh);
+		} else
+			pr_info("Switch charger SET_ICL750 \n");
 		break;
 	case CHECK_CHG:
 	case CHECK_CONTROL:

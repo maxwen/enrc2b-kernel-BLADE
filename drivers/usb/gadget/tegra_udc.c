@@ -2894,6 +2894,12 @@ static int tegra_udc_resume(struct platform_device *pdev)
 	return 0;
 }
 
+void tegra_udc_set_phy_clk(bool pull_up)
+{
+	struct tegra_udc *udc = the_udc;
+	tegra_usb_set_usb_clk(udc->phy, pull_up);
+}
+
 
 static struct platform_driver tegra_udc_driver = {
 	.remove  = __exit_p(tegra_udc_remove),

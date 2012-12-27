@@ -341,6 +341,9 @@ int wldev_get_band(
 	return error;
 }
 
+// brcm 2012-10-24
+extern void wl_cfg80211_abort_connecting(void);
+// end
 int wldev_set_band(
 	struct net_device *dev, uint band)
 {
@@ -349,6 +352,9 @@ int wldev_set_band(
 	if ((band == WLC_BAND_AUTO) || (band == WLC_BAND_5G) || (band == WLC_BAND_2G)) {
 		error = wldev_ioctl(dev, WLC_SET_BAND, &band, sizeof(band), 1);
 	}
+	// brcm 2012-10-24
+	wl_cfg80211_abort_connecting();
+	// end
 	return error;
 }
 
@@ -450,6 +456,9 @@ get_channel_retry:
 	dhd_bus_country_set(dev, &cspec);
 	printk(KERN_INFO "[WLAN] %s: set country for %s as %s rev %d\n",
 		__func__, country_code, cspec.ccode, cspec.rev);
+	// brcm 2012-10-24
+	wl_cfg80211_abort_connecting();
+	// end
 	return 0;
 }
 

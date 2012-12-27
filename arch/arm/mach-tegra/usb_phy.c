@@ -210,7 +210,7 @@ static int tegra_usb_phy_get_clocks(struct tegra_usb_phy *phy)
 		goto fail_sclk;
 	}
 	if (phy->pdata->phy_intf == TEGRA_USB_PHY_INTF_UTMI)
-		clk_set_rate(phy->sys_clk, 240000000);
+		clk_set_rate(phy->sys_clk, 81600000);
 	else
 		clk_set_rate(phy->sys_clk, 80000000);
 
@@ -227,7 +227,7 @@ static int tegra_usb_phy_get_clocks(struct tegra_usb_phy *phy)
 		clk_set_rate(phy->emc_clk, 300000000);
 
 	if (phy->pdata->phy_intf == TEGRA_USB_PHY_INTF_UTMI)
-		clk_set_rate(phy->emc_clk, 533000000);
+		clk_set_rate(phy->emc_clk, 266500000);
 
 	return err;
 
@@ -781,5 +781,18 @@ int tegra_usb_set_vbus_wakeup(int irq)
 	}
 	return err;
 
+}
+void tegra_usb_set_usb_clk(struct tegra_usb_phy *phy, bool pull_up)
+{
+	if (!phy)
+		return;
+	pr_info("%s pull_up:%d\n", __func__, pull_up);
+	if (pull_up) {
+		clk_set_rate(phy->sys_clk, 266000000);
+		clk_set_rate(phy->emc_clk, 533000000);
+	} else {
+		clk_set_rate(phy->sys_clk, 81600000);
+		clk_set_rate(phy->emc_clk, 266500000);
+	}
 }
 //-- htc --

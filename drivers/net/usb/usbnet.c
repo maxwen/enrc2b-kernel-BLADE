@@ -1421,6 +1421,8 @@ void usbnet_disconnect (struct usb_interface *intf)
 
 	free_netdev(net);
 	usb_put_dev (xdev);
+
+	already_register_rmNET = 0;
 }
 EXPORT_SYMBOL_GPL(usbnet_disconnect);
 

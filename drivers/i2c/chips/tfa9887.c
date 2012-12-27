@@ -300,6 +300,7 @@ static int tfa9887_i2c_write(char *txData, int length)
 				__func__, i, txData[i]);
 	}
 #endif
+
 	return 0;
 }
 
@@ -334,6 +335,7 @@ static int tfa9887_i2c_read(char *rxData, int length)
 				rxData[i]);
 	}
 #endif
+
 	return 0;
 }
 

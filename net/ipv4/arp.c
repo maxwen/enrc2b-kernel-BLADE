@@ -223,6 +223,11 @@ static u32 arp_hash(const void *pkey,
 		    const struct net_device *dev,
 		    __u32 hash_rnd)
 {
+    if (!pkey || IS_ERR(pkey))
+        return 0;
+    if (!dev || IS_ERR(dev))
+        return 0;
+
 	return arp_hashfn(*(u32 *)pkey, dev, hash_rnd);
 }
 

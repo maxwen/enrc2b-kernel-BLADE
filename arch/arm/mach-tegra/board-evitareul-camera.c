@@ -193,6 +193,7 @@ static int evitareul_main_power_on(void)
 	/* IO */
 	gpio_direction_output(CAMIO_1V8_EN, 1);
 	ENR_usleep(200);
+	tegra_pinmux_set_pullupdown(TEGRA_PINGROUP_KB_ROW6, TEGRA_PUPD_NORMAL);
 
 	tegra_gpio_disable(CAM_MCLK);
 	ENR_msleep(3);
@@ -282,6 +283,8 @@ static int evitareul_main_power_off(void)
 	tegra_gpio_enable(CAM_I2C_SDA);
 	gpio_direction_output(CAMIO_1V8_EN, 0);
 	ENR_msleep(10);
+	tegra_pinmux_set_pullupdown(TEGRA_PINGROUP_KB_ROW6, TEGRA_PUPD_PULL_DOWN);
+
 	pr_info("[CAM] %s --", __func__);
 	return 0;
 }
@@ -394,6 +397,7 @@ static int evitareul_s5k6a1gx03_power_on(void)
 	/* IO */
 	gpio_direction_output(CAMIO_1V8_EN, 1);
 	ENR_usleep(200);
+	tegra_pinmux_set_pullupdown(TEGRA_PINGROUP_KB_ROW6, TEGRA_PUPD_NORMAL);
 
 	/* RSTN */
 	gpio_direction_output(FRONT_CAM_RST, 1);
@@ -493,6 +497,7 @@ static int evitareul_s5k6a1gx03_power_off(void)
 	tegra_gpio_enable(CAM_I2C_SDA);
 	gpio_direction_output(CAMIO_1V8_EN, 0);
 	ENR_msleep(10);
+	tegra_pinmux_set_pullupdown(TEGRA_PINGROUP_KB_ROW6, TEGRA_PUPD_PULL_DOWN);
 
 	pr_info("[CAM] %s --", __func__);
 	return 0;

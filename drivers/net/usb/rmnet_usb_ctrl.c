@@ -40,6 +40,8 @@
 #define HS_INTERVAL		7
 #define FS_LS_INTERVAL		3
 
+extern int already_register_rmNET;
+
 /*echo modem_wait > /sys/class/hsicctl/hsicctlx/modem_wait*/
 static ssize_t modem_wait_store(struct device *d, struct device_attribute *attr,
 		const char *buf, size_t n)
@@ -671,6 +673,8 @@ static int rmnet_ctl_open(struct inode *inode, struct file *file)
 	struct rmnet_ctrl_dev	*dev =
 		container_of(inode->i_cdev, struct rmnet_ctrl_dev, cdev);
 
+pr_info("%s+ \n", __func__);
+
 	if (!dev)
 		return -ENODEV;
 
@@ -694,11 +698,12 @@ static int rmnet_ctl_open(struct inode *inode, struct file *file)
 		if (retval == 0 && !trigger_errfatal_once) {
 			dev_err(dev->devicep, "%s: Timeout opening  %s\n",
 						__func__, dev->name);
-
+			if (already_register_rmNET) {
 			printk("%s trigger_ap2mdm_errfatal\n", __func__);
 			trigger_errfatal_once = 1;
 			open_hsicctl_timeout_trigger_errfatal = 1;
 			trigger_ap2mdm_errfatal();
+		}
 			return -ETIMEDOUT;
 		} else if (retval < 0) {
 			dev_err(dev->devicep, "%s: Error waiting for %s\n",
@@ -721,6 +726,7 @@ static int rmnet_ctl_open(struct inode *inode, struct file *file)
 
 already_opened:
 	DBG("%s: Open called for %s\n", __func__, dev->name);
+	pr_info("%s- \n", __func__);
 
 	return 0;
 }

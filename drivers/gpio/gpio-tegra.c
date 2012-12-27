@@ -403,6 +403,8 @@ static void tegra_gpio_resume(void)
 	local_irq_restore(flags);
 }
 
+void (*tegra_gpio_special_suspend_pins)(void) = NULL;
+
 static int tegra_gpio_suspend(void)
 {
 	unsigned long flags;
@@ -433,6 +435,9 @@ static int tegra_gpio_suspend(void)
 		pr_info("[powertest] setup MFG gpio settings\n");
 		htc_gpio_set_diag_gpio_table((unsigned char*)board_get_mfg_sleep_gpio_table());
 	}
+
+	if (tegra_gpio_special_suspend_pins)
+		tegra_gpio_special_suspend_pins();
 
 	if (gpio_dump_enable)
 		gpio_dump();

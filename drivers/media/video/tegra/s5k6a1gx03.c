@@ -166,7 +166,7 @@ static struct s5k6a1gx03_reg mode_1296x1040[] = {
 #endif
 	/* Add i2c register writes to make sure the key registers are set correctly */
 	{0x0204, 0x00}, //Analog Gain code
-	{0x0205, 0x80}, //Analog Gain code
+	{0x0205, 0x20}, //Analog Gain code
 	{0x0340, 0x04}, /* Frame_length_lines 0x0434 = 1076 */
 	{0x0341, 0x34}, /* 02120607, steven modified: 0x22 -> 0x34 */
 	{0x0342, 0x05}, /* Line_length_pck = 0x05CE = 1486 */
@@ -764,6 +764,10 @@ static int s5k6a1gx03_set_gain(struct s5k6a1gx03_info *info, u16 gain)
 	struct s5k6a1gx03_reg reg_list[2];
 	int i = 0;
 
+	/* Maverick: to prevent analog gain less than 1x, 20121105 */
+	if ( gain < 32 )
+		gain = 32;
+
 	s5k6a1gx03_get_gain_reg(reg_list, gain);
 
 	for (i = 0; i < 2; i++)	{
@@ -782,17 +786,8 @@ static int s5k6a1gx03_set_group_hold(struct s5k6a1gx03_info *info,
 	struct s5k6a1gx03_ae *ae)
 {
 	int ret;
-	int count = 0;
-	bool groupHoldEnabled = false;
 
-	if (ae->gain_enable)
-		count++;
-	if (ae->coarse_time_enable)
-		count++;
-	if (ae->frame_length_enable)
-		count++;
-	if ((count >= 2) || ae->coarse_time_enable || ae->frame_length_enable)
-		groupHoldEnabled = true;
+	bool groupHoldEnabled = ae->gain_enable | ae->coarse_time_enable | ae->frame_length_enable;
 
 	if (groupHoldEnabled) {
 		ret = s5k6a1gx03_write_reg(info->i2c_client, group_hold_reg, 0x01);

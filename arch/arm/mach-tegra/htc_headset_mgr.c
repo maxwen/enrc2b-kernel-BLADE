@@ -1315,6 +1315,22 @@ static ssize_t headset_state_store(struct device *dev,
 static DEVICE_HEADSET_ATTR(state, 0644, headset_state_show,
 			   headset_state_store);
 
+static ssize_t headset_1wire_state_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf,"%d\n", hi->one_wire_mode);
+}
+
+static ssize_t headset_1wire_state_store(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	HS_DBG();
+	return 0;
+}
+
+static DEVICE_HEADSET_ATTR(1wire_state, 0644, headset_1wire_state_show,
+			   headset_1wire_state_store);
+
 static ssize_t headset_simulate_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
 {
@@ -1750,6 +1766,10 @@ static int register_attributes(void)
 		goto err_create_headset_simulate_device_file;
 
 	ret = device_create_file(hi->headset_dev, &dev_attr_headset_1wire);
+	if (ret)
+		goto err_create_headset_state_device_file;
+
+	ret = device_create_file(hi->headset_dev, &dev_attr_headset_1wire_state);
 	if (ret)
 		goto err_create_headset_state_device_file;
 

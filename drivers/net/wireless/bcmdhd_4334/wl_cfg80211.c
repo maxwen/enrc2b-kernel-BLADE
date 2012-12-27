@@ -2420,6 +2420,10 @@ scan_out:
 		busy_count = 0;
 		disconnect_flag = 0;
 	}
+
+	if ( wl_get_drv_status(wl, SCANNING, ndev) ) {
+		printf("%s: discard scan due to busy\n", __FUNCTION__);
+	}
 	wl_clr_drv_status(wl, SCANNING, ndev);
 	if (timer_pending(&wl->scan_timeout))
 		del_timer_sync(&wl->scan_timeout);
@@ -4021,6 +4025,9 @@ static s32 wl_cfg80211_suspend(struct wiphy *wiphy)
 	}
 	wl->scan_request = NULL;
 	for_each_ndev(wl, iter, next) {
+		if ( wl_get_drv_status(wl, SCANNING, iter->ndev) ) {
+			printf("%s: discard scan due to suspend\n", __FUNCTION__);
+		}
 		wl_clr_drv_status(wl, SCANNING, iter->ndev);
 		wl_clr_drv_status(wl, SCAN_ABORTING, iter->ndev);
 	}
@@ -4372,6 +4379,9 @@ wl_cfg80211_send_pending_tx_act_frm(struct wl_priv *wl)
 		 * starting a scan or changing the channel.
 		 */
 
+		if ( wl_get_drv_status(wl, SCANNING, wl->afx_hdl->dev) ) {
+			printf("%s: discard scan due to action frame\n", __FUNCTION__);
+		}
 		wl_clr_drv_status(wl, SCANNING, wl->afx_hdl->dev);
 /* Do not abort scan for VSDB. Scan will be aborted in firmware if necessary */
 #ifndef WL_CFG80211_VSDB_PRIORITIZE_SCAN_REQUEST
@@ -4456,6 +4466,9 @@ wl_cfg80211_send_at_common_channel(struct wl_priv *wl,
 	}
 	wl->afx_hdl->is_active = FALSE;
 
+	if ( wl_get_drv_status(wl, SCANNING, dev) ) {
+		printf("%s: discard scan due to send action frame\n", __FUNCTION__);
+	}
 	wl_clr_drv_status(wl, SCANNING, dev);
 	wl_clr_drv_status(wl, FINDING_COMMON_CHANNEL, dev);
 	if (wl->afx_hdl->peer_chan != WL_INVALID)
@@ -10228,6 +10241,36 @@ static void get_primary_mac(struct wl_priv *wl, struct ether_addr *mac)
 		0, wl->ioctl_buf, WLC_IOCTL_SMLEN, 0, &wl->ioctl_buf_sync);
 	memcpy(mac->octet, wl->ioctl_buf, ETHER_ADDR_LEN);
 }
+
+// brcm 2012-10-24
+void wl_cfg80211_abort_connecting(void)
+{
+	struct wl_priv *wl = wlcfg_drv_priv;
+	struct net_device *dev;
+
+	if(!wl) {
+		printf("%s : wl is null, return\n",__func__);
+		return;
+	}
+
+	dev = wl_to_prmry_ndev(wl);
+	if(!dev) {
+        printf("%s : dev is null, return\n",__func__);
+        return;
+	}
+	if (wl_get_drv_status(wl, CONNECTING, dev)) {
+		int val = 0;
+		int err;
+		printf("%s: abort the connecting procedure.\n", __FUNCTION__);
+        err = wldev_ioctl(dev, WLC_DISASSOC, &val, sizeof(val), true);
+        if (unlikely(err)) {
+	        WL_ERR(("call WLC_DISASSOC failed. (%d)\n", err));
+	    }
+        /* notify wpa_supplicant the association abort */
+        wl_bss_connect_done(wl, dev, NULL, NULL, false);
+    }
+}		
+// 2012-10-24 end
 
 //BRCM APSTA START
 #ifdef APSTA_CONCURRENT

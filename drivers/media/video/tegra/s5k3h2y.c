@@ -1001,11 +1001,11 @@ retry:
 		s5k3h2yx_get_coarse_time_regs(reg_list + 2, mode->coarse_time);
 		s5k3h2yx_get_gain_reg(reg_list + 4, mode->gain);
 	} else {
+		// HTC_Optical: modify for initial AE
 		// AE breakdown 875*45 == 1240*32 sensor default
-		s5k3h2yx_get_coarse_time_regs(reg_list, 2190); //HTC_Optical: modify for initial AE
-		s5k3h2yx_get_gain_reg(reg_list + 2, 38); //HTC_Optical: modify for initial AE
+		s5k3h2yx_get_coarse_time_regs(reg_list, 1240);	//2190
+		s5k3h2yx_get_gain_reg(reg_list + 2, 32);        //38
 	}
-
 	/*sensor stream off*/
 	err = s5k3h2yx_write_table(info->i2c_client, reset_seq, NULL, 0);
 	if (err)

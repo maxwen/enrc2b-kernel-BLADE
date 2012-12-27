@@ -212,14 +212,7 @@ static int keyreset_connect(struct input_handler *handler,
 	if (i == KEY_MAX)
 		return -ENODEV;
 
-	hrtimer_init(&led_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	led_timer.function = led_timer_func;
-#if defined(CONFIG_INPUT_POWERKEY_RESET_PATCH)
-	hrtimer_init(&reset_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	reset_timer.function = power_reset_func;
-#endif
-	hrtimer_init(&temp_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
-	temp_timer.function = temp_timer_func;
+
 
 	handle = kzalloc(sizeof(*handle), GFP_KERNEL);
 	if (!handle)
@@ -296,6 +289,15 @@ static int keyreset_probe(struct platform_device *pdev)
 			__set_bit(key, state->upbit);
 		}
 	}
+
+	hrtimer_init(&led_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	led_timer.function = led_timer_func;
+#if defined(CONFIG_INPUT_POWERKEY_RESET_PATCH)
+	hrtimer_init(&reset_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	reset_timer.function = power_reset_func;
+#endif
+	hrtimer_init(&temp_timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
+	temp_timer.function = temp_timer_func;
 
 	if (pdata->reset_fn)
 		state->reset_fn = pdata->reset_fn;

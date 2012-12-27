@@ -39,6 +39,7 @@ typedef enum ov8838_mode_e{
 	OV8838_MODE_3280x2464_DEFAULT,
 	OV8838_MODE_3280x2464,
 	OV8838_MODE_3280x1856,
+	OV8838_MODE_3280x1856_EVITA,
 	OV8838_MODE_3088x1736,
 	OV8838_MODE_1920x1080,
 	OV8838_MODE_1640x510,
@@ -121,6 +122,24 @@ struct rawchip_sensor_data rawchip_mode_table_1[] =
 	{	/* 6M 3280x1856 */
 		.datatype = 0x2B,
 		.pixel_clk = 195200000,
+		.width = 3280,
+		.height = 1856,
+		.line_length_pclk = 3648,
+		.frame_length_lines = 1922,
+		.x_addr_start = 0,
+		.y_addr_start = 0x134 + 4,
+		.x_addr_end = 3280 - 1,
+		.y_addr_end = 0x87b - 4,
+		.x_even_inc = 1,
+		.x_odd_inc = 1,
+		.y_even_inc = 1,
+		.y_odd_inc = 1,
+		.binning_rawchip = 0x11,
+	},
+	[OV8838_MODE_3280x1856_EVITA] =
+	{	/* 6M 3280x1856 */
+		.datatype = 0x2B,
+		.pixel_clk = 199200000,
 		.width = 3280,
 		.height = 1856,
 		.line_length_pclk = 3648,
@@ -583,8 +602,10 @@ static struct ov8838_reg mode_3280x2464[] = {
 //	{ 0x3208, 0x00 }, /* Group 0 hold start/Group Bank 0 */
 
 	/* PLL setting */
+	{ 0x3090, 0x03 },
 	{ 0x3091, 0x22 }, /* PLL_PLL11 */
 	{ 0x30b3, 0x51 }, /* PLL_MULTIPLIER */
+	{ 0x30b4, 0x03 },
 	{ 0x30b6, 0x01 },
 	{ 0x4837, 0x0c },
 
@@ -646,9 +667,9 @@ static struct ov8838_reg mode_3280x2464[] = {
  * SystemCLK     :208Mhz
  * FPS	        :30
  * HTS		:3648 (R380c:R380d)
- * VTS		:1914 (R380e:R380f)
+ * VTS		:1922 (R380e:R380f)
  * Tline 	:17.54us
- * Max exp line	:1902 ( VTS-12)
+ * Max exp line	:1908 ( VTS-14)
  *----------------------------------------------
  */
 static struct ov8838_reg mode_3280x1856[] = {
@@ -659,6 +680,7 @@ static struct ov8838_reg mode_3280x1856[] = {
 	{ 0x3090, 0x03 },
 	{ 0x3091, 0x1A }, /* PLL_PLL11 */
 	{ 0x30b3, 0x7A }, /* PLL_MULTIPLIER */
+	{ 0x30b4, 0x03 },
 	{ 0x30b6, 0x02 },
 	{ 0x4837, 0x10 },
 
@@ -711,6 +733,82 @@ static struct ov8838_reg mode_3280x1856[] = {
 
 	{ OV8838_TABLE_END, 0x0000 }
 };
+
+/*
+ *@@ 3280x1856_30fps_4lane setting
+ *----------------------------------------------
+ * MIPI 4 Lane
+ * Mipi data rate: 498Mbps
+ * SystemCLK     :210Mhz
+ * FPS	        :30
+ * HTS		:3648 (R380c:R380d)
+ * VTS		:1922 (R380e:R380f)
+ * Tline 	:17.54us
+ * Max exp line	:1908 ( VTS-14)
+ *----------------------------------------------
+ */
+static struct ov8838_reg mode_3280x1856_evita[] = {
+	/* resolution setting for default */
+//	{ 0x3208, 0x02 }, /* Group 2 hold start/Group Bank 2 */
+
+	/* PLL setting */
+	{ 0x3090, 0x04 },
+	{ 0x3091, 0x23 }, /* PLL_PLL11 */
+	{ 0x30b3, 0xA6 }, /* PLL_MULTIPLIER */
+	{ 0x30b4, 0x04 },
+	{ 0x30b6, 0x02 },
+	{ 0x4837, 0x10 },
+
+	{ 0x3500, 0x00 },
+	{ 0x3501, 0x20 },
+	{ 0x3502, 0xc0 },
+	{ 0x350b, 0x38 },
+
+	{ 0x3800, 0x00 }, /* TIMING_X_ADDR_START */
+	{ 0x3801, 0x04 }, /* TIMING_X_ADDR_START */
+	{ 0x3802, 0x01 }, /* TIMING_Y_ADDR_START */
+	{ 0x3803, 0x34 }, /* TIMING_Y_ADDR_START */
+	{ 0x3804, 0x0c }, /* TIMING_X_ADDR_END */
+	{ 0x3805, 0xdb }, /* TIMING_X_ADDR_END */
+	{ 0x3806, 0x08 }, /* TIMING_Y_ADDR_END */
+	{ 0x3807, 0x7b }, /* TIMING_Y_ADDR_END */
+	{ 0x3808, 0x0c }, /* TIMING_X_OUTPUT_SIZE */
+	{ 0x3809, 0xd0 }, /* TIMING_X_OUTPUT_SIZE */
+	{ 0x380a, 0x07 }, /* TIMING_Y_OUTPUT_SIZE */
+	{ 0x380b, 0x40 }, /* TIMING_Y_OUTPUT_SIZE */
+	{ 0x380c, 0x0e }, /* TIMING_HTS */
+	{ 0x380d, 0x40 }, /* TIMING_HTS */
+	{ 0x380e, 0x07 }, /* TIMING_VTS */
+	{ 0x380f, 0x82 }, /* TIMING_VTS */
+	{ 0x3810, 0x00 }, /* TIMING_ISP_X_WIN */
+	{ 0x3811, 0x04 }, /* TIMING_ISP_X_WIN */
+	{ 0x3812, 0x00 }, /* TIMING_ISP_Y_WIN */
+	{ 0x3813, 0x04 }, /* TIMING_ISP_Y_WIN */
+
+	{ 0x3814, 0x11 }, /* TIMING_X_INC */
+	{ 0x3815, 0x11 }, /* TIMING_Y_INC */
+
+#if defined(CONFIG_MACH_OPERAUL)
+	{ 0x3820, 0x10 },
+	{ 0x3821, 0x0E },
+#else
+	{ 0x3820, 0x52 },
+	{ 0x3821, 0x08 },
+#endif
+
+	{ 0x3708, 0xe3 },
+	{ 0x3709, 0x43 },
+	{ 0x4512, 0x01 },
+
+	{ 0x3a04, 0x07 },
+	{ 0x3a05, 0x49 },
+
+//	{ 0x3208, 0x12 }, /* Group 2 hold end/Group Bank 2 */
+//	{ 0x3208, 0xA2 },
+
+	{ OV8838_TABLE_END, 0x0000 }
+};
+
 
 /*
  * @@ 1920x1080_60fps_4lane setting
@@ -798,8 +896,10 @@ static struct ov8838_reg mode_1640x510[] = {
 	{ 0x350b, 0x38 },
 
 	/* PLL setting */
+	{ 0x3090, 0x03 },
 	{ 0x3091, 0x22 }, /* PLL_PLL11 */
 	{ 0x30b3, 0x51 }, /* PLL_MULTIPLIER */
+	{ 0x30b4, 0x03 },
 	{ 0x30b6, 0x01 },
 	{ 0x4837, 0x0c },
 
@@ -1378,6 +1478,7 @@ static struct ov8838_reg *mode_start = mode_start_1;
 static struct ov8838_reg *mode_table[] = {
 	[OV8838_MODE_3280x2464] = mode_3280x2464,
 	[OV8838_MODE_3280x1856] = mode_3280x1856,
+	[OV8838_MODE_3280x1856_EVITA] = mode_3280x1856_evita,
 	[OV8838_MODE_1920x1080] = mode_1920x1080,
 	[OV8838_MODE_1640x510] = mode_1640x510,
 };
@@ -1693,7 +1794,10 @@ static int ov8838_get_mode(struct ov8838_mode * mode)
 	else if (mode->xres == 3280 && mode->yres == 1856)
 	{
 		pr_info("[CAM] set mode to (%d) -> OV8838_MODE_3280x1856\n", OV8838_MODE_3280x1856);
-		return OV8838_MODE_3280x1856;
+		if (machine_is_evitareul())
+			return OV8838_MODE_3280x1856_EVITA;
+		else
+			return OV8838_MODE_3280x1856;
 	}
 	else if (mode->xres == 1640 && mode->yres == 510)
 	{
@@ -1726,6 +1830,10 @@ static int ov8838_set_mode(struct ov8838_info *info, struct ov8838_mode *mode)
 		if( sensor_mode != -1 )
 			init_sensor_mode = sensor_mode;
 	} else {
+
+		if ( init_sensor_mode == OV8838_MODE_3280x1856 && machine_is_evitareul() )
+			init_sensor_mode = OV8838_MODE_3280x1856_EVITA;
+
 		sensor_mode = init_sensor_mode;
 		pr_info("[CAM] %s: select sensor mode with init_sensor_mode(%d)\n", __func__,init_sensor_mode);
 	}
@@ -1868,6 +1976,9 @@ static void rawchip_handler(struct work_struct *work)
 			rawchip_work);
 
 	mutex_lock(&info->rawchip_lock);
+
+	if ( init_sensor_mode == OV8838_MODE_3280x1856 && machine_is_evitareul() )
+		init_sensor_mode = OV8838_MODE_3280x1856_EVITA;
 
 	sensor_mode = init_sensor_mode;
 
