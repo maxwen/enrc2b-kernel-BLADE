@@ -408,6 +408,8 @@ bool aic3008_IsSoundPlayBack(int idx)
 
 void aic3008_votecpuminfreq(bool bflag)
 {
+//maxwen TODO
+#if 0
     static bool boldCPUMinReq = false;
     if (bflag == boldCPUMinReq)
     {
@@ -424,7 +426,7 @@ void aic3008_votecpuminfreq(bool bflag)
         pm_qos_update_request(&aud_cpu_minfreq_req, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
         AUD_INFO("VoteMinFreqE:%d\n", PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
     }
-
+#endif
     return;
 }
 
