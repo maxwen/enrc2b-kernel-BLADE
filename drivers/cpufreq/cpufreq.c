@@ -2039,7 +2039,7 @@ static int cpu_freq_notify(struct notifier_block *b,
 			   unsigned long l, void *v)
 {
 	int cpu;
-	pr_debug("PM QoS %s %lu\n",
+	pr_info("PM QoS PM_QOS_CPU_FREQ %s %lu\n",
 		b == &min_freq_notifier ? "min" : "max", l);
 	for_each_online_cpu(cpu) {
 		struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);

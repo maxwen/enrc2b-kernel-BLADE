@@ -126,23 +126,6 @@ define_int_store(edp_ap_limit, edp_ap_limit_value, null_cb);
 power_attr(edp_ap_limit);
 #endif
 
-#ifdef CONFIG_PERFLOCK
-extern ssize_t
-perflock_scaling_max_show(struct kobject *kobj, struct kobj_attribute *attr,
-		char *buf);
-extern ssize_t
-perflock_scaling_max_store(struct kobject *kobj, struct kobj_attribute *attr,
-		const char *buf, size_t n);
-extern ssize_t
-perflock_scaling_min_show(struct kobject *kobj, struct kobj_attribute *attr,
-		char *buf);
-extern ssize_t
-perflock_scaling_min_store(struct kobject *kobj, struct kobj_attribute *attr,
-		const char *buf, size_t n);
-power_attr(perflock_scaling_max);
-power_attr(perflock_scaling_min);
-#endif
-
 #ifdef CONFIG_HOTPLUG_CPU
 ssize_t
 cpu_hotplug_show(struct kobject *kobj, struct kobj_attribute *attr,

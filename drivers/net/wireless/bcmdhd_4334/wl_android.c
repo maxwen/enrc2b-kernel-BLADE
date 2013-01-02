@@ -416,56 +416,30 @@ static int traffic_stats_flag = TRAFFIC_STATS_NORMAL;
 static unsigned long current_traffic_count = 0;
 static unsigned long last_traffic_count = 0;
 
-#ifdef CONFIG_PERFLOCK
-#include <mach/perflock.h>
-#endif
 #include <linux/pm_qos_params.h>
 
-#ifdef CONFIG_PERFLOCK
-struct perf_lock wlan_perf_lock;
-#endif
 struct pm_qos_request_list req_freq;
 struct pm_qos_request_list req_cpus;
 #define PM_QOS_CPU_WIFI_FREQ_MAX_DEFAULT_VALUE 1600000
-#define PM_QOS_MAX_ONLINE_CPUS_WIFI_TWO_VALUE 2
-#define PM_QOS_MAX_ONLINE_CPUS_WIFI_FOUR_VALUE 4
+#define PM_QOS_MIN_ONLINE_CPUS_WIFI_VALUE 2
 static int wlan_req_perflock_active = 0;
 
 void wlan_lock_perf(void)
 {
-#ifdef CONFIG_PERFLOCK
-	if (!is_perf_lock_active(&wlan_perf_lock))
-		perf_lock(&wlan_perf_lock);
-#endif
+	printk(KERN_INFO "[WLAN] %s, perf on\n", __func__);
 	pm_qos_update_request(&req_freq, (s32)PM_QOS_CPU_WIFI_FREQ_MAX_DEFAULT_VALUE);
-	pm_qos_update_request(&req_cpus, (s32)PM_QOS_MAX_ONLINE_CPUS_WIFI_TWO_VALUE);
-}
-
-void wlan_lock_4cpu_perf(void)
-{
-#ifdef CONFIG_PERFLOCK
-	if (!is_perf_lock_active(&wlan_perf_lock))
-		perf_lock(&wlan_perf_lock);
-#endif
-	pm_qos_update_request(&req_freq, (s32)PM_QOS_CPU_WIFI_FREQ_MAX_DEFAULT_VALUE);
-	pm_qos_update_request(&req_cpus, (s32)PM_QOS_MAX_ONLINE_CPUS_WIFI_FOUR_VALUE);
+	pm_qos_update_request(&req_cpus, (s32)PM_QOS_MIN_ONLINE_CPUS_WIFI_VALUE);
 }
 
 void wlan_unlock_perf(void)
 {
-#ifdef CONFIG_PERFLOCK
-	if (is_perf_lock_active(&wlan_perf_lock))
-		perf_unlock(&wlan_perf_lock);
-#endif
+	printk(KERN_INFO "[WLAN] %s, perf off\n", __func__);
 	pm_qos_update_request(&req_freq, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
 	pm_qos_update_request(&req_cpus, (s32)PM_QOS_MIN_ONLINE_CPUS_DEFAULT_VALUE);
 }
 
 void wlan_init_perf(void)
 {
-#ifdef CONFIG_PERFLOCK
-	perf_lock_init(&wlan_perf_lock, PERF_LOCK_HIGHEST, "bcmdhd");
-#endif
 	if(wlan_req_perflock_active == 0) {
 		pm_qos_add_request(&req_freq, PM_QOS_CPU_FREQ_MIN, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
 		pm_qos_add_request(&req_cpus, PM_QOS_MIN_ONLINE_CPUS, (s32)PM_QOS_MIN_ONLINE_CPUS_DEFAULT_VALUE);
@@ -476,10 +450,6 @@ void wlan_init_perf(void)
 
 void wlan_deinit_perf(void)
 {
-#ifdef CONFIG_PERLOCK
-	if (is_perf_lock_active(&wlan_perf_lock))
-		perf_unlock(&wlan_perf_lock);
-#endif
 	if(wlan_req_perflock_active == 1) {
 		pm_qos_remove_request(&req_freq);
 		pm_qos_remove_request(&req_cpus);
@@ -498,6 +468,7 @@ void wl_android_traffic_monitor(struct net_device *dev)
 	dhd_get_txrx_stats(dev, &rx_packets_count, &tx_packets_count);
 	current_traffic_count = rx_packets_count + tx_packets_count;
 
+	printk(KERN_INFO "[WLAN] %s, current_traffic_count %ld traffic_stats_flag %d traffic_diff %ld TRAFFIC_HIGH_WATER_MARK %d TRAFFIC_LOW_WATER_MARK %d\n", __func__, current_traffic_count, traffic_stats_flag, traffic_diff, TRAFFIC_HIGH_WATER_MARK, TRAFFIC_LOW_WATER_MARK);
 	if (current_traffic_count >= last_traffic_count) {
 		traffic_diff = current_traffic_count - last_traffic_count;
 		if (traffic_stats_flag == TRAFFIC_STATS_NORMAL) {
@@ -2037,9 +2008,7 @@ int wl_android_wifi_on(struct net_device *dev)
 
 	android_wifi_off = 0;
 	mutex_lock(&wl_wifionoff_mutex);
-/*HTC_CSP_START*/
-	wlan_lock_4cpu_perf();
-/*HTC_CSP_END*/
+
 	if (!g_wifi_on) {
 		do {
 			dhd_customer_gpio_wlan_ctrl(WLAN_RESET_ON);
@@ -2067,10 +2036,6 @@ int wl_android_wifi_on(struct net_device *dev)
 	}
 
 exit:
-/*HTC_CSP_START*/
-	printf("%s, unlock CPU\n", __FUNCTION__);
-	wlan_unlock_perf();
-/*HTC_CSP_END*/
 	mutex_unlock(&wl_wifionoff_mutex);
 	return ret;
 }
@@ -2080,10 +2045,8 @@ int wl_android_wifi_off(struct net_device *dev)
 	int ret = 0;
 
 	printf("%s in\n", __FUNCTION__);
-	wlan_lock_4cpu_perf();
 	if (!dev) {
 		DHD_TRACE(("%s: dev is null\n", __FUNCTION__));
-		wlan_unlock_perf();
 		return -EINVAL;
 	}
 	android_wifi_off = 1;
@@ -2119,7 +2082,6 @@ int wl_android_wifi_off(struct net_device *dev)
 	mutex_unlock(&wl_wifionoff_mutex);
 	bcm_mdelay(500);
 	printf("%s unlock CPU\n", __FUNCTION__);
-	wlan_unlock_perf();
 
 	return ret;
 }

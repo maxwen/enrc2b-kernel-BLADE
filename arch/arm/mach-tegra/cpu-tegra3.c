@@ -1072,6 +1072,8 @@ EXPORT_SYMBOL (bthp_cpu_num_catchup);
 
 static int min_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
 {
+	pr_info("PM QoS PM_QOS_MIN_ONLINE_CPUS %lu\n", n);
+
 	mutex_lock(tegra3_cpu_lock);
 
 	if ((n >= 1) && is_lp_cluster()) {

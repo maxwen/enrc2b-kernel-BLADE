@@ -33,22 +33,16 @@
 #define ADB_ERR_PAYLOAD_STUCK       _IOW(ADB_IOCTL_MAGIC, 0, unsigned)
 #define ADB_ATS_ENABLE       		_IOR(ADB_IOCTL_MAGIC, 1, unsigned)
 
-#define ADB_BULK_BUFFER_SIZE           4096
+#define ADB_BULK_BUFFER_SIZE           8192
 
 /* number of tx requests to allocate */
 #define TX_REQ_MAX 4
-
-#define PM_QOS_CPU_USB_FREQ_MAX_DEFAULT_VALUE 1600000
-#define PM_QOS_MAX_ONLINE_CPUS_USB_TWO_VALUE 2
 
 static const char adb_shortname[] = "android_adb";
 
 static struct pm_qos_request_list adb_req_freq;
 static struct pm_qos_request_list adb_req_cpus;
-extern void release_screen_off_freq_lock(unsigned int capfreq );
-extern void lock_screen_off_freq_lock();
 
-static int adb_release_screen_off_flag;
 static struct work_struct adb_perf_lock_on_work;
 
 struct adb_dev {
@@ -137,6 +131,10 @@ static struct usb_descriptor_header *hs_adb_descs[] = {
 static struct adb_dev *_adb_dev;
 int board_get_usb_ats(void);
 
+
+#define PM_QOS_CPU_USB_FREQ_MAX_DEFAULT_VALUE 1600000
+#define PM_QOS_MIN_ONLINE_CPUS_USB_TWO_VALUE 2
+
 #define ADB_TRANSFER_EXPIRED	(jiffies + msecs_to_jiffies(10000))
 void tegra_udc_set_phy_clk(bool pull_up);
 static void adb_setup_perflock(struct work_struct *data)
@@ -147,23 +145,14 @@ static void adb_setup_perflock(struct work_struct *data)
 	del_timer(&dev->perf_timer);
 	if (dev->adb_perf_lock_on) {
 		printk(KERN_INFO "[USB][ADB] %s, perf on\n", __func__);
-		if (adb_release_screen_off_flag) {
-			tegra_udc_set_phy_clk(true);
-			release_screen_off_freq_lock(PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE);
-			adb_release_screen_off_flag = 0;
-		}
+		tegra_udc_set_phy_clk(true);
 		pm_qos_update_request(&adb_req_freq, (s32)PM_QOS_CPU_USB_FREQ_MAX_DEFAULT_VALUE);
-		pm_qos_update_request(&adb_req_cpus, (s32)PM_QOS_MAX_ONLINE_CPUS_USB_TWO_VALUE);
-
+		pm_qos_update_request(&adb_req_cpus, (s32)PM_QOS_MIN_ONLINE_CPUS_USB_TWO_VALUE);
 	} else {
 		printk(KERN_INFO "[USB][ADB] %s, perf off\n", __func__);
 		pm_qos_update_request(&adb_req_freq, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
 		pm_qos_update_request(&adb_req_cpus, (s32)PM_QOS_MIN_ONLINE_CPUS_DEFAULT_VALUE);
-		if (!adb_release_screen_off_flag) {
-			lock_screen_off_freq_lock();
-			adb_release_screen_off_flag = 1;
-			tegra_udc_set_phy_clk(false);
-		}
+		tegra_udc_set_phy_clk(false);
 	}
 }
 
@@ -723,8 +712,6 @@ static int adb_setup(void)
 	INIT_LIST_HEAD(&dev->tx_idle);
 
 	_adb_dev = dev;
-
-	adb_release_screen_off_flag = 1;
 
 	INIT_WORK(&adb_perf_lock_on_work, adb_setup_perflock);
 	pm_qos_add_request(&adb_req_freq, PM_QOS_CPU_FREQ_MIN, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
