@@ -42,8 +42,8 @@
  */
 
 #define DEF_FREQUENCY_DOWN_DIFFERENTIAL		(10)
-#define DEF_FREQUENCY_UP_THRESHOLD		(80)
-#define DEF_SAMPLING_DOWN_FACTOR		(1)
+#define DEF_FREQUENCY_UP_THRESHOLD		(90)
+#define DEF_SAMPLING_DOWN_FACTOR		(4)
 #define MAX_SAMPLING_DOWN_FACTOR		(100000)
 #define MICRO_FREQUENCY_DOWN_DIFFERENTIAL	(3)
 #define MICRO_FREQUENCY_UP_THRESHOLD		(95)
@@ -681,7 +681,13 @@ static ssize_t store_ux_boost_threshold (
 	return count;
 }
 
-define_one_global_rw(sampling_rate);
+// maxwen: make tunable world writable for easier access from user-space
+#define define_one_global_rww(_name)             \
+	static struct global_attr _name =               \
+	__ATTR(_name, 0666, show_##_name, store_##_name)
+
+define_one_global_rww(sampling_rate);
+
 define_one_global_rw(io_is_busy);
 define_one_global_rw(up_threshold);
 define_one_global_rw(down_differential);
