@@ -4212,23 +4212,6 @@ static void enrc2b_panel_early_suspend(struct early_suspend *h)
 		fb_blank(registered_fb[1], FB_BLANK_NORMAL);
 	MF_DEBUG("00240009");
 	}
-#ifdef CONFIG_TEGRA_CONVSERVATIVE_GOV_ON_EARLYSUPSEND
-	MF_DEBUG("00240010");
-	cpufreq_save_default_governor();
-	MF_DEBUG("00240011");
-	cpufreq_set_conservative_governor();
-	MF_DEBUG("00240012");
-	cpufreq_set_conservative_governor_param("up_threshold",
-			SET_CONSERVATIVE_GOVERNOR_UP_THRESHOLD);
-
-	MF_DEBUG("00240013");
-	cpufreq_set_conservative_governor_param("down_threshold",
-			SET_CONSERVATIVE_GOVERNOR_DOWN_THRESHOLD);
-
-	MF_DEBUG("00240014");
-	cpufreq_set_conservative_governor_param("freq_step",
-			SET_CONSERVATIVE_GOVERNOR_FREQ_STEP);
-#endif
 
 	MF_DEBUG("00240015");
 	DISP_INFO_OUT();
@@ -4243,9 +4226,6 @@ static void enrc2b_panel_late_resume(struct early_suspend *h)
 
 	DISP_INFO_IN();
 
-#ifdef CONFIG_TEGRA_CONVSERVATIVE_GOV_ON_EARLYSUPSEND
-	cpufreq_restore_default_governor();
-#endif
 	for (i = 0; i < num_registered_fb; i++)
 		fb_blank(registered_fb[i], FB_BLANK_UNBLANK);
 
