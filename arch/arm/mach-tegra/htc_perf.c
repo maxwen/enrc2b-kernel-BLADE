@@ -33,11 +33,6 @@ static struct kobj_attribute attrbute##_attr = {	\
 	.store	= attrbute##_store,			\
 }
 
-#define DEF_TARGET_FREQ (760000)
-#define DEF_POKE_FREQ (1300000)
-#define DEF_POKE_MS (100)
-#define DEF_IDLE_MS (300)
-
 #ifndef CONFIG_POWER_SAVE_FREQ
 #define CONFIG_POWER_SAVE_FREQ (1150000)
 #endif
@@ -50,6 +45,8 @@ static unsigned int orig_user_cap = 0;
 
 static int is_in_power_save = 0;
 static int is_power_save_policy = 0;
+
+extern unsigned int suspend_cap_cpu_freq;
 
 DEFINE_MUTEX(poke_mutex);
 
@@ -293,13 +290,37 @@ unsigned int get_powersave_freq(){
 }
 EXPORT_SYMBOL(get_powersave_freq);
 
+static ssize_t suspend_freq_show(struct kobject *kobj,
+		struct kobj_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", suspend_cap_cpu_freq);
+}
+
+static ssize_t suspend_freq_store(struct kobject *kobj,
+		struct kobj_attribute *attr, const char *buf, size_t count)
+{
+	unsigned long value;
+    int ret = 0;
+
+	ret = strict_strtoul(buf, 10, &value);
+    if (ret < 0) {
+        return count;
+    }
+	suspend_cap_cpu_freq = (unsigned int)value;
+
+	return count;
+}
+
+htc_perf_attr(suspend_freq);
+
 static struct attribute * g[] = {
 	&media_boost_freq_attr.attr,
 	&cpu_temp_attr.attr,
 	&power_save_attr.attr,
 	&cpu_debug_attr.attr,
 	&power_save_policy_attr.attr,
-        &cpuiddq_attr.attr,
+	&cpuiddq_attr.attr,
+	&suspend_freq_attr.attr,        
 	NULL,
 };
 
