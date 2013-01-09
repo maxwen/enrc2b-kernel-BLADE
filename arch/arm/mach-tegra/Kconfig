@@ -838,3 +838,10 @@ config SENSE_4_PLUS
 config MEMORY_FOOTPRINT_DEBUGGING
 	bool "footprint for debugging"
 	default n
+	
+config TEGRA_GPU_OC_520
+	depends on TEGRA_SILICON_PLATFORM
+	bool "enable GPU overclocking to 520Mhz"
+	default n
+	help
+	  Choose y to oc the GPU to 520Mhz
