@@ -468,7 +468,10 @@ void wl_android_traffic_monitor(struct net_device *dev)
 	dhd_get_txrx_stats(dev, &rx_packets_count, &tx_packets_count);
 	current_traffic_count = rx_packets_count + tx_packets_count;
 
+#if 0
 	printk(KERN_INFO "[WLAN] %s, current_traffic_count %ld traffic_stats_flag %d traffic_diff %ld TRAFFIC_HIGH_WATER_MARK %d TRAFFIC_LOW_WATER_MARK %d\n", __func__, current_traffic_count, traffic_stats_flag, traffic_diff, TRAFFIC_HIGH_WATER_MARK, TRAFFIC_LOW_WATER_MARK);
+#endif
+
 	if (current_traffic_count >= last_traffic_count) {
 		traffic_diff = current_traffic_count - last_traffic_count;
 		if (traffic_stats_flag == TRAFFIC_STATS_NORMAL) {
