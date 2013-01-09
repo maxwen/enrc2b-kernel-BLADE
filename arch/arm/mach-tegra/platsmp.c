@@ -190,7 +190,6 @@ int boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
 	int status;
 
-	MF_DEBUG("00UP0011");
 	/* Avoid timer calibration on slave cpus. Use the value calibrated
 	 * on master cpu. This reduces the bringup time for each slave cpu
 	 * by around 260ms.
@@ -199,41 +198,28 @@ int boot_secondary(unsigned int cpu, struct task_struct *idle)
 	if (is_lp_cluster()) {
 		struct clk *cpu_clk, *cpu_g_clk;
 
-		MF_DEBUG("00UP0012");
 		/* The G CPU may not be available for a variety of reasons. */
 		status = is_g_cluster_available(cpu);
 		if (status)
 			goto done;
 
-		MF_DEBUG("00UP0013");
 		cpu_clk = tegra_get_clock_by_name("cpu");
 		cpu_g_clk = tegra_get_clock_by_name("cpu_g");
 
-		MF_DEBUG("00UP0014");
 		/* Switch to G CPU before continuing. */
 		if (!cpu_clk || !cpu_g_clk) {
 			/* Early boot, clock infrastructure is not initialized
 			   - CPU mode switch is not allowed */
 			status = -EINVAL;
-		} else {
-#ifdef CONFIG_CPU_FREQ
-			/* set cpu rate is within g-mode range before switch */
-			unsigned int speed = max(
-				(unsigned long)tegra_getspeed(0),
-				clk_get_min_rate(cpu_g_clk) / 1000);
-			tegra_update_cpu_speed(speed);
-#endif
+		} else
 			status = clk_set_parent(cpu_clk, cpu_g_clk);
-		}
 
-		MF_DEBUG("00UP0015");
 		if (status)
 			goto done;
 	}
 
 	smp_wmb();
 
-	MF_DEBUG("00UP0016");
 	/* Force the CPU into reset. The CPU must remain in reset when the
 	   flow controller state is cleared (which will cause the flow
 	   controller to stop driving reset if the CPU has been power-gated
@@ -242,23 +228,19 @@ int boot_secondary(unsigned int cpu, struct task_struct *idle)
 	writel(CPU_RESET(cpu), CLK_RST_CONTROLLER_RST_CPU_CMPLX_SET);
 	dmb();
 
-	MF_DEBUG("00UP0017");
 	/* Unhalt the CPU. If the flow controller was used to power-gate the
 	   CPU this will cause the flow controller to stop driving reset.
 	   The CPU will remain in reset because the clock and reset block
 	   is now driving reset. */
 	flowctrl_writel(0, FLOW_CTRL_HALT_CPU(cpu));
 
-	MF_DEBUG("00UP0018");
 	status = power_up_cpu(cpu);
-	MF_DEBUG("00UP0019");
 	if (status)
 		goto done;
 
 	/* Take the CPU out of reset. */
 	writel(CPU_RESET(cpu), CLK_RST_CONTROLLER_RST_CPU_CMPLX_CLR);
 	wmb();
-	MF_DEBUG("00UP0020");
 done:
 	return status;
 }
