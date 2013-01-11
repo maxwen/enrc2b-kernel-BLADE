@@ -557,7 +557,12 @@ static ssize_t store_ui_counter(struct kobject *a, struct attribute *b,
 	return count;
 }
 
-define_one_global_rw(sampling_rate);
+// maxwen: make tunable world writable for easier access from user-space
+#define define_one_global_rww(_name)             \
+	static struct global_attr _name =               \
+	__ATTR(_name, 0666, show_##_name, store_##_name)
+
+define_one_global_rww(sampling_rate);
 define_one_global_rw(io_is_busy);
 define_one_global_rw(up_threshold);
 define_one_global_rw(down_differential);
