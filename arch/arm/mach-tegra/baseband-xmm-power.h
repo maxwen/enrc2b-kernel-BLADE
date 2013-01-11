@@ -24,7 +24,6 @@
 #include "gpio-names.h"
 
 #define BB_XMM_OEM1
-#define pr_debug pr_info
 
 #define VENDOR_ID         0x1519
 #define PRODUCT_ID        0x0020

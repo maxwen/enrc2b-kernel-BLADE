@@ -28,8 +28,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
-#define DEBUG
-#undef VERBOSE_DEBUG
+#undef DEBUG
+
 #define MODULE_NAME "[ACM14]"
 
 #include <linux/kernel.h>
@@ -778,7 +778,10 @@ static int acm_tty_write(struct tty_struct *tty,
 	unsigned long flags;
 	int wbn;
 	struct acm_wb *wb;
-
+	int i = 0, size = count, rc = 0;
+	const char *data_buf;
+	char pr_buf[512];
+		
 	if (!ACM_READY(acm))
 		return -EINVAL;
 	if (!count)
@@ -797,23 +800,18 @@ static int acm_tty_write(struct tty_struct *tty,
 	count = (count > acm->writesize) ? acm->writesize : count;
 	dev_vdbg(&acm->data->dev, "%s - write %d\n", __func__, count);
 
-		/* HTC: log */
-	/* pr_info("Get %d bytes for ttyACM%d, alloc wbn=%d\n",
-		count, acm->minor, wbn); */
-	if (verbose) pr_info("Get %d bytes for ttyACM%d, alloc wbn=%d\n",
+	pr_debug("Get %d bytes for ttyACM%d, alloc wbn=%d\n",
 		count, acm->minor, wbn);
 	if ((host_dbg_flag & DBG_ACM0_RW && acm->minor == 0) ||
 		(host_dbg_flag & DBG_ACM1_RW && acm->minor == 1)) {
 		/*Print the latest Rx data*/
 		if(pcount==1&&(acm->minor==0)){
-		pr_info(MODULE_NAME ":Debug Latest RX bin << [%s]\n", gpr_buf);
+		pr_debug(MODULE_NAME ":Debug Latest RX bin << [%s]\n", gpr_buf);
 		pcount=0;
 		}
 
 
-		int i = 0, size = count, rc = 0;
-		char *data_buf = buf;
-		char pr_buf[512];
+		data_buf = buf;
 #if 0
 		size = size > 16 ? 16 : size;
 		for (i=0; i < size; i++) {
@@ -838,7 +836,7 @@ static int acm_tty_write(struct tty_struct *tty,
 		for (i = 0; i < size; i++)
 			rc += sprintf(pr_buf + rc, "%02x ", data_buf[i]);
 		pr_buf[rc] = '\0';
-		pr_info(MODULE_NAME ":[%03d] TX bin >> [%s]\n", count, pr_buf);
+		pr_debug(MODULE_NAME ":[%03d] TX bin >> [%s]\n", count, pr_buf);
 	}
 
 	memcpy(wb->buf, buf, count);
@@ -1614,7 +1612,7 @@ static int acm_suspend(struct usb_interface *intf, pm_message_t message)
 		return -ENODEV;
 	}
 
-	pr_info(MODULE_NAME "%s: ttyACM%d +\n", __func__, acm->minor);
+	pr_debug(MODULE_NAME "%s: ttyACM%d +\n", __func__, acm->minor);
 
 	if (message.event & PM_EVENT_AUTO) {
 		int b;
@@ -1623,7 +1621,7 @@ static int acm_suspend(struct usb_interface *intf, pm_message_t message)
 		b = acm->transmitting;
 		spin_unlock_irq(&acm->write_lock);
 		if (b){
-			pr_info("%s: ttyACM%d transmitting %d -EBUSY\n",
+			pr_debug("%s: ttyACM%d transmitting %d -EBUSY\n",
 				__func__, acm->minor, acm->transmitting);
 			return -EBUSY;
 		}
@@ -1636,11 +1634,11 @@ static int acm_suspend(struct usb_interface *intf, pm_message_t message)
 	spin_unlock_irq(&acm->read_lock);
 
 	if (cnt) {
-		pr_info(MODULE_NAME": %s ttyACM%d susp_count=%d (already suspend)\n",
+		pr_debug(MODULE_NAME": %s ttyACM%d susp_count=%d (already suspend)\n",
 			__func__, acm->minor, acm->susp_count);
 		return 0;
 	} else {
-		pr_info(MODULE_NAME": %s ttyACM%d suspending.... port.count=%d\n",
+		pr_debug(MODULE_NAME": %s ttyACM%d suspending.... port.count=%d\n",
 			__func__, acm->minor, acm->port.count);
 	}
 
@@ -1655,7 +1653,7 @@ static int acm_suspend(struct usb_interface *intf, pm_message_t message)
 
 	mutex_unlock(&acm->mutex);
 
-	pr_info(MODULE_NAME "%s: ttyACM%d -\n", __func__, acm->minor);
+	pr_debug(MODULE_NAME "%s: ttyACM%d -\n", __func__, acm->minor);
 
 	return 0;
 }
@@ -1676,7 +1674,7 @@ static int acm_resume(struct usb_interface *intf)
 		return -ENODEV;
 	}
 
-	pr_info(MODULE_NAME "%s: ttyACM%d +\n", __func__, acm->minor);
+	pr_debug(MODULE_NAME "%s: ttyACM%d +\n", __func__, acm->minor);
 
 	spin_lock_irq(&acm->read_lock);
 	if (acm->susp_count > 0) {
@@ -1689,11 +1687,11 @@ static int acm_resume(struct usb_interface *intf)
 	spin_unlock_irq(&acm->read_lock);
 
 	if (cnt) {
-		pr_info(MODULE_NAME": %s ttyACM%d susp_count=%d (already resumed)\n",
+		pr_debug(MODULE_NAME": %s ttyACM%d susp_count=%d (already resumed)\n",
 			__func__, acm->minor, acm->susp_count);
 		return 0;
 	} else {
-		pr_info(MODULE_NAME": %s ttyACM%d resuming..... %d\n",
+		pr_debug(MODULE_NAME": %s ttyACM%d resuming..... %d\n",
 			__func__, acm->minor, acm->susp_count);
 	}
 
@@ -1739,7 +1737,7 @@ static int acm_resume(struct usb_interface *intf)
 err_out:
 	mutex_unlock(&acm->mutex);
 
-	pr_info(MODULE_NAME "%s: ttyACM%d -\n", __func__, acm->minor);
+	pr_debug(MODULE_NAME "%s: ttyACM%d -\n", __func__, acm->minor);
 
 	return rv;
 }
