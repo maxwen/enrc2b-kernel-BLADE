@@ -81,7 +81,6 @@
 #include "fuse.h"
 #include "pm.h"
 #include "touch.h"
-#include "htc_perf.h"
 #include "wakeups-t3.h"
 
 #define PMC_WAKE_STATUS         0x14
@@ -1091,7 +1090,7 @@ static struct synaptics_i2c_rmi_platform_data edge_ts_3k_data_XB[] = {
 		.abs_y_max = 1770,
 		.display_width = 720,
 		.display_height = 1280,
-		.notifyFinger = restoreCap, /* restore browser cap, */
+		.notifyFinger = NULL, /* restore browser cap, */
 		.gpio_irq = TOUCH_GPIO_IRQ,
 		.power = powerfun,
 		.report_type = SYN_AND_REPORT_TYPE_B,
@@ -1152,7 +1151,7 @@ static struct synaptics_i2c_rmi_platform_data edge_ts_3k_data_XB[] = {
 		.abs_y_max = 1770,
 		.display_width = 720,
 		.display_height = 1280,
-		.notifyFinger = restoreCap, /* restore browser cap, */
+		.notifyFinger = NULL, /* restore browser cap, */
 		.gpio_irq = TOUCH_GPIO_IRQ,
 		.power = powerfun,
 		.default_config = 2,
@@ -1209,7 +1208,7 @@ static struct synaptics_i2c_rmi_platform_data edge_ts_3k_data_XB[] = {
 		.abs_y_max = 1770,
 		.display_width = 720,
 		.display_height = 1280,
-		.notifyFinger = restoreCap, /* restore browser cap, */
+		.notifyFinger = NULL, /* restore browser cap, */
 		.gpio_irq = TOUCH_GPIO_IRQ,
 		.power = powerfun,
 		.default_config = 2,
@@ -1264,7 +1263,7 @@ static struct synaptics_i2c_rmi_platform_data edge_ts_3k_data_XB[] = {
 		.abs_x_max = 1100,
 		.abs_y_min = 0,
 		.abs_y_max = 1770,
-		.notifyFinger = restoreCap, /* restore browser cap, */
+		.notifyFinger = NULL, /* restore browser cap, */
 		.gpio_irq = TOUCH_GPIO_IRQ,
 		.power = powerfun,
 		.default_config = 2,
@@ -1315,7 +1314,7 @@ static struct synaptics_i2c_rmi_platform_data edge_ts_3k_data_XB[] = {
 		.abs_x_max = 1100,
 		.abs_y_min = 0,
 		.abs_y_max = 1770,
-		.notifyFinger = restoreCap, /* restore browser cap, */
+		.notifyFinger = NULL, /* restore browser cap, */
 		.gpio_irq = TOUCH_GPIO_IRQ,
 		.power = powerfun,
 		.default_config = 2,
