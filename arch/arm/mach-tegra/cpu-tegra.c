@@ -518,6 +518,7 @@ int tegra_update_cpu_speed(unsigned long rate)
 	if (freqs.new < rate_save && rate_save >= 880000) {
 		if (is_lp_cluster()) {
 
+			pr_info("LP off %d %d %ld\n", freqs.old, freqs.new, rate_save);
 			/* set rate to max of LP mode */
 			ret = clk_set_rate(cpu_clk, 475000 * 1000);
 #ifndef CONFIG_TEGRA_MPDECISION
@@ -696,6 +697,20 @@ EXPORT_SYMBOL (no_edp_limit);
 unsigned int no_thermal_throttle_limit = 0;
 module_param(no_thermal_throttle_limit, uint, 0644);
 EXPORT_SYMBOL (no_thermal_throttle_limit);
+
+static unsigned int arbitrated_max_freq (
+    unsigned int target_freq
+    )
+{
+	unsigned int save_freq = target_freq;
+    /* chip-dependent, such as thermal throttle, edp, and user-defined freq. cap */
+    target_freq = tegra_throttle_governor_speed (target_freq);
+	target_freq = edp_governor_speed (target_freq);
+	target_freq = user_cap_speed (target_freq);
+
+	//pr_info("arbitrated_max_freq %d %d\n", save_freq, target_freq);
+    return target_freq;
+}
 
 #if defined(CONFIG_BEST_TRADE_HOTPLUG)
 DEFINE_PER_CPU(unsigned long, last_freq_update_jiffies) = {0UL};
@@ -952,19 +967,6 @@ static bool better_perf (
     }
 
     return (i_perf > c_perf);
-}
-
-static unsigned int arbitrated_max_freq (
-    unsigned int target_freq
-    )
-{
-    /* chip-dependent, such as thermal throttle, edp, and user-defined freq. cap */
-    target_freq = tegra_throttle_governor_speed (target_freq);
-	target_freq = edp_governor_speed (target_freq);
-	target_freq = user_cap_speed (target_freq);
-	target_freq = powersave_speed(target_freq);
-
-    return target_freq;
 }
 
 static unsigned int best_core_to_turn_down (void) {
@@ -1884,9 +1886,7 @@ int tegra_cpu_set_speed_cap(unsigned int *speed_cap)
 	if (is_suspended)
 		return -EBUSY;
 
-	new_speed = tegra_throttle_governor_speed(new_speed);
-	new_speed = edp_governor_speed(new_speed);
-	new_speed = user_cap_speed(new_speed);
+	new_speed = arbitrated_max_freq(new_speed);
 
 #if defined(CONFIG_BEST_TRADE_HOTPLUG)
     /* do a best trade for power/performance,
@@ -2094,15 +2094,15 @@ static int tegra_cpu_init(struct cpufreq_policy *policy)
 	cpumask_copy(policy->related_cpus, cpu_possible_mask);
 
 	if (policy->cpu == 0) {
-		policy->max = tegra_pmqos_boost_freq;
+		policy->max = arbitrated_max_freq(tegra_pmqos_boost_freq);
 		policy->min = T3_CPU_MIN_FREQ;
 		register_pm_notifier(&tegra_cpu_pm_notifier);
 	}
 
     /* restore saved cpu frequency */
     if (policy->cpu > 0) {
-		policy->max = tegra_pmqos_boost_freq;
-		tegra_update_cpu_speed(tegra_pmqos_boost_freq);
+		policy->max = arbitrated_max_freq(tegra_pmqos_boost_freq);
+		tegra_update_cpu_speed(policy->max);
 		pr_info("cpu-tegra_cpufreq: restored cpu[%d]'s freq: %u\n", policy->cpu, policy->max);
 	}
 
