@@ -110,7 +110,7 @@ int __init parse_tag_IMEI(const struct tag *tags)
 		}
 	}
 	if (!find) {
-		printk(KERN_ERR "[IMEI] parse_tag_IMEI(): error: IMEI ATAG not found\n", IMEI);
+		printk(KERN_ERR "[IMEI] parse_tag_IMEI(): error: IMEI ATAG not found %s\n", IMEI);
 		return -1;
 	}
 	else {
@@ -1050,25 +1050,6 @@ static int __init htc_reset_reason_init(void)
 	return 0;
 }
 arch_initcall(htc_reset_reason_init);
-
-static int __cpuinit debug_cpu_toggle_notify(struct notifier_block *self,
-		unsigned long action, void *hcpu)
-{
-	MF_DEBUG("00UP0007");
-	switch (action) {
-	case CPU_ONLINE:
-	case CPU_DEAD:
-		pr_info("[CPUHP] current online: %d%d%d%d\n",
-				cpu_online(0), cpu_online(1), cpu_online(2), cpu_online(3));
-	}
-	return NOTIFY_OK;
-}
-static int __init htc_debug_cpu_toggle_init(void)
-{
-	hotcpu_notifier(debug_cpu_toggle_notify, 0);
-	return 0;
-}
-late_initcall(htc_debug_cpu_toggle_init);
 
 unsigned get_last_reboot_params_battery_level(void)
 {

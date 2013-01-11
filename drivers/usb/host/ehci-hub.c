@@ -926,8 +926,8 @@ static int ehci_hub_control (
 			ehci_writel(ehci, temp, command_reg);
 			local_irq_restore(flags);
 
-			pr_info("%s(%d) Waiting %d loops to finish resume.\n", __func__, __LINE__, 25000 - wait_time_us);
-			pr_info("%s*** PORTSC = %0x\n", __func__, ehci_readl(ehci, status_reg));
+			pr_debug("%s(%d) Waiting %d loops to finish resume.\n", __func__, __LINE__, 25000 - wait_time_us);
+			pr_debug("%s*** PORTSC = %0x\n", __func__, ehci_readl(ehci, status_reg));
 
 			ehci->reset_done[wIndex] = jiffies
 					+ msecs_to_jiffies(20);

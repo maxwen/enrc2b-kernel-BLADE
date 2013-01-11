@@ -48,7 +48,7 @@
 #define AHB_MEM_PREFETCH_CFG2		0xf0
 #define PREFETCH_ENB			(1 << 31)
 
-#define DEBUG
+#define DEBUG 0
 #ifdef DEBUG
 #define DBG(stuff...)		pr_info("usb_phy: " stuff)
 #else

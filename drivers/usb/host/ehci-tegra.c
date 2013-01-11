@@ -30,7 +30,7 @@
 #include <linux/wakelock.h>
 #include <asm/mach-types.h>
 
-#if 1
+#ifdef DEBUG
 #define EHCI_DBG(stuff...)	pr_info("ehci-tegra: " stuff)
 #else
 #define EHCI_DBG(stuff...)	do {} while (0)
@@ -262,7 +262,7 @@ static int tegra_ehci_hub_control(
 	}
 
 	if(ehci_id == MODEM_EHCI_ID){
-	printk(KERN_INFO"%s: typereq:0x%x wValue:0x%x wIndex:0x%x USBMODE:0x%x USBCMD:0x%x PORTSC:0x%x USBSTS:0x%x HOSTPC1:0x%x\n",
+		EHCI_DBG("%s: typereq:0x%x wValue:0x%x wIndex:0x%x USBMODE:0x%x USBCMD:0x%x PORTSC:0x%x USBSTS:0x%x HOSTPC1:0x%x\n",
         __func__, typeReq, wValue, wIndex,
 		readl(hcd->regs + 0x1f8),
 		readl(&ehci->regs->command),
@@ -270,7 +270,7 @@ static int tegra_ehci_hub_control(
 		readl(&ehci->regs->status),
 		readl(hcd->regs + 0x1b4));
 
-	printk(KERN_INFO"%s: USBINTR:0x%x UHSIC_STAT_CFG0:0x%x ASDBGREG:0x%x OBSCTRL:0x%x OBSDATA:0x%x port_resuming:%d\n",
+		EHCI_DBG("%s: USBINTR:0x%x UHSIC_STAT_CFG0:0x%x ASDBGREG:0x%x OBSCTRL:0x%x OBSDATA:0x%x port_resuming:%d\n",
 		__func__,
 		readl(hcd->regs + 0x138),
 		readl(hcd->regs + 0xc28),

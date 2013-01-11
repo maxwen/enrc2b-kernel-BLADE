@@ -140,7 +140,7 @@ static int baseband_usb_driver_probe(struct usb_interface *intf,
 	for (j = 0; j < max_intfs; j++) {
 		if (usb_net_raw_ip_intf[j] ==
 				intf->cur_altsetting->desc.bInterfaceNumber) {
-			pr_info("%s: raw_ip using interface %d\n", __func__,
+			pr_debug("%s: raw_ip using interface %d\n", __func__,
 				intf->cur_altsetting->desc.bInterfaceNumber);
 			g_usb_interface[j] = intf;
 			return 0;
@@ -665,15 +665,15 @@ static void usb_net_raw_ip_rx_urb_comp(struct urb *urb)
 		break;
 	case -ESHUTDOWN:
 		/* fall through */
-		pr_info("%s: rx urb %p - link shutdown %d\n",
+		pr_debug("%s: rx urb %p - link shutdown %d\n",
 			__func__, urb, urb->status);
 		goto err_exit;
 	case -EPROTO:
-		pr_info("%s: rx urb %p - link shutdown %d EPROTO\n",
+		pr_debug("%s: rx urb %p - link shutdown %d EPROTO\n",
 			__func__, urb, urb->status);
 		goto err_exit;
 	default:
-		pr_info("%s: rx urb %p - status %d\n",
+		pr_debug("%s: rx urb %p - status %d\n",
 			__func__, urb, urb->status);
 		break;
 	}
@@ -990,12 +990,12 @@ static void usb_net_raw_ip_tx_urb_comp(struct urb *urb)
 	case -ESHUTDOWN:
 		/* fall through */
 	case -EPROTO:
-		pr_info("%s: tx urb %p - link shutdown %d\n",
+		pr_debug("%s: tx urb %p - link shutdown %d\n",
 			__func__, urb, urb->status);
 		usb_autopm_put_interface_async(usb->usb.interface);
 		goto err_exit;
 	default:
-		pr_info("%s: tx urb %p - status %d\n",
+		pr_debug("%s: tx urb %p - status %d\n",
 			__func__, urb, urb->status);
 		break;
 	}
