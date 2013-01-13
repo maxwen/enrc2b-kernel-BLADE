@@ -21,7 +21,6 @@
 #include <linux/nct1008.h> /* for thermal temperature */
 #include "cpu-tegra.h"
 #include "fuse.h"
-#include "tegra_pmqos.h"
 
 #define htc_perf_attr(attrbute) 				\
 static struct kobj_attribute attrbute##_attr = {	\
@@ -99,34 +98,10 @@ unsigned int get_cpu_debug(void)
 }
 EXPORT_SYMBOL(get_cpu_debug);
 
-static ssize_t suspend_freq_show(struct kobject *kobj,
-		struct kobj_attribute *attr, char *buf)
-{
-	return sprintf(buf, "%d\n", tegra_pmqos_cap_freq);
-}
-
-static ssize_t suspend_freq_store(struct kobject *kobj,
-		struct kobj_attribute *attr, const char *buf, size_t count)
-{
-	unsigned long value;
-    int ret = 0;
-
-	ret = strict_strtoul(buf, 10, &value);
-    if (ret < 0) {
-        return count;
-    }
-	tegra_pmqos_cap_freq = (unsigned int)value;
-
-	return count;
-}
-
-htc_perf_attr(suspend_freq);
-
 static struct attribute * g[] = {
 	&cpu_temp_attr.attr,
 	&cpu_debug_attr.attr,
 	&cpuiddq_attr.attr,
-	&suspend_freq_attr.attr,        
 	NULL,
 };
 
