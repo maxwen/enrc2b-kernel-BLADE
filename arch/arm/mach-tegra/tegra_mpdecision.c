@@ -37,6 +37,7 @@
 #include <asm-generic/cputime.h>
 #include <linux/hrtimer.h>
 #include <linux/delay.h>
+#include <linux/pm_qos_params.h>
 
 #include "clock.h"
 #include "cpu-tegra.h"
@@ -131,6 +132,9 @@ extern unsigned int get_rq_info(void);
 
 unsigned int state = TEGRA_MPDEC_IDLE;
 bool was_paused = false;
+
+struct pm_qos_request_list min_cpu_req;
+struct pm_qos_request_list max_cpu_req;
 
 static unsigned long get_rate(int cpu)
 {
@@ -944,6 +948,28 @@ static struct attribute_group tegra_mpdec_attr_group = {
 };
 /**************************** SYSFS END ****************************/
 
+static int max_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
+{
+	pr_info("PM QoS PM_QOS_MAX_ONLINE_CPUS %lu\n", n);
+	//tegra_mpdec_tuners_ins.max_cpus = n;
+	return NOTIFY_OK;
+}
+
+static int min_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
+{
+	pr_info("PM QoS PM_QOS_MIN_ONLINE_CPUS %lu\n", n);
+	//tegra_mpdec_tuners_ins.min_cpus = n;
+	return NOTIFY_OK;
+}
+
+static struct notifier_block min_cpus_notifier = {
+	.notifier_call = min_cpus_notify,
+};
+
+static struct notifier_block max_cpus_notifier = {
+	.notifier_call = max_cpus_notify,
+};
+
 static int __init tegra_mpdec_init(void)
 {
 	int cpu, rc, err = 0;
@@ -998,6 +1024,14 @@ static int __init tegra_mpdec_init(void)
 	} else
 		pr_warn(MPDEC_TAG"sysfs: ERROR, could not create sysfs kobj");
 
+	if (pm_qos_add_notifier(PM_QOS_MIN_ONLINE_CPUS, &min_cpus_notifier))
+		pr_err("%s: Failed to register min cpus PM QoS notifier\n",
+			__func__);
+
+	if (pm_qos_add_notifier(PM_QOS_MAX_ONLINE_CPUS, &max_cpus_notifier))
+		pr_err("%s: Failed to register max cpus PM QoS notifier\n",
+			__func__);
+
 	pr_info(MPDEC_TAG"%s init complete.", __func__);
 
 	return err;
@@ -1009,4 +1043,6 @@ void tegra_mpdec_exit(void)
 {
 	destroy_workqueue(tegra_mpdec_workq);
 	destroy_workqueue(tegra_mpdec_suspended_workq);
+	pm_qos_remove_request(&min_cpu_req);
+	pm_qos_remove_request(&max_cpu_req);
 }
