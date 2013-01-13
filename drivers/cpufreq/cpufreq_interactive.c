@@ -30,10 +30,17 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <asm/cputime.h>
+#if 0
 #include <linux/pm_qos_params.h>
+#endif
+#include <linux/clk.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/cpufreq_interactive.h>
+
+#include "../../arch/arm/mach-tegra/clock.h"
+#include "../../arch/arm/mach-tegra/pm.h"
+#include "../../arch/arm/mach-tegra/tegra_pmqos.h"
 
 static atomic_t active_count = ATOMIC_INIT(0);
 
@@ -69,8 +76,10 @@ static spinlock_t down_cpumask_lock;
 static struct mutex set_speed_lock;
 
 struct cpufreq_interactive_core_lock {
+#if 0
 	struct pm_qos_request_list qos_min_req;
 	struct pm_qos_request_list qos_max_req;
+#endif
 	struct task_struct *lock_task;
 	struct work_struct unlock_work;
 	struct timer_list unlock_timer;
@@ -97,19 +106,19 @@ static unsigned long go_maxspeed_load;
 static unsigned long go_hispeed_load;
 
 /* Base of exponential raise to max speed; if 0 - jump to maximum */
-static unsigned long boost_factor;
+static unsigned long boost_factor = 0;
 
 /* Max frequency boost in Hz; if 0 - no max is enforced */
-static unsigned long max_boost;
+static unsigned long max_boost = 0;
 
 /* Consider IO as busy */
-static unsigned long io_is_busy;
+static unsigned long io_is_busy = 0;
 
 /*
  * Targeted sustainable load relatively to current frequency.
  * If 0, target is set realtively to the max speed
  */
-static unsigned long sustain_load;
+static unsigned long sustain_load = 95;
 
 /*
  * The minimum amount of time to spend at a frequency before we can ramp down.
@@ -127,13 +136,17 @@ static unsigned long timer_rate;
  * Wait this long before raising speed above hispeed, by default a single
  * timer interval.
  */
-#define DEFAULT_ABOVE_HISPEED_DELAY DEFAULT_TIMER_RATE
+#define DEFAULT_ABOVE_HISPEED_DELAY 20000;
 static unsigned long above_hispeed_delay_val;
 
 /*
  * Boost pulse to hispeed on touchscreen input.
  */
-static int input_boost_val;
+static int input_boost_val = 0;
+
+/* lpcpu variables */
+static struct clk *cpu_lp_clk;
+static unsigned int idle_top_freq;
 
 struct cpufreq_interactive_inputopen {
 	struct input_handle *handle;
@@ -145,7 +158,7 @@ static struct cpufreq_interactive_inputopen inputopen;
 /*
  * Non-zero means longer-term speed boost active.
  */
-static int boost_val;
+static int boost_val = 0;
 
 static int cpufreq_governor_interactive(struct cpufreq_policy *policy,
 		unsigned int event);
@@ -669,11 +682,13 @@ static void cpufreq_interactive_unlock_cores(struct work_struct *wq)
 		goto done;
 	}
 
+#if 0
 	pm_qos_update_request(&cl->qos_min_req,
 			PM_QOS_MIN_ONLINE_CPUS_DEFAULT_VALUE);
 
 	pm_qos_update_request(&cl->qos_max_req,
 			PM_QOS_MAX_ONLINE_CPUS_DEFAULT_VALUE);
+#endif
 
 done:
 	mutex_unlock(&cl->mutex);
@@ -687,7 +702,9 @@ done:
  */
 static void cpufreq_interactive_lock_cores(void)
 {
+#if 0
 	unsigned int ncpus;
+#endif
 
 	mutex_lock(&core_lock.mutex);
 
@@ -695,9 +712,11 @@ static void cpufreq_interactive_lock_cores(void)
 		goto arm_timer;
 	}
 
+#if 0
 	ncpus = num_online_cpus();
 	pm_qos_update_request(&core_lock.qos_min_req, ncpus);
 	pm_qos_update_request(&core_lock.qos_max_req, ncpus);
+#endif
 	core_lock.request_active++;
 
 arm_timer:
@@ -1043,7 +1062,12 @@ static ssize_t store_input_boost(struct kobject *kobj, struct attribute *attr,
 	return count;
 }
 
-define_one_global_rw(input_boost);
+// maxwen: make tunable world writable for easier access from user-space
+#define define_one_global_rww(_name)             \
+	static struct global_attr _name =               \
+	__ATTR(_name, 0666, show_##_name, store_##_name)
+
+define_one_global_rww(input_boost);
 
 static ssize_t show_boost(struct kobject *kobj, struct attribute *attr,
 			  char *buf)
@@ -1219,6 +1243,10 @@ static int __init cpufreq_interactive_init(void)
 	struct cpufreq_interactive_cpuinfo *pcpu;
 	struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
 
+    cpu_lp_clk = clk_get_sys(NULL, "cpu_lp");
+    idle_top_freq = clk_get_max_rate(cpu_lp_clk) / 1000;
+
+	hispeed_freq = tegra_pmqos_boost_freq;
 	go_maxspeed_load = DEFAULT_GO_MAXSPEED_LOAD;
 	go_hispeed_load = DEFAULT_GO_HISPEED_LOAD;
 	min_sample_time = DEFAULT_MIN_SAMPLE_TIME;
@@ -1255,11 +1283,13 @@ static int __init cpufreq_interactive_init(void)
 	spin_lock_init(&down_cpumask_lock);
 	mutex_init(&set_speed_lock);
 
+#if 0
 	pm_qos_add_request(&core_lock.qos_min_req, PM_QOS_MIN_ONLINE_CPUS,
 			PM_QOS_MIN_ONLINE_CPUS_DEFAULT_VALUE);
 
 	pm_qos_add_request(&core_lock.qos_max_req, PM_QOS_MAX_ONLINE_CPUS,
 			PM_QOS_MAX_ONLINE_CPUS_DEFAULT_VALUE);
+#endif
 
 	init_timer(&core_lock.unlock_timer);
 	core_lock.unlock_timer.function = cpufreq_interactive_core_lock_timer;
@@ -1301,8 +1331,11 @@ static void __exit cpufreq_interactive_exit(void)
 	put_task_struct(up_task);
 	destroy_workqueue(down_wq);
 
+#if 0
 	pm_qos_remove_request(&core_lock.qos_min_req);
 	pm_qos_remove_request(&core_lock.qos_max_req);
+#endif
+
 	kthread_stop(core_lock.lock_task);
 	put_task_struct(core_lock.lock_task);
 }
