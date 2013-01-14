@@ -32,4 +32,4 @@
 
 extern unsigned int tegra_pmqos_boost_freq;
 extern unsigned int tegra_pmqos_cap_freq;
-
+extern unsigned int tegra_pmqos_cpu_freq_limits[];

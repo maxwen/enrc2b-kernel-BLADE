@@ -33,6 +33,8 @@
 
 #include <trace/events/power.h>
 
+#include "../../arch/arm/mach-tegra/tegra_pmqos.h"
+
 /**
  * The "cpufreq driver" - the arch- or hardware-dependent low
  * level driver of CPUFreq support, and its spinlock. This lock
@@ -483,10 +485,13 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 	if (ret != 1)
 		return -EINVAL;
 
-	// maxwen: try to set govenor to all online cpus
-	// else govvener will be set when cpu comes online the next time
+	// maxwen: try to set governor to all online cpus
+	// else governor will be set when cpu comes online the next time
 #ifdef CONFIG_HOTPLUG_CPU
 	for_each_present_cpu(cpu) {
+#else
+	cpu = policy->cpu;
+#endif
 		ret = cpufreq_get_policy(&new_policy, cpu);
 		if (ret){
 			continue;
@@ -508,27 +513,14 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 		if (ret){
 			continue;
 		}
-		printk(KERN_ERR "maxwen:setting govenor %s on cpu %d ok\n", str_governor, cpu);
+		
+		pr_info("maxwen:store_scaling_governor setting governor %s on cpu %d ok\n", str_governor, cpu);
+#ifdef CONFIG_HOTPLUG_CPU
 	}
-#else 
-	ret = cpufreq_get_policy(&new_policy, policy->cpu);
-	if (ret)
-		return ret;
-
-	if (cpufreq_parse_governor(str_governor, &new_policy.policy,
-						&new_policy.governor))
-		return -EINVAL;
-
-	/* Do not use cpufreq_set_policy here or the user_policy.max
-	   will be wrongly overridden */
-	ret = __cpufreq_set_policy(policy, &new_policy);
-
-	policy->user_policy.policy = policy->policy;
-	policy->user_policy.governor = policy->governor;
+#endif 
 
 	if (ret)
 		return ret;
-#endif
 
 	return count;	
 }
@@ -642,6 +634,50 @@ static ssize_t show_bios_limit(struct cpufreq_policy *policy, char *buf)
 	return sprintf(buf, "%u\n", policy->cpuinfo.max_freq);
 }
 
+static ssize_t show_scaling_max_freq_limit(struct cpufreq_policy *policy, char *buf)
+{
+	return sprintf(buf, "%u,%u,%u,%u\n", tegra_pmqos_cpu_freq_limits[0], tegra_pmqos_cpu_freq_limits[1],
+		tegra_pmqos_cpu_freq_limits[2], tegra_pmqos_cpu_freq_limits[3]);
+}
+		
+static ssize_t store_scaling_max_freq_limit(struct cpufreq_policy *policy,
+					const char *buf, size_t count)
+{
+	unsigned int ret = -EINVAL;		
+	unsigned int cpu;			
+	struct cpufreq_policy new_policy;				
+	
+	ret = sscanf(buf, "%u,%u,%u,%u", &tegra_pmqos_cpu_freq_limits[0], &tegra_pmqos_cpu_freq_limits[1],
+		&tegra_pmqos_cpu_freq_limits[2], &tegra_pmqos_cpu_freq_limits[3]);
+		
+	if (ret < 4)
+		return ret;
+
+	// maxwen: apply new policy->max to all online cpus
+	// all non-online will get correct policy->max when they become
+	// online again in cpu-tegra.c:tegra_cpu_init
+#ifdef CONFIG_HOTPLUG_CPU
+	for_each_present_cpu(cpu) {
+		int max = tegra_pmqos_cpu_freq_limits[cpu];
+		if (max == 0)
+			// valus = 0 means reset to default
+			max = tegra_pmqos_boost_freq;
+			
+		ret = cpufreq_get_policy(&new_policy, cpu);
+		if (ret)							
+			continue;						
+		
+		new_policy.max = max;
+		ret = __cpufreq_set_policy(policy, &new_policy);
+		policy->user_policy.max = new_policy.max;
+		if (!ret){
+			pr_info("maxwen:store_scaling_max_freq_limit set policy->max of cpu %d to %d - ok\n", cpu, new_policy.max);
+		}
+	}
+#endif
+	return count;
+}
+
 cpufreq_freq_attr_ro_perm(cpuinfo_cur_freq, 0400);
 cpufreq_freq_attr_ro(cpuinfo_min_freq);
 cpufreq_freq_attr_ro(cpuinfo_max_freq);
@@ -658,6 +694,7 @@ cpufreq_freq_attr_rw(scaling_governor);
 cpufreq_freq_attr_rw(scaling_setspeed);
 cpufreq_freq_attr_ro(policy_min_freq);
 cpufreq_freq_attr_ro(policy_max_freq);
+cpufreq_freq_attr_rw(scaling_max_freq_limit);
 
 static struct attribute *default_attrs[] = {
 	&cpuinfo_min_freq.attr,
@@ -673,6 +710,7 @@ static struct attribute *default_attrs[] = {
 	&scaling_setspeed.attr,
 	&policy_min_freq.attr,
 	&policy_max_freq.attr,
+	&scaling_max_freq_limit.attr,
 	NULL
 };
 
@@ -764,9 +802,9 @@ static int cpufreq_add_dev_policy(unsigned int cpu,
 	unsigned long flags;
 	unsigned int j;
 	
-	// maxwen: we have already set the policy that we
+	// maxwen: we have already set the governor that we
 	// want to use in cpufreq_add_dev
-	// this makes sure that al cpus use the same governor
+	// this makes sure that all cpus use the same governor
 #if 0
 #ifdef CONFIG_HOTPLUG_CPU
 	struct cpufreq_governor *gov;
@@ -1021,8 +1059,10 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 		policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	}
 
-	printk(KERN_ERR "maxwen: set govener for cpu %d to %s\n", cpu, policy->governor->name);	
-	
+#if 0
+	pr_info("maxwen: cpufreq_add_dev set governor for cpu %d to %s\n", cpu, policy->governor->name);	
+#endif
+
 	/* call driver. From then on the cpufreq must be able
 	 * to accept all calls to ->verify and ->setpolicy for this CPU
 	 */
@@ -1727,8 +1767,10 @@ static int __cpufreq_set_policy(struct cpufreq_policy *data,
 	qmax = max((unsigned int)pm_qos_request(PM_QOS_CPU_FREQ_MAX),
 		   data->user_policy.min);
 
-	pr_debug("setting new policy for CPU %u: %u - %u (%u - %u) kHz\n",
+#if 0
+	pr_info("maxwen:_cpufreq_set_policy setting new policy for CPU %u: %u - %u (%u - %u) kHz\n",
 		policy->cpu, pmin, pmax, qmin, qmax);
+#endif
 
 	/* clamp the new policy to PM QoS limits */
 	policy->min = max(pmin, qmin);

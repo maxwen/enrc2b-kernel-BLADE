@@ -59,9 +59,13 @@ extern int mpdecision_gmode_notifier(void);
 unsigned int tegra_pmqos_boost_freq = BOOST_CPU_FREQ_MIN;
 unsigned int tegra_pmqos_cap_freq = CAP_CPU_FREQ_MAX;
 
+// maxwen: assumes 4 cores!
+unsigned int tegra_pmqos_cpu_freq_limits[CONFIG_NR_CPUS] = {0, 0, 0, 0};
+
+
+#if 0
 /* Symbol to store resume resume */
 extern unsigned long long wake_reason_resume;
-#if 0
 struct work_struct htc_suspend_resume_work;
 #endif
 
@@ -78,6 +82,17 @@ static unsigned long target_cpu_speed[CONFIG_NR_CPUS];
 static DEFINE_MUTEX(tegra_cpu_lock);
 static bool is_suspended;
 static int suspend_index;
+
+// maxwen: see tegra_cpu_init
+// values can be changed in sysfs interface of cpufreq
+// for scaling_max_freq_limit
+static inline unsigned int get_cpu_freq_limit(unsigned int cpu){
+
+	if(tegra_pmqos_cpu_freq_limits[cpu]!=0){
+		return tegra_pmqos_cpu_freq_limits[cpu];
+	}
+	return tegra_pmqos_boost_freq;
+}
 
 static bool force_policy_max;
 
@@ -699,6 +714,7 @@ unsigned int no_thermal_throttle_limit = 0;
 module_param(no_thermal_throttle_limit, uint, 0644);
 EXPORT_SYMBOL (no_thermal_throttle_limit);
 
+// maxwen: apply all limits to a frequency
 static unsigned int get_scaled_freq (unsigned int target_freq)
 {
 	unsigned int save_freq = target_freq;
@@ -2014,7 +2030,6 @@ static struct pm_qos_request_list cap_cpu_freq_req;
 
 #if 0
 static int enter_early_suspend = 0;
-static int CAP_CPU_FREQ_TARGET = 1700000;
 #endif
 
 static int tegra_pm_notify(struct notifier_block *nb, unsigned long event,
@@ -2041,6 +2056,7 @@ static int tegra_pm_notify(struct notifier_block *nb, unsigned long event,
 		is_suspended = false;
 		tegra_cpu_edp_init(true);
 
+//maxwen: dont think we need this 
 #if 0
 		if (wake_reason_resume == 0x80) {
 			tegra_update_cpu_speed(tegra_pmqos_boost_freq);
@@ -2092,7 +2108,7 @@ static int tegra_cpu_init(struct cpufreq_policy *policy)
 	cpumask_copy(policy->related_cpus, cpu_possible_mask);
 
 	if (policy->cpu == 0) {
-		policy->max = tegra_pmqos_boost_freq;
+		policy->max = get_cpu_freq_limit(policy->cpu);
 		policy->min = T3_CPU_MIN_FREQ;
 		register_pm_notifier(&tegra_cpu_pm_notifier);
 		pr_info("cpu-tegra_cpufreq: restored cpu[%d]'s freq: %u\n", policy->cpu, policy->max);
@@ -2100,7 +2116,7 @@ static int tegra_cpu_init(struct cpufreq_policy *policy)
 
     /* restore saved cpu frequency */
     if (policy->cpu > 0) {
-		policy->max = tegra_pmqos_boost_freq - 100000;
+		policy->max = get_cpu_freq_limit(policy->cpu);
 		tegra_update_cpu_speed(policy->max);
 		pr_info("cpu-tegra_cpufreq: restored cpu[%d]'s freq: %u\n", policy->cpu, policy->max);
 	}
@@ -2185,6 +2201,7 @@ static void tegra_cpufreq_late_resume(struct early_suspend *h)
 
 #endif
 
+//maxwen: dont think we need this 
 #if 0
 static void htc_suspend_resume_worker(struct work_struct *w)
 {
