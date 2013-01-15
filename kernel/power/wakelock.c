@@ -316,7 +316,7 @@ static void suspend(struct work_struct *work)
 			pr_info("suspend: pm_suspend returned with no event\n");
 		wake_lock_timeout(&unknown_wakeup, HZ / 2);
 	}
-	pr_info("[R] resume end\n");
+	pr_info("[R] suspend end\n");
 }
 static DECLARE_WORK(suspend_work, suspend);
 
