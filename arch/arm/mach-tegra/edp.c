@@ -34,6 +34,10 @@ static unsigned int regulator_cur;
 
 static const unsigned int *system_edp_limits;
 
+#ifdef CONFIG_TEGRA3_VARIANT_CPU_OVERCLOCK
+extern int enable_oc;
+#endif
+
 /*
  * Temperature step size cannot be less than 4C because of hysteresis
  * delta
@@ -383,6 +387,13 @@ void __init tegra_init_cpu_edp_limits(unsigned int regulator_mA)
 		e[j].freq_limits[1] = (unsigned int)t[i+j].freq_limits[1] * 10000;
 		e[j].freq_limits[2] = (unsigned int)t[i+j].freq_limits[2] * 10000;
 		e[j].freq_limits[3] = (unsigned int)t[i+j].freq_limits[3] * 10000;
+#ifdef CONFIG_TEGRA3_VARIANT_CPU_OVERCLOCK
+		e[j].freq_limits_oc[0] = (unsigned int)t[i+j].freq_limits[0] * 10000;
+		e[j].freq_limits_oc[1] = (unsigned int)(t[i+j].freq_limits[1] + 10) * 10000;
+		e[j].freq_limits_oc[2] = (unsigned int)(t[i+j].freq_limits[2] + 10) * 10000;
+		e[j].freq_limits_oc[3] = (unsigned int)(t[i+j].freq_limits[3] + 10) * 10000;
+#endif
+
 	}
 
 	f = kmalloc(sizeof(struct tegra_edp_limits) * edp_limits_size,
@@ -478,12 +489,25 @@ static int edp_debugfs_show(struct seq_file *s, void *data)
 		   edp_limits == edp_default_limits ? "default " : "",
 		   regulator_cur);
 	for (i = 0; i < edp_limits_size; i++) {
-		seq_printf(s, "%4dC: %10u %10u %10u %10u\n",
+#ifdef CONFIG_TEGRA3_VARIANT_CPU_OVERCLOCK
+		if(enable_oc){
+			seq_printf(s, "%4dC: %10u %10u %10u %10u\n",
+			   edp_limits[i].temperature,
+			   edp_limits[i].freq_limits_oc[0],
+			   edp_limits[i].freq_limits_oc[1],
+			   edp_limits[i].freq_limits_oc[2],
+			   edp_limits[i].freq_limits_oc[3]);
+		} else {
+#endif
+			seq_printf(s, "%4dC: %10u %10u %10u %10u\n",
 			   edp_limits[i].temperature,
 			   edp_limits[i].freq_limits[0],
 			   edp_limits[i].freq_limits[1],
 			   edp_limits[i].freq_limits[2],
 			   edp_limits[i].freq_limits[3]);
+#ifdef CONFIG_TEGRA3_VARIANT_CPU_OVERCLOCK
+		}
+#endif
 	}
 
 	if (system_edp_limits) {

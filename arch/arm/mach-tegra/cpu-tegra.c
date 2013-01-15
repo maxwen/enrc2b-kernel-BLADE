@@ -83,6 +83,10 @@ static DEFINE_MUTEX(tegra_cpu_lock);
 static bool is_suspended;
 static int suspend_index;
 
+#ifdef CONFIG_TEGRA3_VARIANT_CPU_OVERCLOCK
+int enable_oc = 0;
+#endif
+
 // maxwen: see tegra_cpu_init
 // values can be changed in sysfs interface of cpufreq
 // for scaling_max_freq_limit
@@ -217,7 +221,14 @@ static unsigned int edp_predict_limit(unsigned int cpus)
 	BUG_ON(cpus == 0);
 	if (cpu_edp_limits) {
 		BUG_ON(edp_thermal_index >= cpu_edp_limits_size);
+#ifdef CONFIG_TEGRA3_VARIANT_CPU_OVERCLOCK
+        if(enable_oc)
+		    limit = cpu_edp_limits[edp_thermal_index].freq_limits_oc[cpus - 1];
+        else
+		    limit = cpu_edp_limits[edp_thermal_index].freq_limits[cpus - 1];
+#else
 		limit = cpu_edp_limits[edp_thermal_index].freq_limits[cpus - 1];
+#endif
 	}
 	if (system_edp_limits && system_edp_alarm)
 		limit = min(limit, system_edp_limits[cpus - 1]);
@@ -2267,6 +2278,27 @@ static struct kernel_param_ops perf_early_suspend_ops = {
 };
 
 module_param_cb(perf_early_suspend, &perf_early_suspend_ops, &perf_early_suspend, 0644);
+
+#ifdef CONFIG_TEGRA3_VARIANT_CPU_OVERCLOCK
+static int enable_oc_set(const char *arg, const struct kernel_param *kp)
+{
+    int ret = param_set_int(arg, kp);
+    pr_info("enable_oc %d\n", enable_oc);
+	return 0;
+}
+
+static int enable_oc_get(char *buffer, const struct kernel_param *kp)
+{
+	return param_get_uint(buffer, kp);
+}
+
+static struct kernel_param_ops enable_oc_ops = {
+	.set = enable_oc_set,
+	.get = enable_oc_get,
+};
+
+module_param_cb(enable_oc, &enable_oc_ops, &enable_oc, 0644);
+#endif
 
 static int __init tegra_cpufreq_init(void)
 {

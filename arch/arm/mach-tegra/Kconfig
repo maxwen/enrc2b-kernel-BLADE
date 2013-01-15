@@ -845,3 +845,9 @@ config TEGRA_GPU_OC_520
 	default n
 	help
 	  Choose y to oc the GPU to 520Mhz
+	  
+config TEGRA3_VARIANT_CPU_OVERCLOCK
+    bool "CPU Overclocking"
+    default n
+    help
+      CPU Overclocking option

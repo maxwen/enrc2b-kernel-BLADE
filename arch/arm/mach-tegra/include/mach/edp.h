@@ -33,6 +33,9 @@ struct tegra_edp_entry {
 struct tegra_edp_limits {
 	int temperature;
 	unsigned int freq_limits[4];
+#ifdef CONFIG_TEGRA3_VARIANT_CPU_OVERCLOCK
+	unsigned int freq_limits_oc[4];
+#endif
 };
 
 struct system_edp_entry {
