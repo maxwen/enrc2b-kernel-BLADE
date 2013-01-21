@@ -1029,14 +1029,14 @@ static void tegra_suspend_finish(void)
 
 	if (pdata && pdata->cpu_resume_boost) {
 		int ret = tegra_suspended_target(pdata->cpu_resume_boost);
-		pr_info("Tegra: resume CPU boost to %u KHz: %s (%d)\n",
+		pr_info("tegra_suspend_finish: resume CPU boost to %u KHz: %s (%d)\n",
 			pdata->cpu_resume_boost, ret ? "Failed" : "OK", ret);
 	}
 
 noboost:
+	pr_info("tegra_suspend_finish: wake reason is 0x%x\n", (u32)wake_reason_resume);
 	wake_reason_resume = 0;
-	pr_info("wake reason is 0x%x\n", (u32)wake_reason_resume);
-	pr_info("board boost wake reason is 0x%x\n",
+	pr_info("tegra_suspend_finish: board boost wake reason is 0x%x\n",
 			(u32)pdata->boost_resume_reason);
 	if ((current_suspend_mode == TEGRA_SUSPEND_LP0) && tegra_deep_sleep)
 		tegra_deep_sleep(0);
