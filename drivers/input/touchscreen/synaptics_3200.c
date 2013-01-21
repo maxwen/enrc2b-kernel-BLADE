@@ -34,10 +34,8 @@
 #include <linux/cm3629.h>
 
 #include <linux/clk.h>
-#include "../arch/arm/mach-tegra/clock.h"
 
 extern int usb_get_connect_type(void);
-static struct clk *cpu_clk;
 
 //#define SYN_SUSPEND_RESUME_POWEROFF
 #define SYN_I2C_RETRY_TIMES 10
@@ -196,7 +194,6 @@ static void sweep2wake_presspwr(struct work_struct * sweep2wake_presspwr_work) {
 static DECLARE_WORK(sweep2wake_presspwr_work, sweep2wake_presspwr);
 
 void sweep2wake_pwrtrigger(void) {
-	clk_set_rate(cpu_clk, 475000 * 1000);
 	schedule_work(&sweep2wake_presspwr_work);
 }
 
@@ -1836,9 +1833,6 @@ static void synaptics_touch_sysfs_remove(void)
 static int synaptics_init_panel(struct synaptics_ts_data *ts)
 {
 	int ret = 0;
-
-	// CPU boost
-	cpu_clk = clk_get_sys(NULL, "cpu");
 
 	/* Configured */
 	ret = i2c_syn_write_byte_data(ts->client,
@@ -3510,7 +3504,6 @@ static int synaptics_ts_resume(struct i2c_client *client)
 			get_address_base(ts, 0x01, CONTROL_BASE), 0x01);
 		if (ret < 0)
 			i2c_syn_error_handler(ts, 1, "sleep", __func__);
-		clk_set_rate(cpu_clk, 475000 * 1000);
 		msleep(150);
 		ret = 0;
 		//screen on, disable_irq_wake
