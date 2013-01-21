@@ -165,13 +165,20 @@ static inline int tegra_cpu_dvfs_alter(int edp_thermal_index,
 #ifndef CONFIG_ARCH_TEGRA_2x_SOC
 int tegra_dvfs_rail_disable_prepare(struct dvfs_rail *rail);
 int tegra_dvfs_rail_post_enable(struct dvfs_rail *rail);
+#if 0
 void tegra_dvfs_age_cpu(int cur_linear_age);
+#endif
+void tegra_cpu_mvs_init();
 #else
 static inline int tegra_dvfs_rail_disable_prepare(struct dvfs_rail *rail)
 { return 0; }
 static inline int tegra_dvfs_rail_post_enable(struct dvfs_rail *rail)
 { return 0; }
+#if 0
 static inline void tegra_dvfs_age_cpu(int cur_linear_age)
+{ return; }
+#endif
+static inline void tegra_cpu_mvs_init()
 { return; }
 #endif
 

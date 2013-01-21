@@ -40,16 +40,20 @@
 #include "dvfs.h"
 #include "timer.h"
 
+#undef DEBUG
+
 #define DVFS_RAIL_STATS_BIN	25
 #define DVFS_RAIL_STATS_SCALE	2
 #define DVFS_RAIL_STATS_RANGE   ((DVFS_RAIL_STATS_TOP_BIN - 1) * \
 				 DVFS_RAIL_STATS_BIN / DVFS_RAIL_STATS_SCALE)
 
 static LIST_HEAD(dvfs_rail_list);
-static DEFINE_MUTEX(dvfs_lock);
+DEFINE_MUTEX(dvfs_lock);
 static DEFINE_MUTEX(rail_disable_lock);
 
 static int dvfs_rail_update(struct dvfs_rail *rail);
+
+static int current_vdd_core_mv = 0;
 
 void tegra_dvfs_add_relationships(struct dvfs_relationship *rels, int n)
 {
@@ -242,6 +246,10 @@ static int dvfs_rail_set_voltage(struct dvfs_rail *rail, int millivolts)
 	}
 
 out:
+	if(!strcmp(rail->reg_id, "vdd_core")){
+		current_vdd_core_mv = max(rail->new_millivolts, rail->millivolts);
+	}
+
 	rail->resolving_to = false;
 	return ret;
 }
@@ -366,11 +374,21 @@ __tegra_dvfs_set_rate(struct dvfs *d, unsigned long rate)
 
 	d->cur_rate = rate;
 
+#if DEBUG
+	if(!strcmp(d->dvfs_rail->reg_id, "vdd_cpu"))
+		pr_info("__tegra_dvfs_set_rate vdd_cpu try %lu %d\n", rate, d->cur_millivolts);
+#endif
 	ret = dvfs_rail_update(d->dvfs_rail);
 	if (ret)
 		pr_err("Failed to set regulator %s for clock %s to %d mV\n",
 			d->dvfs_rail->reg_id, d->clk_name, d->cur_millivolts);
-
+#if DEBUG
+	else
+		if(!strcmp(d->dvfs_rail->reg_id, "vdd_cpu")){
+			int mv = max(d->dvfs_rail->new_millivolts, d->dvfs_rail->millivolts);
+			pr_info("__tegra_dvfs_set_rate vdd_core %d vdd_cpu real %lu %d\n", current_vdd_core_mv, rate, mv);
+		}
+#endif
 	return ret;
 }
 
@@ -689,13 +707,20 @@ int __init tegra_dvfs_late_init(void)
 {
 	bool connected = true;
 	struct dvfs_rail *rail;
+#if 0
 	int cur_linear_age = tegra_get_linear_age();
+#endif
 
+	// must be outside of dvfs_lock since it will use it too!
+	tegra_cpu_mvs_init();
+	
 	mutex_lock(&dvfs_lock);
 
+#if 0
 	if (cur_linear_age >= 0)
 		tegra_dvfs_age_cpu(cur_linear_age);
-
+#endif
+	
 	list_for_each_entry(rail, &dvfs_rail_list, node)
 		if (dvfs_rail_connect_to_regulator(rail))
 			connected = false;
