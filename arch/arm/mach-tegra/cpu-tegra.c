@@ -64,8 +64,6 @@ unsigned int tegra_pmqos_cpu_freq_limits[CONFIG_NR_CPUS] = {0, 0, 0, 0};
 
 
 #if 0
-/* Symbol to store resume resume */
-extern unsigned long long wake_reason_resume;
 struct work_struct htc_suspend_resume_work;
 #endif
 
@@ -2046,8 +2044,6 @@ static int enter_early_suspend = 0;
 static int tegra_pm_notify(struct notifier_block *nb, unsigned long event,
 	void *dummy)
 {
-	int cpu;
-
 	mutex_lock(&tegra_cpu_lock);
 	if (event == PM_SUSPEND_PREPARE) {
 		unsigned int freq;
@@ -2057,26 +2053,18 @@ static int tegra_pm_notify(struct notifier_block *nb, unsigned long event,
 			freq);
 		tegra_update_cpu_speed(freq);
 		tegra_auto_hotplug_governor(freq, true);
+#if 0
 		for_each_online_cpu(cpu) {
 			if(cpu==0)
 				continue;
 			cpu_down(cpu);
 		}
+#endif
 	} else if (event == PM_POST_SUSPEND) {
 		unsigned int freq;
 		is_suspended = false;
 		tegra_cpu_edp_init(true);
-
-//maxwen: dont think we need this 
-#if 0
-		if (wake_reason_resume == 0x80) {
-			tegra_update_cpu_speed(tegra_pmqos_boost_freq);
-			tegra_auto_hotplug_governor(tegra_pmqos_boost_freq, false);
-		} else {
-			tegra_cpu_set_speed_cap(&freq);
-		}
-#endif
-
+		
 		tegra_cpu_set_speed_cap(&freq);
 		pr_info("tegra_pm_notify: cpufreq resume: restoring frequency to %d kHz\n", freq);
 	}
