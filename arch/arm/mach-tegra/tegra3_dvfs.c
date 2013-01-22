@@ -43,9 +43,12 @@ static const int cpu_millivolts_orig[MAX_DVFS_FREQS] = CPU_MILLIVOLTS;
 static const unsigned int cpu_cold_offs_mhz[MAX_DVFS_FREQS] = {
 	 50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,  50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50,   50};
 
-static const int core_millivolts[MAX_DVFS_FREQS] = {
-	950, 1000, 1050, 1100, 1150, 1200, 1250, 1300, 1350};
+//static const int core_millivolts[MAX_DVFS_FREQS] = {
+//	950, 1000, 1050, 1100, 1150, 1200, 1250, 1300, 1350};
 
+static const int core_millivolts[MAX_DVFS_FREQS] = {
+	900, 950, 1000, 1050, 1100, 1150, 1200, 1250, 1300};
+	
 #define KHZ 1000
 #define MHZ 1000000
 
@@ -61,6 +64,9 @@ static int cpu_below_core = VDD_CPU_BELOW_VDD_CORE;
 #define VDD_CPU_MAX				1250	
 #define VDD_CPU_DEFAULT_MVS		-25
 
+#define VDD_CORE_MIN				900
+#define VDD_CORE_MAX				1350
+
 static int curr_cpu_vdd_change = 0;
 extern struct mutex dvfs_lock;
 
@@ -74,8 +80,8 @@ static struct dvfs_rail tegra3_dvfs_rail_vdd_cpu = {
 
 static struct dvfs_rail tegra3_dvfs_rail_vdd_core = {
 	.reg_id = "vdd_core",
-	.max_millivolts = 1350,
-	.min_millivolts = 950,
+	.max_millivolts = VDD_CORE_MAX,
+	.min_millivolts = VDD_CORE_MIN,
 	.step = VDD_SAFE_STEP,
 };
 
@@ -87,18 +93,19 @@ static struct dvfs_rail *tegra3_dvfs_rails[] = {
 static int tegra3_get_core_floor_mv(int cpu_mv)
 {
 	if (cpu_mv < 800)
-		return  950;
+		return 900;
 	if (cpu_mv < 900)
-		return 1000;
+		return 950;
 	if (cpu_mv < 1000)
-		return 1100;
-	if ((tegra_cpu_speedo_id() < 2) ||
-	    (tegra_cpu_speedo_id() == 4) ||
-	    (tegra_cpu_speedo_id() == 7) ||
-	    (tegra_cpu_speedo_id() == 8))
-		return 1200;
+		return 1000;
+	if (cpu_mv < 1050)
+		return 1050;
 	if (cpu_mv < 1100)
-		return 1200;
+		return 1100;
+	if (cpu_mv < 1150)
+		return 1150;
+	if (cpu_mv < 1200)
+		return 1250;
 	if (cpu_mv <= 1250)
 		return 1300;
 	BUG();
