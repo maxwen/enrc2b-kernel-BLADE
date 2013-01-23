@@ -244,7 +244,7 @@ static int mp_decision(void)
 
                                 if ((get_slowest_cpu_rate() <= tegra_mpdec_tuners_ins.idle_freq)
                                      && (new_state != TEGRA_MPDEC_LPCPU_DOWN))
-                                                new_state = TEGRA_MPDEC_IDLE;;
+                                                new_state = TEGRA_MPDEC_IDLE;
 			}
 		} else if (rq_depth <= NwNs_Threshold[index+1]) {
 			if (total_time >= TwTs_Threshold[index+1] ) {
