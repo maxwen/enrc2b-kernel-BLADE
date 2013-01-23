@@ -29,6 +29,11 @@
 #include <linux/highuid.h>
 #include <linux/cpu_debug.h>
 #include <linux/kthread.h>
+#include <linux/clk.h>
+
+#include "../../arch/arm/mach-tegra/clock.h"
+#include "../../arch/arm/mach-tegra/pm.h"
+#include "../../arch/arm/mach-tegra/tegra_pmqos.h"
 
 /*
  * dbs is used in this file as a shortform for demandbased switching
@@ -40,21 +45,23 @@
 #define DEF_SAMPLING_DOWN_FACTOR		(1)
 #define MAX_SAMPLING_DOWN_FACTOR		(100000)
 #define MICRO_FREQUENCY_DOWN_DIFFERENTIAL	(3)
-#define MICRO_FREQUENCY_UP_THRESHOLD		(95)
+#define MICRO_FREQUENCY_UP_THRESHOLD		(80)
 #define MICRO_FREQUENCY_MIN_SAMPLE_RATE		(10000)
 #define MIN_FREQUENCY_UP_THRESHOLD		(11)
 #define MAX_FREQUENCY_UP_THRESHOLD		(100)
 #define DEF_SAMPLING_RATE			(50000)
 #define DEF_IO_IS_BUSY				(1)
-#define DEF_UI_DYNAMIC_SAMPLING_RATE		(30000)
-#define DEF_UI_COUNTER				(5)
+#define DEF_UI_DYNAMIC_SAMPLING_RATE		(20000)
+#define DEF_UI_COUNTER				(3)
 #define DEF_TWO_PHASE_FREQ			(1000000)
 #define DEF_TWO_PHASE_BOTTOM_FREQ   (340000)
-#define DEF_TWO_PHASE_GO_MAX_LOAD   (95)
+#define DEF_TWO_PHASE_GO_MAX_LOAD   (90)
 #define DEF_UX_LOADING              (30)
 #define DEF_UX_FREQ                 (0)
 #define DEF_UX_BOOST_THRESHOLD      (0)
-#define DEF_INPUT_BOOST_DURATION    (100000000)
+#define DEF_INPUT_BOOST_DURATION    (50000000)
+#define DEF_POWERSAVE_BIAS          (0)
+#define DEF_IGNORE_NICE             (1)
 
 /*
  * The polling frequency of this governor depends on the capability of
@@ -152,8 +159,8 @@ static struct dbs_tuners {
 	.up_threshold = DEF_FREQUENCY_UP_THRESHOLD,
 	.sampling_down_factor = DEF_SAMPLING_DOWN_FACTOR,
 	.down_differential = DEF_FREQUENCY_DOWN_DIFFERENTIAL,
-	.ignore_nice = 0,
-	.powersave_bias = 0,
+	.ignore_nice = DEF_IGNORE_NICE,
+	.powersave_bias = DEF_POWERSAVE_BIAS,
 #ifdef CONFIG_CPU_FREQ_GOV_ONDEMAND_2_PHASE
 	.two_phase_freq = DEF_TWO_PHASE_FREQ,
     .two_phase_dynamic = 1,
@@ -385,7 +392,7 @@ static ssize_t store_two_phase_bottom_freq (
 }
 #endif
 
-static unsigned int Touch_poke_attr[4] = {1500000, 880000, 0, 0};
+static unsigned int Touch_poke_attr[4] = {1600000, 880000, 0, 0};
 
 static ssize_t store_touch_poke(struct kobject *a, struct attribute *b,
 				   const char *buf, size_t count)
@@ -830,7 +837,12 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 
 #else
 		if (counter < 5) {
-			counter++;
+            /* prevent the lpcpu from slowing down the system */
+            if (!is_lp_cluster())
+                counter++;
+            else
+                counter += 2;
+
 			if (counter > 2) {
                 if (!phase && dbs_tuners_ins.two_phase_dynamic)
                     mid_idle_busy = true;
