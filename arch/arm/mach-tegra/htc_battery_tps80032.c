@@ -1646,7 +1646,7 @@ static struct device_attribute tps80032_batt_attrs[] = {
 	__ATTR(quickboot_enabled, S_IWUSR, NULL, tps80032_qb_store_attributes),
 	__ATTR(fake_temp, S_IWUSR, NULL, tps80032_fake_temp_store_attributes),
 	__ATTR(suspend_1_percent, S_IRUGO, tps80032_batt_show_attributes, NULL),
-	__ATTR(fast_charge, S_IWUSR, fast_charge_show, fast_charge_store),
+	__ATTR(fast_charge, S_IRUGO|S_IWUSR, fast_charge_show, fast_charge_store),
 };
 
 static ssize_t tps80032_batt_show_attributes(struct device *dev,
