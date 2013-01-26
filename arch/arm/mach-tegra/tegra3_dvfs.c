@@ -713,8 +713,13 @@ static void tegra_adjust_cpu_mvs(int mvs)
 	for (i = 0; i < ARRAY_SIZE(cpu_millivolts); i++){
 		int old_val = cpu_millivolts_orig[i];
 		int new_val = old_val + mvs;
-		if (new_val < VDD_CPU_MIN || new_val > VDD_CPU_MAX)
-			continue;
+		
+		if (new_val < VDD_CPU_MIN)
+			new_val = VDD_CPU_MIN;
+		 
+		if(new_val > VDD_CPU_MAX)
+			new_val = VDD_CPU_MAX;
+						
 		cpu_millivolts[i] = new_val;
 	}
 	
