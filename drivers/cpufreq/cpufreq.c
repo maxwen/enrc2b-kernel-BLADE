@@ -488,20 +488,22 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 	// maxwen: try to set governor to all online cpus
 	// else governor will be set when cpu comes online the next time
 #ifdef CONFIG_HOTPLUG_CPU
-	for_each_present_cpu(cpu) {
-#else
-	cpu = policy->cpu;
-#endif
-		ret = cpufreq_get_policy(&new_policy, cpu);
-		if (ret){
+	for_each_online_cpu(cpu) {
+		policy = cpufreq_cpu_get(cpu);
+		if (!policy)
 			continue;
-		}
+#else
+		cpu = policy->cpu;
+#endif
+
+		ret = cpufreq_get_policy(&new_policy, cpu);
+		if (ret)
+			continue;
 		
 		if (cpufreq_parse_governor(str_governor, &new_policy.policy,
-						&new_policy.governor)){
+						&new_policy.governor))
 
 			continue;
-		}
 
 		/* Do not use cpufreq_set_policy here or the user_policy.max
 	   	will be wrongly overridden */
@@ -510,12 +512,12 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 		policy->user_policy.policy = policy->policy;
 		policy->user_policy.governor = policy->governor;
 		
-		if (ret){
+		if (ret)
 			continue;
-		}
-		
+
 		pr_info("maxwen:store_scaling_governor setting governor %s on cpu %d ok\n", str_governor, cpu);
 #ifdef CONFIG_HOTPLUG_CPU
+		cpufreq_cpu_put(policy);
 	}
 #endif 
 
@@ -646,6 +648,7 @@ static ssize_t store_scaling_max_freq_limit(struct cpufreq_policy *policy,
 	unsigned int ret = -EINVAL;		
 	unsigned int cpu;			
 	struct cpufreq_policy new_policy;				
+	int max = 0;
 	
 	ret = sscanf(buf, "%u,%u,%u,%u", &tegra_pmqos_cpu_freq_limits[0], &tegra_pmqos_cpu_freq_limits[1],
 		&tegra_pmqos_cpu_freq_limits[2], &tegra_pmqos_cpu_freq_limits[3]);
@@ -657,22 +660,27 @@ static ssize_t store_scaling_max_freq_limit(struct cpufreq_policy *policy,
 	// all non-online will get correct policy->max when they become
 	// online again in cpu-tegra.c:tegra_cpu_init
 #ifdef CONFIG_HOTPLUG_CPU
-	for_each_present_cpu(cpu) {
-		int max = tegra_pmqos_cpu_freq_limits[cpu];
-		if (max == 0)
-			// valus = 0 means reset to default
-			max = tegra_pmqos_boost_freq;
-			
+	for_each_online_cpu(cpu) {
+		policy = cpufreq_cpu_get(cpu);
+		if (!policy)
+			continue;
+		
 		ret = cpufreq_get_policy(&new_policy, cpu);
 		if (ret)							
-			continue;						
+			continue;
+
+		max = tegra_pmqos_cpu_freq_limits[cpu];
+		if (max == 0)
+			// valus = 0 means reset to default
+			max = tegra_pmqos_boost_freq;						
 		
 		new_policy.max = max;
 		ret = __cpufreq_set_policy(policy, &new_policy);
 		policy->user_policy.max = new_policy.max;
-		if (!ret){
+		if (!ret)
 			pr_info("maxwen:store_scaling_max_freq_limit set policy->max of cpu %d to %d - ok\n", cpu, new_policy.max);
-		}
+		
+		cpufreq_cpu_put(policy);
 	}
 #endif
 	return count;
