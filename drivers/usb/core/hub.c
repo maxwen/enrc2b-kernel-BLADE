@@ -2489,29 +2489,6 @@ static int finish_port_resume(struct usb_device *udev)
 	extern struct usb_hcd *mdm_hsic_usb_hcd;
 	#endif //CONFIG_QCT_9K_MODEM
 
-	//htc++
-	#ifdef CONFIG_QCT_9K_MODEM
-	if (machine_is_evitareul() && hcd == mdm_hsic_usb_hcd)
-	{
-		extern int get_ap2mdm_sw_bc5_status(void);
-		extern void ehci_qct_mdm_resume_suspend_recover(void);
-		extern bool is_mdm_support_ap2mdm_sw_bc5;
-		extern bool mdm_in_fatal_handler;
-
-		if (mdm_in_fatal_handler)
-		{
-			pr_info(MODULE_NAME "%s mdm_in_fatal_handler return 0\n", __func__); /* HTC */
-			return 0;
-		}
-
-		if (is_mdm_support_ap2mdm_sw_bc5 && get_ap2mdm_sw_bc5_status() == 0)
-		{
-			ehci_qct_mdm_resume_suspend_recover();
-		}
-	}
-	#endif //CONFIG_QCT_9K_MODEM
-	//htc--
-
 	/* caller owns the udev device lock */
 	dev_dbg(&udev->dev, "%s\n",
 		udev->reset_resume ? "finish reset-resume" : "finish resume");

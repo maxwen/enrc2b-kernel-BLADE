@@ -1695,36 +1695,6 @@ rescan:
 		spin_unlock_irq(&hcd_urb_list_lock);
 
 		if (urb) {
-			//HTC+++
-			if (machine_is_evitareul() && (get_radio_flag() & 0x0008)) {
-				int	is_in;
-				is_in = usb_urb_dir_in(urb);
-				dev_info (hcd->self.controller,
-					"usb_kill_urb urb %p ep%d%s%s\n",
-					urb, usb_endpoint_num(&ep->desc),
-					is_in ? "in" : "out",
-					({	char *s;
-
-						 switch (usb_endpoint_type(&ep->desc)) {
-						 case USB_ENDPOINT_XFER_CONTROL:
-							s = ""; break;
-						 case USB_ENDPOINT_XFER_BULK:
-							s = "-bulk"; break;
-						 case USB_ENDPOINT_XFER_INT:
-							s = "-intr"; break;
-						 default:
-					 		s = "-iso"; break;
-						};
-						s;
-					}));
-
-				if (urb->dev && urb->dev->bus) {
-					urb_hcd = bus_to_hcd(urb->dev->bus);
-					pr_info("urb_hcd:%p hcd:%p\n", urb_hcd, hcd);
-				}
-			}
-			//HTC---
-
 			usb_kill_urb (urb);
 			usb_put_urb (urb);
 		}

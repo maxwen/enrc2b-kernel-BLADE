@@ -428,18 +428,6 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 			printk(KERN_INFO"%s: set port[%d] PORT_RESUME\n", __func__, i);
 		}
 		ehci_writel(ehci, temp, &ehci->regs->port_status [i]);
-
-		//htc++
-		if (machine_is_evitareul()) {
-			if (test_bit(i, &resume_needed)) {
-				/* Poll until (PORT_SUSPEND | PORT_RESUME) is clear */
-				if (handshake(ehci, &ehci->regs->port_status [i], (PORT_SUSPEND | PORT_RESUME), 0, 25000)) {
-					printk(KERN_INFO"%s: timeout waiting for PORT_RESUME to clear\n",__func__);
-				}
-				printk(KERN_INFO"%s: wait PORT_RESUME clr done\n", __func__);
-			}
-		}
-		//htc--
 	}
 
 
@@ -1210,17 +1198,6 @@ static int ehci_hub_control (
 				 */
 				ehci->reset_done [wIndex] = jiffies
 						+ msecs_to_jiffies (50);
-
-				//HTC_Kris+++
-				//Skip it to prevent QCT MDM FATAL
-				{
-					extern struct usb_hcd *mdm_hsic_usb_hcd;
-					if (machine_is_evitareul() && hcd == mdm_hsic_usb_hcd) {
-						retval = 0;
-						goto error_exit;
-					}
-				}
-				//HTC_Kris---
 			}
 			ehci_writel(ehci, temp, status_reg);
 			break;

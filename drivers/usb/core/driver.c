@@ -1480,12 +1480,6 @@ usb_resume_end:
  */
 void usb_enable_autosuspend(struct usb_device *udev)
 {
-	//++SSD_RIL: Mars_Lin@20120606: For Disable auto suspend
-	if( (machine_is_evitareul() || machine_is_operaul()) &&
-	    board_mfg_mode() == BOARD_MFG_MODE_MFGKERNEL ) {
-		pr_info("evitare#ul disable auto-suspend in MFG kernel mode\n");
-	} else
-	//--SSD_RIL
 	pm_runtime_allow(&udev->dev);
 }
 EXPORT_SYMBOL_GPL(usb_enable_autosuspend);

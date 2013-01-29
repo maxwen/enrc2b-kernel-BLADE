@@ -256,16 +256,6 @@ static int qtd_copy_status (
 			usb_pipeendpoint (urb->pipe),
 			usb_pipein (urb->pipe) ? "in" : "out",
 			token, status);
-
-		//htc_dbg+++
-		if ((get_radio_flag() & 0x0001) && (mdm_hsic_ehci_hcd == ehci) && machine_is_evitareul()) {
-			trace_printk("dev%d ep%d%s qtd token %08x --> status %d\n",
-				usb_pipedevice (urb->pipe),
-				usb_pipeendpoint (urb->pipe),
-				usb_pipein (urb->pipe) ? "in" : "out",
-				token, status);
-		}
-		//htc_dbg---
 	}
 
 	return status;
@@ -306,18 +296,6 @@ __acquires(ehci->lock)
 		status,
 		urb->actual_length, urb->transfer_buffer_length);
 #endif
-
-	//htc_dbg+++
-	if ((get_radio_flag() & 0x0001) && (mdm_hsic_ehci_hcd == ehci) && machine_is_evitareul()) {
-		trace_printk("[%d] %s ep%d%s urb %p status %d len %d/%d\n",
-			__LINE__, urb->dev->devpath,
-			usb_pipeendpoint (urb->pipe),
-			usb_pipein (urb->pipe) ? "in" : "out",
-			urb,
-			status,
-			urb->actual_length, urb->transfer_buffer_length);
-	}
-	//htc_dbg---
 
 	/* complete() can reenter this HCD */
 	usb_hcd_unlink_urb_from_ep(ehci_to_hcd(ehci), urb);
@@ -377,39 +355,6 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 	last_status = -EINPROGRESS;
 	qh->needs_rescan = 0;
 
-	//htc_dbg+++
-	if ((get_radio_flag() & 0x0001) && (mdm_hsic_ehci_hcd == ehci) && machine_is_evitareul())
-	{
-		u32             NakCnt;
-		u32             hw_alt_next;
-		u32             hw_next;
-		u32             hw_info1;
-		u32             hw_info2;
-		u32             hw_token;
-		u32             hw_current;
-		u32             hw_qtd_next;
-		int             RL;
-		int             Tbit;
-
-		rmb ();
-		hw_alt_next = hc32_to_cpu(ehci, qh->hw->hw_alt_next);
-		hw_current = hc32_to_cpu(ehci, qh->hw->hw_current);
-		hw_qtd_next = hc32_to_cpu(ehci, qh->hw->hw_qtd_next);
-		hw_next = hc32_to_cpu(ehci, qh->hw->hw_next);
-		hw_info1 = hc32_to_cpu(ehci, qh->hw->hw_info1);
-		hw_info2 = hc32_to_cpu(ehci, qh->hw->hw_info2);
-		hw_token = hc32_to_cpu(ehci, qh->hw->hw_token);
-		RL = (hw_info1 >> 28) & 0xf;
-		NakCnt = (hw_alt_next >> 1) & 0xf;
-		Tbit = hw_alt_next & 0x1;
-
-		trace_printk("qh %p next 0x%X info1 0x%0X info2 0x%X token 0x%X: RL %d NakCnt %d T %d\n",
-			qh, hw_next, hw_info1, hw_info2, hw_token, RL, NakCnt, Tbit);
-		trace_printk("qh %p qtd: current 0x%X next 0x%X alt_next 0x%X\n",
-			qh, hw_current, hw_qtd_next, hw_alt_next);
-	}
-	//htc_dbg---
-
 	/* remove de-activated QTDs from front of queue.
 	 * after faults (including short reads), cleanup this urb
 	 * then let the queue advance.
@@ -426,21 +371,10 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		/* clean up any state from previous QTD ...*/
 		if (last) {
 			if (likely (last->urb != urb)) {
-				//htc_dbg+++
-				if ((get_radio_flag() & 0x0001) && (mdm_hsic_ehci_hcd == ehci) && machine_is_evitareul()) {
-					trace_printk("ehci_urb_done[%d] urb %p last_status %d count %d\n",
-						__LINE__, last->urb, last_status, count);
-				}
-				//htc_dbg---
 				ehci_urb_done(ehci, last->urb, last_status);
 				count++;
 				last_status = -EINPROGRESS;
 			}
-			//htc_dbg+++
-			if ((get_radio_flag() & 0x0001) && (mdm_hsic_ehci_hcd == ehci) && machine_is_evitareul()) {
-				trace_printk("ehci_qtd_free[%d] qtd %p\n", __LINE__, last);
-			}
-			//htc_dbg---
 			ehci_qtd_free (ehci, last);
 			last = NULL;
 		}
@@ -457,22 +391,6 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		/* hardware copies qtd out of qh overlay */
 		rmb ();
 		token = hc32_to_cpu(ehci, qtd->hw_token);
-
-		//htc_dbg+++
-		if ((get_radio_flag() & 0x0001) && (mdm_hsic_ehci_hcd == ehci) && machine_is_evitareul()) {
-			int 	Cerr;
-			int		C_Page;
-			int		IOC;
-			int		PID;
-
-			IOC = (token >> 15) & 0x1;
-			C_Page = (token >> 12) & 0x7;
-			Cerr = (token >> 10) & 0x3;
-			PID = (token >> 8) & 0x3;
-			trace_printk("urb %p qtd %p hw_token 0x%X: IOC %d C_page %d Cerr %d PID %d\n",
-				qtd->urb, qtd, token, IOC, C_Page, Cerr, PID);
-		}
-		//htc_dbg---
 
 		/* always clean up qtds the hc de-activated */
  retry_xacterr:
@@ -493,26 +411,6 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 					ehci_dbg(ehci,
 	"detected XactErr len %zu/%zu retry %d\n",
 	qtd->length - QTD_LENGTH(token), qtd->length, qh->xacterrs);
-
-					//++HTC
-					if (machine_is_evitareul())
-					{
-						extern bool mdm_is_alive;
-						if (mdm_hsic_ehci_hcd == ehci && mdm_is_alive)
-						{
-							if ((get_radio_flag() & 0x0001) && (mdm_hsic_ehci_hcd == ehci) && machine_is_evitareul()) {
-								trace_printk("detected XactErr len %zu/%zu retry %d\n",
-									qtd->length - QTD_LENGTH(token), qtd->length, qh->xacterrs);
-							}
-
-							if (qh->xacterrs == 31 && (get_radio_flag() & 0x0004)) {
-								extern void trigger_ap2mdm_errfatal(void);
-								printk("%s trigger_ap2mdm_errfatal\n", __func__);
-								trigger_ap2mdm_errfatal();
-							}
-						}
-					}
-					//--HTC
 
 					/* reset the token in the qtd and the
 					 * qh overlay (which still contains
@@ -638,19 +536,8 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 
 	/* last urb's completion might still need calling */
 	if (likely (last != NULL)) {
-		//htc_dbg+++
-		if ((get_radio_flag() & 0x0001) && (mdm_hsic_ehci_hcd == ehci) && machine_is_evitareul()) {
-			trace_printk("[%d] ehci_urb_done urb %p last_status %d count %d\n",
-				__LINE__, last->urb, last_status, count);
-		}
-		//htc_dbg---
 		ehci_urb_done(ehci, last->urb, last_status);
 		count++;
-		//htc_dbg+++
-		if ((get_radio_flag() & 0x0001) && (mdm_hsic_ehci_hcd == ehci) && machine_is_evitareul()) {
-			trace_printk("[%d] ehci_qtd_free qtd %p\n", __LINE__, last);
-		}
-		//htc_dbg---
 		ehci_qtd_free (ehci, last);
 	}
 
@@ -700,11 +587,6 @@ qh_completions (struct ehci_hcd *ehci, struct ehci_qh *qh)
 		/* otherwise, unlink already started */
 		}
 	}
-	//htc_dbg+++
-	if ((get_radio_flag() & 0x0001) && (mdm_hsic_ehci_hcd == ehci) && machine_is_evitareul()) {
-		trace_printk("[%s] return count %d\n", __func__, count);
-	}
-	//htc_dbg---
 	return count;
 }
 
@@ -765,12 +647,6 @@ qh_urb_transaction (
 		return NULL;
 	list_add_tail (&qtd->qtd_list, head);
 	qtd->urb = urb;
-	//htc_dbg+++
-	if ((get_radio_flag() & 0x0001) && (mdm_hsic_ehci_hcd == ehci) && machine_is_evitareul()) {
-		qtd_array[qtd_count] = qtd;
-		qtd_count++;
-	}
-	//htc_dbg---
 
 	token = QTD_STS_ACTIVE;
 	token |= (EHCI_TUNE_CERR << 10);
@@ -864,12 +740,6 @@ qh_urb_transaction (
 		qtd->urb = urb;
 		qtd_prev->hw_next = QTD_NEXT(ehci, qtd->qtd_dma);
 		list_add_tail (&qtd->qtd_list, head);
-		//htc_dbg+++
-		if ((get_radio_flag() & 0x0001) && (mdm_hsic_ehci_hcd == ehci) && machine_is_evitareul()) {
-			qtd_array[qtd_count] = qtd;
-			qtd_count++;
-		}
-		//htc_dbg---
 	}
 
 	/*
@@ -905,12 +775,6 @@ qh_urb_transaction (
 			qtd->urb = urb;
 			qtd_prev->hw_next = QTD_NEXT(ehci, qtd->qtd_dma);
 			list_add_tail (&qtd->qtd_list, head);
-			//htc_dbg+++
-			if ((get_radio_flag() & 0x0001) && (mdm_hsic_ehci_hcd == ehci) && machine_is_evitareul()) {
-				qtd_array[qtd_count] = qtd;
-				qtd_count++;
-			}
-			//htc_dbg---
 			/* never any data in such packets */
 			qtd_fill(ehci, qtd, 0, 0, token, 0);
 		}
@@ -920,12 +784,6 @@ qh_urb_transaction (
 	if (likely (!(urb->transfer_flags & URB_NO_INTERRUPT)))
 		qtd->hw_token |= cpu_to_hc32(ehci, QTD_IOC);
 
-	//htc_dbg+++
-	if ((get_radio_flag() & 0x0001) && (mdm_hsic_ehci_hcd == ehci) && machine_is_evitareul()) {
-		trace_printk("urb %p stored in %d qtd: %p %p %p %p %p\n", urb,
-			qtd_count, qtd_array[0], qtd_array[1], qtd_array[2], qtd_array[3], qtd_array[4]);
-	}
-	//htc_dbg---
 	return head;
 
 cleanup:
@@ -1276,25 +1134,6 @@ static struct ehci_qh *qh_append_tds (
 		}
 	}
 
-	//htc_dbg+++
-	if ((get_radio_flag() & 0x0001) && (mdm_hsic_ehci_hcd == ehci) && machine_is_evitareul())
-	{
-		int qtd_count = 0;
-		struct ehci_qtd	*qtd_array[10] = {0};
-		struct list_head *pos;
-		list_for_each(pos, qtd_list) {
-			if (qtd_count < 10)
-				qtd_array[qtd_count] = container_of(pos, struct ehci_qtd, qtd_list);
-			else
-				break;
-			qtd_count++;
-		}
-		trace_printk("urb %p qh %p linked %d qtds: %p %p %p %p %p\n",
-			urb, qh, qtd_count, qtd_array[0], qtd_array[1], qtd_array[2],
-			qtd_array[3], qtd_array[4]);
-	}
-	//htc_dbg---
-
 	return qh;
 }
 
@@ -1326,22 +1165,6 @@ submit_async (
 			 qtd, urb->ep->hcpriv);
 	}
 #endif
-
-	//htc_dbg+++
-	if ((get_radio_flag() & 0x0001) && (mdm_hsic_ehci_hcd == ehci) && machine_is_evitareul())
-	{
-		struct ehci_qtd *qtd;
-		qtd = list_entry(qtd_list->next, struct ehci_qtd, qtd_list);
-
-		trace_printk("%s %s pipe %x ep%d%s len %d, urb %p qtd %p [qh %p]\n",
-			 __func__, urb->dev->devpath, urb->pipe,
-			 epnum & 0x0f, (epnum & USB_DIR_IN) ? "in" : "out",
-			 urb->transfer_buffer_length,
-			 urb,
-			 qtd, urb->ep->hcpriv);
-	}
-	//htc_dbg---
-
 
 	spin_lock_irqsave (&ehci->lock, flags);
 	if (unlikely(!HCD_HW_ACCESSIBLE(ehci_to_hcd(ehci)))) {

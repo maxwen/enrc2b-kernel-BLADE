@@ -586,23 +586,6 @@ static int tegra_ehci_probe(struct platform_device *pdev)
 
 	tegra->ehci = hcd_to_ehci(hcd);
 
-	//htc++
-	if (machine_is_evitareul())
-	{
-		extern struct platform_device tegra_ehci2_device;
-		extern struct usb_hcd *mdm_hsic_usb_hcd;
-		extern struct ehci_hcd *mdm_hsic_ehci_hcd;
-
-		if (&tegra_ehci2_device == pdev)
-		{
-			mdm_hsic_ehci_hcd = tegra->ehci;
-			mdm_hsic_usb_hcd = hcd;
-			pr_info("%s:: mdm_hsic_ehci_hcd = %x, mdm_hsic_usb_hcd = %x\n",
-				__func__, (unsigned int)mdm_hsic_ehci_hcd, (unsigned int)mdm_hsic_usb_hcd);
-		}
-	}
-	//htc--
-
 #ifdef CONFIG_USB_OTG_UTILS
 	if (tegra_usb_phy_otg_supported(tegra->phy)) {
 		tegra->transceiver = otg_get_transceiver();

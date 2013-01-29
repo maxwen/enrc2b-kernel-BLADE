@@ -1794,10 +1794,7 @@ static int ov8838_get_mode(struct ov8838_mode * mode)
 	else if (mode->xres == 3280 && mode->yres == 1856)
 	{
 		pr_info("[CAM] set mode to (%d) -> OV8838_MODE_3280x1856\n", OV8838_MODE_3280x1856);
-		if (machine_is_evitareul())
-			return OV8838_MODE_3280x1856_EVITA;
-		else
-			return OV8838_MODE_3280x1856;
+		return OV8838_MODE_3280x1856;
 	}
 	else if (mode->xres == 1640 && mode->yres == 510)
 	{
@@ -1830,10 +1827,6 @@ static int ov8838_set_mode(struct ov8838_info *info, struct ov8838_mode *mode)
 		if( sensor_mode != -1 )
 			init_sensor_mode = sensor_mode;
 	} else {
-
-		if ( init_sensor_mode == OV8838_MODE_3280x1856 && machine_is_evitareul() )
-			init_sensor_mode = OV8838_MODE_3280x1856_EVITA;
-
 		sensor_mode = init_sensor_mode;
 		pr_info("[CAM] %s: select sensor mode with init_sensor_mode(%d)\n", __func__,init_sensor_mode);
 	}
@@ -1976,9 +1969,6 @@ static void rawchip_handler(struct work_struct *work)
 			rawchip_work);
 
 	mutex_lock(&info->rawchip_lock);
-
-	if ( init_sensor_mode == OV8838_MODE_3280x1856 && machine_is_evitareul() )
-		init_sensor_mode = OV8838_MODE_3280x1856_EVITA;
 
 	sensor_mode = init_sensor_mode;
 
