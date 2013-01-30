@@ -1765,10 +1765,11 @@ static int aic3008_dai_hw_params(struct snd_pcm_substream *substream,
 			      SNDRV_PCM_RATE_44100 |	\
 			      SNDRV_PCM_RATE_48000)
 
-#define AIC3008_FORMATS (SNDRV_PCM_FMTBIT_S16_LE |\
-			SNDRV_PCM_FMTBIT_S20_3LE |\
-			SNDRV_PCM_FMTBIT_S24_LE)
-
+#define AIC3008_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | \
+			SNDRV_PCM_FMTBIT_S20_3LE | \
+			SNDRV_PCM_FMTBIT_S24_LE | \
+			SNDRV_PCM_FMTBIT_S32_LE)
+			
 static struct snd_soc_dai_ops aic3008_dai_ops = {
 		.startup = aic3008_dai_startup,
 		.shutdown = aic3008_dai_shutdown,
