@@ -55,7 +55,7 @@
 #define DEF_UI_COUNTER				(3)
 #define DEF_TWO_PHASE_FREQ			(1000000)
 #define DEF_TWO_PHASE_BOTTOM_FREQ   (340000)
-#define DEF_TWO_PHASE_GO_MAX_LOAD   (90)
+#define DEF_TWO_PHASE_GO_MAX_LOAD   (95)
 #define DEF_UX_LOADING              (30)
 #define DEF_UX_FREQ                 (0)
 #define DEF_UX_BOOST_THRESHOLD      (0)
@@ -124,6 +124,10 @@ static DEFINE_PER_CPU(struct cpu_dbs_info_s, od_cpu_dbs_info);
 
 static unsigned int dbs_enable;	/* number of CPUs using this policy */
 static unsigned int g_ui_counter = 0;
+
+/* lpcpu variables */
+static struct clk *cpu_lp_clk;
+static unsigned int idle_top_freq;
 
 /*
  * dbs_mutex protects dbs_enable in governor start/stop.
@@ -392,7 +396,7 @@ static ssize_t store_two_phase_bottom_freq (
 }
 #endif
 
-static unsigned int Touch_poke_attr[4] = {1600000, 880000, 0, 0};
+static unsigned int Touch_poke_attr[4] = {1500000, 0, 0, 0};
 
 static ssize_t store_touch_poke(struct kobject *a, struct attribute *b,
 				   const char *buf, size_t count)
@@ -860,6 +864,11 @@ static void dbs_check_cpu(struct cpu_dbs_info_s *this_dbs_info)
 		if (dbs_tuners_ins.two_phase_freq != 0 && phase == 0) {
 			debug_freq = dbs_tuners_ins.two_phase_freq;
 
+			/* limit the frequency to max lpcpu if lpcpu is online
+             * this should avoid fast "peak"-switching out of lpcpu */
+			if (is_lp_cluster())
+				debug_freq = idle_top_freq;		
+					
             if (dbs_tuners_ins.two_phase_dynamic) {
                 /* scale UP by 2 */
                 unsigned int scaled_freq = policy->cur << 1;
@@ -1492,6 +1501,9 @@ static int __init cpufreq_gov_dbs_init(void)
 	cputime64_t wall;
 	u64 idle_time;
 	int cpu = get_cpu();
+
+    cpu_lp_clk = clk_get_sys(NULL, "cpu_lp");
+    idle_top_freq = clk_get_max_rate(cpu_lp_clk) / 1000;
 
 	idle_time = get_cpu_idle_time_us(cpu, &wall);
 	put_cpu();
