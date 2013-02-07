@@ -1243,18 +1243,16 @@ static int debug;
 
 /* per port private data */
 
-#define N_IN_URB 4
-#define N_OUT_URB 4
-#define IN_BUFLEN 4096
-#define OUT_BUFLEN 4096
+#define N_IN_URB4 4
+#define N_OUT_URB4 4
 
 struct option_port_private {
 	/* Input endpoints and buffer for this port */
-	struct urb *in_urbs[N_IN_URB];
-	u8 *in_buffer[N_IN_URB];
+	struct urb *in_urbs[N_IN_URB4];
+	u8 *in_buffer[N_IN_URB4];
 	/* Output endpoints and buffer for this port */
-	struct urb *out_urbs[N_OUT_URB];
-	u8 *out_buffer[N_OUT_URB];
+	struct urb *out_urbs[N_OUT_URB4];
+	u8 *out_buffer[N_OUT_URB4];
 	unsigned long out_busy;		/* Bit vector of URBs in use */
 	int opened;
 	struct usb_anchor delayed;
@@ -1267,7 +1265,7 @@ struct option_port_private {
 	int dcd_state;
 	int ri_state;
 
-	unsigned long tx_start_time[N_OUT_URB];
+	unsigned long tx_start_time[N_OUT_URB4];
 };
 
 /* Functions used by new usb-serial code. */

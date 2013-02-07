@@ -36,7 +36,6 @@
 #include <mach/hardware.h>
 #include <mach/panel_id.h>
 #include <mach/board_htc.h>
-#include <mach/mfootprint.h>
 #include "board.h"
 #include "board-enrc2b.h"
 #include "devices.h"
@@ -4183,39 +4182,27 @@ struct early_suspend enrc2b_panel_early_suspender;
 
 static void enrc2b_panel_early_suspend(struct early_suspend *h)
 {
-	MF_DEBUG("00240000");
 	struct backlight_device *bl = platform_get_drvdata(&enrc2b_disp1_backlight_device);
-	MF_DEBUG("00240001");
 
 	DISP_INFO_IN();
 
-	MF_DEBUG("00240002");
 	if (bl && bl->props.bkl_on) {
 		bl->props.bkl_on = 0;
-	MF_DEBUG("00240003");
 		del_timer_sync(&bkl_timer);
-	MF_DEBUG("00240004");
 		flush_workqueue(bkl_wq);
-	MF_DEBUG("00240005");
 	}
 
 	/* power down LCD, add use a black screen for HDMI */
 	if (num_registered_fb > 0)
 	{
-	MF_DEBUG("00240006");
 		fb_blank(registered_fb[0], FB_BLANK_POWERDOWN);
-	MF_DEBUG("00240007");
 	}
 	if (num_registered_fb > 1)
 	{
-	MF_DEBUG("00240008");
 		fb_blank(registered_fb[1], FB_BLANK_NORMAL);
-	MF_DEBUG("00240009");
 	}
 
-	MF_DEBUG("00240015");
 	DISP_INFO_OUT();
-	MF_DEBUG("00240016");
 }
 
 

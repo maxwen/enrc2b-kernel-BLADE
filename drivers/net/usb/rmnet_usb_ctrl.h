@@ -22,7 +22,7 @@
 #define CTRL_DEV_MAX_LEN 10
 
 //HTC_DBG+++
-#define	HTC_DEBUG_QMI_TX_STUCK
+#undef	HTC_DEBUG_QMI_TX_STUCK
 //HTC_DBG---
 
 struct rmnet_ctrl_dev {

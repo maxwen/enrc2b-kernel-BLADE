@@ -196,16 +196,11 @@ struct tegra_uart_port {
 
 };
 
-#ifdef A2DP_TUNING_SUPPORTED
-static struct pm_qos_request_list a2dp_cpu_minfreq_req;
-
-static unsigned char a2dp_tuning_state;
-
 #define SERIAL_HS_CREATE_DEVICE_ATTR(_name) 		\
 	struct device_attribute dev_attr_##_name = {	\
 		.attr = {									\
 			.name = __stringify(_name),				\
-			.mode = 0644,							\
+			.mode = 0664,							\
 		},											\
 		.show = NULL,								\
 		.store = NULL,								\
@@ -213,10 +208,15 @@ static unsigned char a2dp_tuning_state;
 
 #define SERIAL_HS_SET_DEVICE_ATTR(_name, _mode, _show, _store)	\
 	do {														\
-		dev_attr_##_name.attr.mode = 0644;						\
+		dev_attr_##_name.attr.mode = 0664;						\
 		dev_attr_##_name.show = _show;							\
 		dev_attr_##_name.store = _store;						\
 	} while(0)
+
+#ifdef A2DP_TUNING_SUPPORTED
+static struct pm_qos_request_list a2dp_cpu_minfreq_req;
+
+static unsigned char a2dp_tuning_state;
 
 static SERIAL_HS_CREATE_DEVICE_ATTR(a2dp_tuning);
 
@@ -263,23 +263,6 @@ static ssize_t store_a2dp_tuning(struct device *dev, struct device_attribute *at
 static struct pm_qos_request_list opp_cpu_minfreq_req;
 
 static unsigned char opp_tuning_state;
-
-#define SERIAL_HS_CREATE_DEVICE_ATTR(_name) 		\
-	struct device_attribute dev_attr_##_name = {	\
-		.attr = {									\
-			.name = __stringify(_name),				\
-			.mode = 0660,							\
-		},											\
-		.show = NULL,								\
-		.store = NULL,								\
-	}
-
-#define SERIAL_HS_SET_DEVICE_ATTR(_name, _mode, _show, _store)	\
-	do {														\
-		dev_attr_##_name.attr.mode = 0660;						\
-		dev_attr_##_name.show = _show;							\
-		dev_attr_##_name.store = _store;						\
-	} while(0)
 
 static SERIAL_HS_CREATE_DEVICE_ATTR(opp_tuning);
 

@@ -394,10 +394,11 @@ static void hdmi_set_channel_count(struct hda_codec *codec,
  */
 static void init_channel_allocations(void)
 {
-	printk(KERN_INFO "ENTERING init_channel_allocations\n");
 	int i, j;
 	struct cea_channel_speaker_allocation *p;
 
+	printk(KERN_INFO "ENTERING init_channel_allocations\n");
+	
 	for (i = 0; i < ARRAY_SIZE(channel_allocations); i++) {
 		p = channel_allocations + i;
 		p->channels = 0;
@@ -819,7 +820,6 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 			 struct hda_codec *codec,
 			 struct snd_pcm_substream *substream)
 {
-	printk(KERN_INFO "Entering hdmi_pcm_open()\n");
 	struct hdmi_spec *spec = codec->spec;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	int pin_idx=0, cvt_idx=0, mux_idx = 0;
@@ -828,6 +828,8 @@ static int hdmi_pcm_open(struct hda_pcm_stream *hinfo,
 	struct hdmi_spec_per_cvt *per_cvt = NULL;
 	int pinctl = 0;
 
+	printk(KERN_INFO "Entering hdmi_pcm_open()\n");
+	
 	/* Validate hinfo */
 	if(spec==NULL){
 		snd_printk(KERN_WARNING "spec == NULL\n");
@@ -980,6 +982,9 @@ static int hdmi_read_pin_conn(struct hda_codec *codec, int pin_idx)
 static void hdmi_present_sense(struct hda_codec *codec, hda_nid_t pin_nid,
 			       struct hdmi_eld *eld)
 {
+	bool eld_valid = false;
+	int present;
+	
 	/*
 	 * Always execute a GetPinSense verb here, even when called from
 	 * hdmi_intrinsic_event; for some NVIDIA HW, the unsolicited
@@ -989,9 +994,9 @@ static void hdmi_present_sense(struct hda_codec *codec, hda_nid_t pin_nid,
 	 * the unsolicited response to avoid custom WARs.
 	 */
 	printk(KERN_INFO "Entering hdmi_present_sense()");
-	int present = snd_hda_pin_sense(codec, pin_nid);
+	present = snd_hda_pin_sense(codec, pin_nid);
 	printk(KERN_INFO "hdmi_present_sense(): present = %d\n", present);
-	bool eld_valid = false;
+
 
 #ifdef CONFIG_PROC_FS
 	memset(eld, 0, offsetof(struct hdmi_eld, proc_entry));
@@ -1158,6 +1163,7 @@ static int generic_hdmi_playback_pcm_prepare(struct hda_pcm_stream *hinfo,
 	hda_nid_t cvt_nid = hinfo->nid;
 	struct hdmi_spec *spec = codec->spec;
 	int pin_idx = hinfo_to_pin_index(spec, hinfo);
+	hda_nid_t pin_nid;
 //===================================================
 //klocworks
 //struct hdmi_spec_per_pin pins[MAX_HDMI_PINS];
@@ -1171,7 +1177,7 @@ if(pin_idx <0 || pin_idx >= MAX_HDMI_PINS)
 	pin_idx = 0;
 }
 //===================================================
-	hda_nid_t pin_nid = spec->pins[pin_idx].pin_nid;
+	pin_nid = spec->pins[pin_idx].pin_nid;
 
 #if defined(CONFIG_SND_HDA_PLATFORM_NVIDIA_TEGRA) && defined(CONFIG_TEGRA_DC)
 	if (codec->preset->id == 0x10de0020) {
@@ -1316,10 +1322,11 @@ static int generic_hdmi_build_controls(struct hda_codec *codec)
 
 static int generic_hdmi_init(struct hda_codec *codec)
 {
-	printk(KERN_INFO "Entering generic_hdmi_init\n");
 	struct hdmi_spec *spec = codec->spec;
 	int pin_idx;
 
+	printk(KERN_INFO "Entering generic_hdmi_init\n");
+	
 	switch (codec->preset->id) {
 	case 0x10de0020:
 		snd_hda_codec_write(codec, 4, 0,
@@ -1369,13 +1376,14 @@ static const struct hda_codec_ops generic_hdmi_patch_ops = {
 
 static int patch_generic_hdmi(struct hda_codec *codec)
 {
-	printk(KERN_INFO "ENTERING patch_generic_hdmi\n");
 	struct hdmi_spec *spec;
 
 	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
 	if (spec == NULL)
 		return -ENOMEM;
 
+	printk(KERN_INFO "ENTERING patch_generic_hdmi\n");
+	
 	codec->spec = spec;
 	if (hdmi_parse_codec(codec) < 0) {
 		codec->spec = NULL;

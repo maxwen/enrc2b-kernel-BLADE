@@ -155,7 +155,7 @@ static DEFINE_TIMER(rmnet_usb_ctrl_read_fatal_timer, rmnet_usb_ctrl_read_fatal_t
 
 static void rmnet_usb_ctrl_read_timer_expire(unsigned long data)
 {
-	struct rmnet_ctrl_dev *dev = data;
+	struct rmnet_ctrl_dev *dev = (rmnet_ctrl_dev *)data;
 
 	dev_err(dev->devicep, "[%s] %s rcv_timer expire \n", __func__, dev->name);
 	trace_printk("[%s]\n", __func__);

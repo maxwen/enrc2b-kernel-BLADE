@@ -1623,6 +1623,9 @@ EXPORT_SYMBOL_GPL(usb_autopm_put_interface);
  */
 void usb_autopm_put_interface_async(struct usb_interface *intf)
 {
+	int			status;
+	struct usb_device	*udev;
+	
 //++SSD_RIL: Mars_Lin@20120615: check intf if it's null
 	if (intf == NULL) {
 		pr_info("%s: intf == NULL \n", __func__);
@@ -1630,8 +1633,8 @@ void usb_autopm_put_interface_async(struct usb_interface *intf)
 		return;
 	}
 //--SSD_RIL
-	struct usb_device	*udev = interface_to_usbdev(intf);
-	int			status;
+	udev = interface_to_usbdev(intf);
+
 
 //--------------------------------------------------------
 #ifdef CONFIG_HTC_QCT_9K_MDM_HSIC_PM_DBG

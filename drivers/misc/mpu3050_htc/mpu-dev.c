@@ -85,31 +85,28 @@ int mpu_sensors_reset;
 int GSensorReadData(short *rbuf)
 
 {
+        char buffer[6];
+        int ret = 0;
+		short temp = 0 ;
+        struct i2c_client *client;
+        struct mpu_private_data *mpu;
+        struct mldl_cfg *mldl_cfg;
+		struct ext_slave_platform_data *accel;
+
         if(mpu_gyro_state){ /*it represents gyro no ack*/
                 D("Gyro no ack occur\n");
                 return 1;
         }
 
-        char buffer[6];
-
-        int ret = 0;
-	short temp = 0 ;
+        client = (struct i2c_client *) this_client;
+        mpu = (struct mpu_private_data *) i2c_get_clientdata(client);
+        mldl_cfg = &mpu->mldl_cfg;
 
         memset(buffer, 0, 6);
-        struct i2c_client *client =
-
-            (struct i2c_client *) this_client;
-
-        struct mpu_private_data *mpu =
-
-            (struct mpu_private_data *) i2c_get_clientdata(client);
-
-        struct mldl_cfg *mldl_cfg = &mpu->mldl_cfg;
-
-	ret = mpu3050_read_accel(mldl_cfg, client->adapter,
+       	ret = mpu3050_read_accel(mldl_cfg, client->adapter,
 				buffer);
 
-	struct ext_slave_platform_data *accel = &mldl_cfg->pdata->accel;
+		accel = &mldl_cfg->pdata->accel;
 
 /*
 
@@ -371,7 +368,7 @@ static ssize_t mpu_read(struct file *file,
 	if (tmp == NULL)
 		return -ENOMEM;
 
-	pr_debug("i2c-dev: i2c-%d reading %zu bytes.\n",
+	D("i2c-dev: i2c-%d reading %zu bytes.\n",
 		 iminor(file->f_path.dentry->d_inode), count);
 
 /* @todo fix this to do a i2c trasnfer from the FIFO */
@@ -1126,7 +1123,7 @@ int mpu_suspend(struct i2c_client *client, pm_message_t mesg)
         mldl_cfg->pdata->microp_enable_disable_1v8(false);
     }
 */
-  	printk("[GYRO]mpu_suspend end\n");
+  	D("mpu_suspend end\n");
 	return 0;
 }
 
@@ -1301,7 +1298,6 @@ static DEVICE_ATTR(mpu_sensors_reset, 0664, mpu_sensors_reset_show, \
 int mpu3050_probe(struct i2c_client *client,
 		  const struct i2c_device_id *devid)
 {
-	printk("[GYRO]mpu3050_probe start");
 	struct mpu3050_platform_data *pdata;
 	struct mpu_private_data *mpu;
 	struct mldl_cfg *mldl_cfg;
@@ -1311,6 +1307,7 @@ int mpu3050_probe(struct i2c_client *client,
 	struct i2c_adapter *pressure_adapter = NULL;
 	mpu_gyro_state = 0; /*represent gyro probe ok*/
 
+	I("mpu3050_probe start");
 	dev_dbg(&client->adapter->dev, "%s\n", __func__);
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
@@ -1330,7 +1327,7 @@ int mpu3050_probe(struct i2c_client *client,
 	pdata = (struct mpu3050_platform_data *) client->dev.platform_data;
 
 	if( (pdata != NULL) && (pdata->en_1v8 == 1) ){
-		pr_info("[SRIO_1v8] SRIO_1v8_start...\n");
+		I("[SRIO_1v8] SRIO_1v8_start...\n");
 		if (srio_1v8_en == NULL) {
 			srio_1v8_en = regulator_get(NULL, "v_srio_1v8");
 			if (WARN_ON(IS_ERR(srio_1v8_en))) {
@@ -1340,7 +1337,7 @@ int mpu3050_probe(struct i2c_client *client,
 			}
 		}
 		regulator_enable(srio_1v8_en);
-		pr_info("[SRIO_1v8] SRIO_1v8_end...\n");
+		I("[SRIO_1v8] SRIO_1v8_end...\n");
 
 	}
 
@@ -1643,7 +1640,7 @@ static int __init mpu_init(void)
 {
 	int res = i2c_add_driver(&mpu3050_driver);
 	pid = 0;
-	printk(KERN_DEBUG "%s\n", __func__);
+	D("%s\n", __func__);
 	if (res)
 		dev_err(&this_client->adapter->dev, "[mpu_err]%s failed\n",
 			__func__);
@@ -1652,7 +1649,7 @@ static int __init mpu_init(void)
 
 static void __exit mpu_exit(void)
 {
-	printk(KERN_DEBUG "%s\n", __func__);
+	D("%s\n", __func__);
 	i2c_del_driver(&mpu3050_driver);
 }
 

@@ -538,9 +538,10 @@ int modem_off_for_uart_config()
 
 int modem_off_for_usb_config(struct gpio *array, size_t num)
 {
+	int err=0;
+	
 	pr_debug(MODULE_NAME "%s 1219_01\n", __func__);
 
-	int err=0;
 	err = gpio_config_only_array(tegra_baseband_gpios_power_off_modem,
 		ARRAY_SIZE(tegra_baseband_gpios_power_off_modem));
 	if (err < 0) {
@@ -798,7 +799,8 @@ static int baseband_xmm_power_off(struct platform_device *device)
 	struct baseband_power_platform_data *data;
 	int ret; /* HTC: ENR#U wakeup src fix */
 	unsigned long flags;
-
+	int err=0;
+	
 	pr_debug("%s {\n", __func__);
 
 	if (baseband_xmm_powerstate == BBXMM_PS_UNINIT) {
@@ -879,7 +881,6 @@ static int baseband_xmm_power_off(struct platform_device *device)
 #if 1/*HTC*/
 
 	//for power consumation
-	int err=0;
 	pr_debug("%s config_gpio_for_power_off\n", __func__);
 	config_gpio_for_power_off();
 	//err=config_gpio_for_power_off();
@@ -1113,7 +1114,8 @@ irqreturn_t baseband_xmm_power_ipc_ap_wake_irq(int irq, void *dev_id)
 {
 	int value;
 	struct baseband_power_platform_data *data = baseband_power_driver_data;
-
+    struct usb_interface *intf;
+                               
 	/* pr_debug("%s\n", __func__); */
 
 	value = gpio_get_value(data->modem.xmm.ipc_ap_wake);
@@ -1215,7 +1217,6 @@ irqreturn_t baseband_xmm_power_ipc_ap_wake_irq(int irq, void *dev_id)
 			if (reenable_autosuspend && usbdev) {
                                pr_debug("set reenable_autosuspend false\n");
                                reenable_autosuspend = false;
-                               struct usb_interface *intf;
                                intf = usb_ifnum_to_if(usbdev, 0);
                                if( NULL != intf ){
                                    if (usb_autopm_get_interface_async(intf) >= 0) {
@@ -2149,9 +2150,11 @@ static struct platform_driver baseband_power_driver = {
 
 static int __init baseband_xmm_power_init(void)
 {
+	int mfg_mode = 0;
+	
 	/* HTC */
 	host_dbg_flag = 0;
-	int mfg_mode = board_mfg_mode();
+	mfg_mode = board_mfg_mode();
 	pr_debug("%s - host_dbg_flag<0x%x>, modem_ver<0x%x>, mfg_mode<%d>"
 			, __func__, host_dbg_flag, modem_ver, mfg_mode);
 

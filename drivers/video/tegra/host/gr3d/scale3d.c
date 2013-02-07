@@ -733,6 +733,11 @@ static DEVICE_ATTR(enable_3d_scaling, S_IRUGO | S_IWUSR,
 
 void nvhost_scale3d_init(struct nvhost_device *d)
 {
+
+	int i=0;
+	struct clk *c;
+	long rate = 0;
+	
 	if (!scale3d.init) {
 		int error;
 		unsigned long max_emc, min_emc;
@@ -853,9 +858,7 @@ void nvhost_scale3d_init(struct nvhost_device *d)
 
 		scale3d.init = 1;
 	}
-	int i=0;
-	struct clk *c = scale3d.clk_3d;
-	long rate = 0;
+	c = scale3d.clk_3d;
 
         /* shared bus clock must round up, unless top of range reached */
         while (rate <= scale3d.max_rate_3d) {

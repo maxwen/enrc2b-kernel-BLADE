@@ -53,7 +53,7 @@
 #define PWR_DEVICE_TAG LOG_TAG
 
 #undef AUDIO_DEBUG
-#define AUDIO_DEBUG 1
+#define AUDIO_DEBUG 0
 
 #if AUDIO_DEBUG
 #undef AUD_DBG

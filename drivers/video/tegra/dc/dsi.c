@@ -3659,10 +3659,12 @@ static void tegra_dc_dsi_resume(struct tegra_dc *dc)
 static void tegra_dc_send_cmd(struct tegra_dc *dc, struct tegra_dsi_cmd *cmd, int n)
 {
 	struct tegra_dc_dsi_data *dsi;
-	dsi = tegra_dc_get_outdata(dc);
 	u8 short_cmd[NUM_DSI_INIT_SEQ_DATA_BYTE] = {0};
 	int count = 0;
 	int i =0;
+	
+	dsi = tegra_dc_get_outdata(dc);
+		
 	for (i = 0 ; i < n ; i++) {
 		struct tegra_dsi_cmd *cur_cmd = &cmd[i];
 		if (cur_cmd->cmd_type == TEGRA_DSI_DELAY_MS) {

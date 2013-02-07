@@ -439,11 +439,12 @@ static int eva_rawchip_vreg_on(void)
 {
 	int ret;
 
-	pr_info("[CAM] rawchip power on ++\n");
-
 	/* enable main clock */
 	struct clk *csus_clk = NULL;
 	struct clk *sensor_clk = NULL;
+	
+	pr_info("[CAM] rawchip power on ++\n");
+	
 	csus_clk = clk_get(NULL, "csus");
 	if (IS_ERR_OR_NULL(csus_clk)) {
 		pr_err("%s: couldn't get csus clock\n", __func__);
@@ -494,11 +495,12 @@ static int eva_rawchip_vreg_on(void)
 
 static int eva_rawchip_vreg_off(void)
 {
-	pr_info("[CAM] rawchip power off ++\n");
-
 	/* disable main clock */
 	struct clk *csus_clk = NULL;
 	struct clk *sensor_clk = NULL;
+	
+	pr_info("[CAM] rawchip power off ++\n");
+	
 	csus_clk = clk_get(NULL, "csus");
 	if (IS_ERR_OR_NULL(csus_clk)) {
 		pr_err("%s: couldn't get csus clock\n", __func__);
@@ -1991,7 +1993,8 @@ static struct platform_device tegra_baseband_m7400_device = {
 static void enrc2b_modem_init(void)
 {
         struct board_info board_info;
-
+        int ret;
+        
         pr_info("%s: enable baseband gpio(s)\n", __func__);
         /* enable baseband gpio(s) */
         tegra_gpio_enable(BB_VDD_EN);
@@ -2015,7 +2018,7 @@ static void enrc2b_modem_init(void)
 
         // TEGRA_GPIO_PI5
         printk(KERN_INFO"%s: gpio config for sim_det#.", __func__);
-        int ret;
+
         ret = gpio_request(TEGRA_GPIO_PI5, "sim_det#");
         if (ret < 0)
                 pr_err("[FLT] %s: gpio_request failed for gpio %s\n",
@@ -2267,11 +2270,11 @@ static int __init ENRC2_PROJECT_keys_init(void)
 
 static int mhl_sii_power(int on)
 {
-	pr_info("[DISP]%s(%d) IN\n", __func__, __LINE__);
-
 	int rc = 0;
 	int err = 0;
 
+	pr_info("[DISP]%s(%d) IN\n", __func__, __LINE__);
+	
 	switch (on) {
 		case 0:
 			//mhl_sii9234_1v2_power(false);

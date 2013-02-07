@@ -54,7 +54,7 @@
 #define DEF_UI_DYNAMIC_SAMPLING_RATE		(20000)
 #define DEF_UI_COUNTER				(3)
 #define DEF_TWO_PHASE_FREQ			(1000000)
-#define DEF_TWO_PHASE_BOTTOM_FREQ   (340000)
+#define DEF_TWO_PHASE_BOTTOM_FREQ   (204000)
 #define DEF_TWO_PHASE_GO_MAX_LOAD   (95)
 #define DEF_UX_LOADING              (30)
 #define DEF_UX_FREQ                 (0)

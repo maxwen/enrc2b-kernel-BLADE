@@ -332,7 +332,7 @@ static const struct file_operations tegra_wdt_fops = {
 
 static int tegra_wdt_probe(struct platform_device *pdev)
 {
-	struct resource *res_src, *res_wdt, *res_irq, *res_int_base;
+	struct resource *res_src, *res_wdt, *res_irq, *res_int_base = 0;
 	struct tegra_wdt *wdt;
 	u32 src;
 	int ret = 0;

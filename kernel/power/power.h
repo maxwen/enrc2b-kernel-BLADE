@@ -74,12 +74,12 @@ static struct kobj_attribute _name##_attr = {	\
 
 #define power_ro_attr(_name)	\
 static struct kobj_attribute _name##_attr = {	\
-	.attr»  = {				\
+	.attr  = {				\
 		.name = __stringify(_name),	\
 		.mode = 0444,			\
 	},					\
-	.show»  = _name##_show,			\
-	.store» = NULL,				\
+	.show  = _name##_show,			\
+	.store = NULL,				\
 }
 
 

@@ -448,9 +448,10 @@ static int enrc2b_s5k6a1gx03_power_on(void)
 
 static int enrc2b_s5k6a1gx03_power_off(void)
 {
-	pr_info("[CAM] %s ++", __func__);
 	int pcbid = htc_get_pcbid_info();
 
+	pr_info("[CAM] %s ++", __func__);
+	
 #if defined(CONFIG_RAWCHIP_ENABLE)
 	if ((pcbid >= PROJECT_PHASE_XB) || (pcbid == PROJECT_PHASE_EVM) || is_global_sku)
 	{
@@ -593,8 +594,10 @@ int enrc2b_cam_init(void)
 {
 	int ret;
 	int i = 0, j = 0;
-	pr_info("[CAM] %s ++", __func__);
 	int pcbid = htc_get_pcbid_info();
+	
+	pr_info("[CAM] %s ++", __func__);
+	
 	for (i = 0; i < ARRAY_SIZE(enrc2b_cam_gpio_output_data); i++)
 	{
 		ret = gpio_request(enrc2b_cam_gpio_output_data[i].gpio,

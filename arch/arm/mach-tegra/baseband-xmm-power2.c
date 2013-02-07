@@ -268,7 +268,8 @@ static irqreturn_t baseband_xmm_power2_ver_ge_1130_ipc_ap_wake_irq2
 static void radio_detect_work_handler(struct work_struct *work)
 {
 	int radiopower=0;
-
+	int status =0;
+	
 	pr_debug("Enter radio_detect_work_handler\n");
 
 	/* Sleep 30 ms and then check if radio is turn off */
@@ -292,7 +293,7 @@ static void radio_detect_work_handler(struct work_struct *work)
 		return;
 	}
 
-	int status = gpio_get_value(CORE_DUMP_DETECT);
+	status = gpio_get_value(CORE_DUMP_DETECT);
 	pr_debug("CORE_DUMP_DETECT = %d\n", status);
 
 	if (Modem_is_6260())
@@ -814,6 +815,8 @@ static int baseband_xmm_power2_driver_probe(struct platform_device *device)
 			device->dev.platform_data;
 
 	int err=0;
+	int err_radio = -EPERM;
+	
 	pr_debug("%s 0704 - polling mechanism to find ttyACM0.\n", __func__);
 
 	if (data == NULL) {
@@ -841,7 +844,6 @@ static int baseband_xmm_power2_driver_probe(struct platform_device *device)
 
 		/* radio detect*/
 		radio_detect_status = RADIO_STATUS_UNKNOWN;
-		int err_radio = -EPERM;
 		if (Modem_is_6260())
 		{
 			pr_debug( "modem is 6260, request CORE_DUMP_DETECT FALLING" );
@@ -966,7 +968,7 @@ if (kobj_hsic_device) {
 
 	/* free work structure */
 	if (workqueue) {
-		cancel_work_sync(baseband_xmm_power2_work);
+		cancel_work_sync(&baseband_xmm_power2_work->work);
 		destroy_workqueue(workqueue);
 	}
 	kfree(baseband_xmm_power2_work);

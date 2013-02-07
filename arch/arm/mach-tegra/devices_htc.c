@@ -588,15 +588,17 @@ int __init parse_tag_skuid(const struct tag *tags)
 	}
 
 	if (find) {
-		unsigned char *dptr = (unsigned char *)(&t->u);
-		memcpy(SKUID, dptr, 16);
-
-		unsigned int sku_id_int = 0;
-		char *ptr = SKUID + sizeof(SKUID) - 1;
 		int rate = 1;
 		int index= 0;
+		char *ptr;
+		unsigned int sku_id_int = 0;
+		unsigned char *dptr = (unsigned char *)(&t->u);
+
+		memcpy(SKUID, dptr, 16);
+
+		ptr = SKUID + sizeof(SKUID) - 1;
 		for (index = 0;index < sizeof(SKUID);index++) {
-			if (NULL == *ptr) {
+			if (0 == *ptr) {
 				ptr--;
 				continue;
 			}

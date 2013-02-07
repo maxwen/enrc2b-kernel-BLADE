@@ -238,8 +238,10 @@ static void vibrator_enable(struct timed_output_dev *dev, int value)
 static void vib_work_func(struct work_struct *work)
 {
 	struct vibrator *vib = container_of(work, struct vibrator, work);
-	I(" %s +++\n", __func__);
 	int real_time = 0;
+
+	I(" %s +++\n", __func__);
+	
 	real_time= gettimeMs()- enable_time;
 	if( (delay_value-real_time) >= 3){
 		hrtimer_start(&vib->vib_timer_feedback,

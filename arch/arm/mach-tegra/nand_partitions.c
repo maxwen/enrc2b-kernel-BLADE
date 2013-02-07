@@ -77,12 +77,13 @@ int emmc_partition_read_proc(char *page, char **start, off_t off,
 
 static int __init parse_tag_tegra_partition(const struct tag *tag)
 {
-printk("Parsting partition tag");
 	struct mtd_partition *ptn = msm_nand_partitions;
 	char *name = msm_nand_names;
 	struct msm_ptbl_entry *entry = (void *) &tag->u;
 	unsigned count, n;
 
+	printk(KERN_INFO "Parsting partition tag");
+	
 	count = (tag->hdr.size - 2) /
 		(sizeof(struct msm_ptbl_entry) / sizeof(__u32));
 

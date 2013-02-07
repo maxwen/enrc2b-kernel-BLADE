@@ -2048,8 +2048,6 @@ err_free_ps_input_device:
 
 int power_key_check_in_pocket(void)
 {
-	if(plsensor_chip_state) /*pl-sensor no ack */
-		return 0;
 
 	struct cm3629_info *lpi = lp_info;
 	int ls_dark;
@@ -2057,6 +2055,10 @@ int power_key_check_in_pocket(void)
 	uint32_t ls_adc = 0;
 	int ls_level = 0;
 	int i;
+
+	if(plsensor_chip_state) /*pl-sensor no ack */
+		return 0;
+
 	pocket_mode_flag = 1;
 	D("[cm3629] %s +++\n", __func__);
 	/* get p-sensor status */

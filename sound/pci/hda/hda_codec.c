@@ -604,10 +604,11 @@ EXPORT_SYMBOL_HDA(snd_hda_get_conn_index);
  */
 int snd_hda_queue_unsol_event(struct hda_bus *bus, u32 res, u32 res_ex)
 {
-	printk(KERN_INFO "ENTERING snd_hda_queue_unsol_event()");
 	struct hda_bus_unsolicited *unsol;
 	unsigned int wp;
 
+	printk(KERN_INFO "ENTERING snd_hda_queue_unsol_event()");
+	
 	unsol = bus->unsol;
 	if (!unsol)
 		return 0;
@@ -630,13 +631,14 @@ EXPORT_SYMBOL_HDA(snd_hda_queue_unsol_event);
  */
 static void process_unsol_events(struct work_struct *work)
 {
-	printk(KERN_INFO "ENTERING process_unsol_events\n");
 	struct hda_bus_unsolicited *unsol =
 		container_of(work, struct hda_bus_unsolicited, work);
 	struct hda_bus *bus = unsol->bus;
 	struct hda_codec *codec;
 	unsigned int rp, caddr, res;
 
+	printk(KERN_INFO "ENTERING process_unsol_events\n");
+	
 	while (unsol->rp != unsol->wp) {
 		rp = (unsol->rp + 1) % HDA_UNSOL_QUEUE_SIZE;
 		unsol->rp = rp;
@@ -656,9 +658,10 @@ static void process_unsol_events(struct work_struct *work)
  */
 static int init_unsol_queue(struct hda_bus *bus)
 {
-	printk(KERN_INFO "ENTERING init_unsol_queue");
 	struct hda_bus_unsolicited *unsol;
 
+	printk(KERN_INFO "ENTERING init_unsol_queue");
+	
 	if (bus->unsol) /* already initialized */
 		return 0;
 
@@ -3401,8 +3404,10 @@ EXPORT_SYMBOL_HDA(snd_hda_build_controls);
 
 int snd_hda_codec_build_controls(struct hda_codec *codec)
 {
-	printk(KERN_INFO "ENTERING snd_hda_codec_build_controls");
 	int err = 0;
+
+	printk(KERN_INFO "ENTERING snd_hda_codec_build_controls");
+	
 	hda_exec_init_verbs(codec);
 	/* continue to initialize... */
 	if (codec->patch_ops.init)

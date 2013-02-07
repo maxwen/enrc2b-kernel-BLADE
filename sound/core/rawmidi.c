@@ -1531,13 +1531,14 @@ static int snd_rawmidi_dev_register(struct snd_device *device)
 	int err;
 	struct snd_info_entry *entry;
 	char name[16];
-
+	struct snd_rawmidi *rmidi;
+	
 	if(device == NULL) {
 		snd_printk(KERN_ERR "snd_rawmidi_dev_register: device = NULL\n");
 		return -EINVAL;
 	}
 
-	struct snd_rawmidi *rmidi = device->device_data;
+	rmidi = device->device_data;
 
 	if(rmidi == NULL) {
 		snd_printk(KERN_ERR "snd_rawmidi_dev_register: rmidi = NULL\n");

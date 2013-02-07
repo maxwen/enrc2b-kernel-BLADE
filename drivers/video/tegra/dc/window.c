@@ -134,13 +134,9 @@ int tegra_dc_sync_windows(struct tegra_dc_win *windows[], int n)
 	ret = wait_event_interruptible(windows[0]->dc->wq,
 		tegra_dc_windows_are_clean(windows, n));
 #else
-	trace_printk("%s:Before wait_event_interruptible_timeout\n",
-		windows[0]->dc->ndev->name);
 	ret = wait_event_interruptible_timeout(windows[0]->dc->wq,
 		tegra_dc_windows_are_clean(windows, n),
 		HZ);
-	trace_printk("%s:After wait_event_interruptible_timeout\n",
-		windows[0]->dc->ndev->name);
 #endif
 	return ret;
 }
@@ -201,7 +197,8 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 	unsigned long val;
 	bool update_blend = false;
 	int i;
-
+	bool is_yuvp = 0;
+	
 	dc = windows[0]->dc;
 
 	if (dc->out->flags & TEGRA_DC_OUT_ONE_SHOT_MODE) {
@@ -382,9 +379,6 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 			dfixed_trunc(win->w), dfixed_trunc(win->h),
 			win->out_x, win->out_y, win->out_w, win->out_h,
 			win->fmt, yuvp, Bpp, filter_h, filter_v);
-		trace_printk("%s:win%u in:%ux%u out:%ux%u fmt=%d\n",
-			dc->ndev->name, win->idx, dfixed_trunc(win->w),
-			dfixed_trunc(win->h), win->out_w, win->out_h, win->fmt);
 	}
 
 	if (update_blend) {
@@ -424,14 +418,12 @@ int tegra_dc_update_windows(struct tegra_dc_win *windows[], int n)
 		update_mask |= NC_HOST_TRIG;
 
 	tegra_dc_writel(dc, update_mask, DC_CMD_STATE_CONTROL);
-	trace_printk("%s:update_mask=%#lx\n", dc->ndev->name, update_mask);
 
 	tegra_dc_release_dc_out(dc);
 	mutex_unlock(&dc->lock);
 	if (dc->out->flags & TEGRA_DC_OUT_ONE_SHOT_MODE)
 		mutex_unlock(&dc->one_shot_lock);
 
-	bool is_yuvp = 0;
 	for (i = 0; i < n; i++) {
 		struct tegra_dc_win *win = windows[i];
 		bool yuvp = tegra_dc_is_yuv_planar(win->fmt);

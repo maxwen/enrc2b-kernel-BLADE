@@ -46,7 +46,7 @@
 
 #undef AUDIO_DEBUG_BEEP
 #undef AUDIO_DEBUG
-#define AUDIO_DEBUG 1
+#define AUDIO_DEBUG 0
 
 #if AUDIO_DEBUG
 #define AUDIO_DEBUG_BEEP 1
@@ -932,6 +932,7 @@ static int aic3008_set_config(int config_tbl, int idx, int en)
 {
 	int rc = 0, len = 0;
 	int64_t t1, t2;
+	int new_state = 0, old_state = 0;
 
 	if (aic3008_power_ctl == NULL) {
 		AUD_ERR("[PWR] aic3008_config() aic3008_power_ctl is NULL.\n");
@@ -1134,7 +1135,7 @@ static int aic3008_set_config(int config_tbl, int idx, int en)
 		else if(idx == 59)
 		{
 			AUD_INFO("[DSP] idx = %d, enable Beats icon!!\n", idx);
-			int new_state = 1, old_state = 0;
+			new_state = 1;
 			old_state = switch_get_state(&sdev_beats);
 			if (new_state != old_state)
 				switch_set_state(&sdev_beats, new_state);
@@ -1143,7 +1144,7 @@ static int aic3008_set_config(int config_tbl, int idx, int en)
 		else if(idx == 60)
 		{
 			AUD_INFO("[DSP] idx = %d, disable Beats icon!!\n", idx);
-			int new_state = 0, old_state = 0;
+			new_state = 0;
 			old_state = switch_get_state(&sdev_beats);
 			if (new_state != old_state)
 				switch_set_state(&sdev_beats, new_state);
@@ -1804,11 +1805,13 @@ struct snd_soc_dai_driver aic3008_dai = {
 /*****************************************************************************/
 static int __devinit aic3008_probe(struct snd_soc_codec *codec)
 {
-	AUD_INFO("aic3008_probe() start... aic3008_codec:%p", codec);
 	int ret = 0;
     int i = 0;
-
-	struct aic3008_priv *aic3008 = snd_soc_codec_get_drvdata(codec);
+	struct aic3008_priv *aic3008;
+	
+	AUD_INFO("aic3008_probe() start... aic3008_codec:%p", codec);
+	
+	aic3008 = snd_soc_codec_get_drvdata(codec);
 	if (!aic3008) {
 		AUD_ERR("AIC3008: Codec not registered, SPI device not yet probed\n");
 		return -ENODEV;
@@ -1896,12 +1899,15 @@ static struct snd_soc_codec_driver soc_codec_dev_aic3008 __refdata = {
 /*****************************************************************************/
 static int spi_aic3008_probe(struct spi_device *spi_aic3008)
 {
-	AUD_DBG("spi device: %s, addr = 0x%p. YAY! ***** Start to Test *****\n",
-		spi_aic3008->modalias, spi_aic3008);
 	int ret = 0;
+	struct aic3008_priv *aic3008;
+	
 	codec_spi_dev = spi_aic3008; /* assign global pointer to SPI device. */
 
-	struct aic3008_priv *aic3008 = kzalloc(sizeof(struct aic3008_priv), GFP_KERNEL);;
+	AUD_DBG("spi device: %s, addr = 0x%p. YAY! ***** Start to Test *****\n",
+		spi_aic3008->modalias, spi_aic3008);
+
+	aic3008 = kzalloc(sizeof(struct aic3008_priv), GFP_KERNEL);	
 	if (aic3008 == NULL)
 		return -ENOMEM;
 	
