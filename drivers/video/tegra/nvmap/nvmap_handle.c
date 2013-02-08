@@ -56,7 +56,7 @@
  * the kernel (i.e., not a carveout handle) includes its array of pages. to
  * preserve kmalloc space, if the array of pages exceeds PAGELIST_VMALLOC_MIN,
  * the array is allocated using vmalloc. */
-#define PAGELIST_VMALLOC_MIN	(PAGE_SIZE * 2)
+#define PAGELIST_VMALLOC_MIN	(PAGE_SIZE)
 
 #ifdef CONFIG_NVMAP_PAGE_POOLS
 
