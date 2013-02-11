@@ -58,7 +58,7 @@ static const int core_millivolts[MAX_DVFS_FREQS] = {
 static int cpu_below_core = VDD_CPU_BELOW_VDD_CORE;
 
 #define VDD_SAFE_STEP			100
-#define VDD_MAX_CHANGE			100
+#define VDD_MAX_CHANGE			200
 
 #define VDD_CPU_MIN				700
 #define VDD_CPU_MAX				1250	
@@ -1147,7 +1147,6 @@ cpu_millivolts_show(struct kobject *kobj, struct kobj_attribute *attr,
 	struct dvfs *d;
 	struct clk *c;
 	
-	out += sprintf(out, "speedo_id %d process_id %d soc_id %d\n", cpu_speedo_id, cpu_process_id, soc_speedo_id);
 	out += sprintf(out, "current mv change %d\n", curr_cpu_vdd_change);
 	for (i = 0, j = 0; j <  ARRAY_SIZE(cpu_dvfs_table); j++) {
 		d = &cpu_dvfs_table[j];
