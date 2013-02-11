@@ -83,9 +83,14 @@ static unsigned long up_rate_us;
 #define DEFAULT_DOWN_RATE_US 48000
 static unsigned long down_rate_us;
 
-
 #define DEFAULT_SAMPLING_RATE 50000
 static unsigned int sampling_rate;
+
+#define DEFAULT_INPUT_BOOST_DURATION 50000000
+static unsigned int input_boost_duration;
+
+static unsigned int Touch_poke_attr[4] = {1300000, 0, 0, 0};
+static bool touch_poke = true;
 
 /*************** End of tunables ***************/
 
@@ -134,10 +139,6 @@ static unsigned long debug_mask;
  * dbs_mutex protects dbs_enable in governor start/stop.
  */
 static DEFINE_MUTEX(dbs_mutex);
-
-static unsigned int Touch_poke_attr[4] = {1300000, 0, 0, 0};
-static bool touch_poke = true;
-static unsigned int input_boost_duration = 50000000;
 
 extern
 int tegra_input_boost (
@@ -665,7 +666,6 @@ static ssize_t store_min_cpu_load(struct kobject *kobj, struct attribute *attr, 
 	else
 		return -EINVAL;
 	return count;
-
 }
 
 static ssize_t show_sampling_rate(struct kobject *kobj, struct attribute *attr, char *buf)
@@ -685,6 +685,51 @@ static ssize_t store_sampling_rate(struct kobject *kobj, struct attribute *attr,
 	return count;
 }
 
+static ssize_t show_touch_poke(struct kobject *kobj, struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u,%u,%u,%u", &Touch_poke_attr[0], &Touch_poke_attr[1],
+		&Touch_poke_attr[2], &Touch_poke_attr[3]);
+}
+
+static ssize_t store_touch_poke(struct kobject *a, struct attribute *b,
+				   const char *buf, size_t count)
+{
+	int ret;
+	ret = sscanf(buf, "%u,%u,%u,%u", &Touch_poke_attr[0], &Touch_poke_attr[1],
+		&Touch_poke_attr[2], &Touch_poke_attr[3]);
+	if (ret < 4)
+		return -EINVAL;
+
+	if(Touch_poke_attr[0] == 0)
+		touch_poke = false;
+	else
+		touch_poke = true;
+
+	return count;
+}
+
+static ssize_t show_input_boost_duration(struct kobject *kobj, struct attribute *attr, char *buf)
+{
+	return sprintf(buf, "%lu\n", input_boost_duration);
+}
+
+static ssize_t store_input_boost_duration(
+   struct kobject *a,
+   struct attribute *b,
+   const char *buf,
+   size_t count
+   ) {
+    unsigned int input;
+    int ret;
+    ret = sscanf(buf, "%u", &input);
+    if (ret != 1)
+        return -EINVAL;
+
+    input_boost_duration = input;
+
+    return count;
+}
+
 #define define_global_rw_attr(_name)		\
 static struct global_attr _name##_attr =	\
 	__ATTR(_name, 0644, show_##_name, store_##_name)
@@ -698,6 +743,8 @@ define_global_rw_attr(ramp_down_step);
 define_global_rw_attr(max_cpu_load);
 define_global_rw_attr(min_cpu_load);
 define_global_rw_attr(sampling_rate);
+define_global_rw_attr(touch_poke);
+define_global_rw_attr(input_boost_duration);
 
 static struct attribute * smartmax_attributes[] = {
 	&debug_mask_attr.attr,
@@ -709,6 +756,8 @@ static struct attribute * smartmax_attributes[] = {
 	&max_cpu_load_attr.attr,
 	&min_cpu_load_attr.attr,
 	&sampling_rate_attr.attr,	
+	&touch_poke_attr.attr,	
+	&input_boost_duration_attr.attr,	
 	NULL,
 };
 
@@ -954,6 +1003,7 @@ static int __init cpufreq_smartmax_init(void)
 	max_cpu_load = DEFAULT_MAX_CPU_LOAD;
 	min_cpu_load = DEFAULT_MIN_CPU_LOAD;
 	sampling_rate = DEFAULT_SAMPLING_RATE;
+	input_boost_duration = DEFAULT_INPUT_BOOST_DURATION;
 
 
 	/* Initalize per-cpu data: */
