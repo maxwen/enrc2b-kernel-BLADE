@@ -136,72 +136,69 @@ bool was_paused = false;
 struct pm_qos_request_list min_cpu_req;
 struct pm_qos_request_list max_cpu_req;
 
-static unsigned long get_rate(int cpu)
+static inline unsigned long get_rate(int cpu)
 {
-        return tegra_getspeed(cpu);
+	return tegra_getspeed(cpu);
 }
 
 static int get_slowest_cpu(void)
 {
-        int i, cpu = 0;
-        unsigned long rate, slow_rate = 0;
+	unsigned int cpu = nr_cpu_ids;
+	unsigned long rate = ULONG_MAX, curr_rate;
+	int i;
 
-        for (i = 0; i < CONFIG_NR_CPUS; i++) {
-
-                if (!cpu_online(i))
-                        continue;
-
-                rate = get_rate(i);
-
-                if (slow_rate == 0) {
-                        slow_rate = rate;
-                }
-
-                if ((rate <= slow_rate) && (slow_rate != 0)) {
-                        if (i == 0)
-                                continue;
-
-                        cpu = i;
-                        slow_rate = rate;
-                }
-        }
-
-        return cpu;
+	for_each_online_cpu(i){
+		if (i > 0){
+			curr_rate = get_rate(i);
+			if (rate > curr_rate) {
+				cpu = i;
+				rate = curr_rate;
+			}
+		}
+	}
+	return cpu;
 }
 
 static int get_slowest_cpu_rate(void)
 {
-        int i = 0;
-        unsigned long rate, slow_rate = 0;
-
-        for (i = 0; i < CONFIG_NR_CPUS; i++) {
-                rate = get_rate(i);
-                if ((rate < slow_rate) && (slow_rate != 0)) {
-                        slow_rate = rate;
-                }
-                if (slow_rate == 0) {
-                        slow_rate = rate;
-                }
-        }
-
-        return slow_rate;
+	unsigned long rate = ULONG_MAX;
+	int i;
+	
+	for_each_online_cpu(i)
+		rate = min(rate, get_rate(i));
+	return rate;
 }
 
 static bool lp_possible(void)
 {
-        int i = 0;
-        unsigned int speed;
+	int i = 0;
+	unsigned int speed;
 
-        for (i = 1; i < CONFIG_NR_CPUS; i++) {
-                if (cpu_online(i))
-                        return false;
-        }
+	for_each_online_cpu(i){
+		if (i > 0 && cpu_online(i))
+			return false;
+	}
 
-        speed = tegra_getspeed(0);
-        if (speed > idle_top_freq)
-                return false;
+	speed = get_rate(0);
+	if (speed > idle_top_freq)
+		return false;
 
-        return true;
+	return true;
+}
+
+static unsigned int best_core_to_turn_up (void) {
+    /* mitigate high temperature, 0 -> 3 -> 2 -> 1 */
+    if (!cpu_online (3))
+        return 3;
+
+    if (!cpu_online (2))
+        return 2;
+
+    if (!cpu_online (1))
+        return 1;
+
+    /* NOT found, return >= nr_cpu_id */
+    return nr_cpu_ids;
 }
 
 static int mp_decision(void)
@@ -422,10 +419,11 @@ out:
 static void tegra_mpdec_work_thread(struct work_struct *work)
 {
 	unsigned int cpu = nr_cpu_ids;
-        static int lpup_req = 0;
-        static int lpdown_req = 0;
+    static int lpup_req = 0;
+    static int lpdown_req = 0;
 	cputime64_t on_time = 0;
-        bool suspended = false;
+    bool suspended = false;
+	unsigned int core_to_online;
 
 	if (ktime_to_ms(ktime_get()) <= tegra_mpdec_tuners_ins.startdelay)
 		goto out;
@@ -485,7 +483,7 @@ static void tegra_mpdec_work_thread(struct work_struct *work)
 	case TEGRA_MPDEC_UP:
                 lpup_req = 0;
                 lpdown_req = 0;
-                cpu = cpumask_next_zero(0, cpu_online_mask);
+                cpu = best_core_to_turn_up();
                 if (cpu < nr_cpu_ids) {
                         if ((per_cpu(tegra_mpdec_cpudata, cpu).online == false) && (!cpu_online(cpu))) {
                                 cpu_up(cpu);
