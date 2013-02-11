@@ -1756,6 +1756,16 @@ int cpufreq_get_policy(struct cpufreq_policy *policy, unsigned int cpu)
 }
 EXPORT_SYMBOL(cpufreq_get_policy);
 
+#if defined(CONFIG_BEST_TRADE_HOTPLUG)
+	/* Both of file node and pm_qos APIs would change cpufreq policy,
+	 * and go thru this function path
+	 *
+	 * Thus, hook on this function is good enough...
+	 */
+    extern void update_bthp_policy_qos (int cpu,
+                                        unsigned int min_freq,
+                                        unsigned int max_freq);
+#endif
 
 /*
  * data   : current policy.
@@ -1822,15 +1832,6 @@ static int __cpufreq_set_policy(struct cpufreq_policy *data,
 					data->min, data->max);
 
 #if defined(CONFIG_BEST_TRADE_HOTPLUG)
-	/* Both of file node and pm_qos APIs would change cpufreq policy,
-	 * and go thru this function path
-	 *
-	 * Thus, hook on this function is good enough...
-	 */
-    extern void update_bthp_policy_qos (int cpu,
-                                        unsigned int min_freq,
-                                        unsigned int max_freq);
-
     update_bthp_policy_qos (data->cpu, data->min, data->max);
 #endif
 
