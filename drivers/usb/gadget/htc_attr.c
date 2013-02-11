@@ -272,7 +272,7 @@ int android_show_function(char *buf)
 	return length;
 }
 
-void tegra_udc_set_phy_clk(bool pull_up);
+
 int android_switch_function(unsigned func)
 {
 	struct android_dev *dev = _android_dev;
@@ -310,11 +310,6 @@ int android_switch_function(unsigned func)
 		pr_debug("%s enter offmode-charging\n", __func__);
 		tegra_otg_set_disable_usb(1);
 	}
-
-	if (func & (1 << USB_FUNCTION_RNDIS))
-		tegra_udc_set_phy_clk(true);
-	else
-		tegra_udc_set_phy_clk(false);
 
 	while ((f = *functions++)) {
 		if ((func & (1 << USB_FUNCTION_UMS)) &&

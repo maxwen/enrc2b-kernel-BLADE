@@ -294,7 +294,6 @@ struct mtp_device_status {
 
 /* temporary variable used between mtp_open() and mtp_gadget_bind() */
 static struct mtp_dev *_mtp_dev;
-void tegra_udc_set_phy_clk(bool pull_up);
 static void mtp_setup_perflock()
 {
 	struct mtp_dev *dev = _mtp_dev;
@@ -303,7 +302,6 @@ static void mtp_setup_perflock()
 	del_timer(&dev->perf_timer);
 	if (dev->mtp_perf_lock_on) {
 		printk(KERN_INFO "[USB][MTP] %s, perf on\n", __func__);
-		tegra_udc_set_phy_clk(true);
 		pm_qos_update_request(&mtp_req_freq, (s32)PM_QOS_CPU_USB_FREQ_MAX_DEFAULT_VALUE);
 		pm_qos_update_request(&req_cpus, (s32)PM_QOS_MIN_ONLINE_CPUS_USB_TWO_VALUE);
 
@@ -311,7 +309,6 @@ static void mtp_setup_perflock()
 		printk(KERN_INFO "[USB][MTP] %s, perf off\n", __func__);
 		pm_qos_update_request(&mtp_req_freq, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
 		pm_qos_update_request(&req_cpus, (s32)PM_QOS_MIN_ONLINE_CPUS_DEFAULT_VALUE);
-		tegra_udc_set_phy_clk(false);
 	}
 }
 /* 50 ms per file */

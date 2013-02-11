@@ -1866,7 +1866,16 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 	int enabled = 0;
 
 	sscanf(buff, "%d", &enabled);
+//++htc++
+	if (enabled) {
+		htc_usb_enable_function("adb", 1);
+		pr_info("%s, buff: %s\n", __func__, buff);
+	}
 
+	/* temporaily return immediately to prevent framework change usb behavior
+	 */
+	return size;
+//--htc--
 	if (enabled && !dev->enabled) {
 		/* update values in composite driver's copy of device descriptor */
 		cdev->desc.idVendor = device_desc.idVendor;
@@ -1875,8 +1884,10 @@ static ssize_t enable_store(struct device *pdev, struct device_attribute *attr,
 		cdev->desc.bDeviceClass = device_desc.bDeviceClass;
 		cdev->desc.bDeviceSubClass = device_desc.bDeviceSubClass;
 		cdev->desc.bDeviceProtocol = device_desc.bDeviceProtocol;
-		usb_add_config(cdev, &android_config_driver,
-					android_bind_config);
+		if (usb_add_config(cdev, &android_config_driver,
+							android_bind_config))
+			return size;//htc
+
 		usb_gadget_connect(cdev->gadget);
 		dev->enabled = true;
 	} else if (!enabled && dev->enabled) {
@@ -2017,8 +2028,9 @@ static ssize_t enable_diag_store(struct device *pdev, struct device_attribute *a
 		cdev->desc.bDeviceClass = device_desc.bDeviceClass;
 		cdev->desc.bDeviceSubClass = device_desc.bDeviceSubClass;
 		cdev->desc.bDeviceProtocol = device_desc.bDeviceProtocol;
-		usb_add_config(cdev, &android_config_driver,
-					android_bind_config);
+		if (usb_add_config(cdev, &android_config_driver, android_bind_config))
+			return size;
+
 		usb_gadget_connect(cdev->gadget);
 		dev->enabled = true;
 	}
@@ -2057,8 +2069,9 @@ static ssize_t enable_diag_mdm_rmnet_store(struct device *pdev, struct device_at
 		cdev->desc.bDeviceClass = device_desc.bDeviceClass;
 		cdev->desc.bDeviceSubClass = device_desc.bDeviceSubClass;
 		cdev->desc.bDeviceProtocol = device_desc.bDeviceProtocol;
-		usb_add_config(cdev, &android_config_driver,
-					android_bind_config);
+		if (usb_add_config(cdev, &android_config_driver, android_bind_config))
+			return size;
+
 		usb_gadget_connect(cdev->gadget);
 		dev->enabled = true;
 	}
