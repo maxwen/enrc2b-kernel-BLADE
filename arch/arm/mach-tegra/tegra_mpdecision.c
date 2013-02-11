@@ -949,14 +949,14 @@ static struct attribute_group tegra_mpdec_attr_group = {
 static int max_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
 {
 	pr_info("PM QoS PM_QOS_MAX_ONLINE_CPUS %lu\n", n);
-	//tegra_mpdec_tuners_ins.max_cpus = n;
+	tegra_mpdec_tuners_ins.max_cpus = n;
 	return NOTIFY_OK;
 }
 
 static int min_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
 {
 	pr_info("PM QoS PM_QOS_MIN_ONLINE_CPUS %lu\n", n);
-	//tegra_mpdec_tuners_ins.min_cpus = n;
+	tegra_mpdec_tuners_ins.min_cpus = n;
 	return NOTIFY_OK;
 }
 
