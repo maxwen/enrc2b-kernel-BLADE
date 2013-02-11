@@ -687,8 +687,8 @@ static ssize_t store_sampling_rate(struct kobject *kobj, struct attribute *attr,
 
 static ssize_t show_touch_poke(struct kobject *kobj, struct attribute *attr, char *buf)
 {
-	return sprintf(buf, "%u,%u,%u,%u", &Touch_poke_attr[0], &Touch_poke_attr[1],
-		&Touch_poke_attr[2], &Touch_poke_attr[3]);
+	return sprintf(buf, "%u,%u,%u,%u\n", Touch_poke_attr[0], Touch_poke_attr[1],
+		Touch_poke_attr[2], Touch_poke_attr[3]);
 }
 
 static ssize_t store_touch_poke(struct kobject *a, struct attribute *b,
