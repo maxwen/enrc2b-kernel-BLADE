@@ -28,7 +28,6 @@
 #include <linux/slab.h>
 #include <linux/gpio.h>
 #include <linux/tps61310_flashlight.h>
-#include <mach/mfootprint.h>
 
 #define FLT_DBG_LOG(fmt, ...) \
 		printk(KERN_DEBUG "[FLT]TPS " fmt, ##__VA_ARGS__)
@@ -417,10 +416,8 @@ static void fl_lcdev_brightness_set(struct led_classdev *led_cdev,
 static void flashlight_early_suspend(struct early_suspend *handler)
 {
 	FLT_INFO_LOG("%s\n", __func__);
-	MF_DEBUG("00050000");
 	if (this_tps61310 != NULL && this_tps61310->mode_status)
 		flashlight_turn_off();
-	MF_DEBUG("00050001");
 }
 
 static void flashlight_late_resume(struct early_suspend *handler)

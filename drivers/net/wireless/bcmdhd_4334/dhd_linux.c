@@ -45,7 +45,6 @@
 /* HTC_CSP_START */
 #include <linux/ioprio.h>
 #include <mach/board_htc.h>
-#include <mach/mfootprint.h>
 /* HTC_CSP_END */
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
@@ -972,13 +971,10 @@ static void dhd_early_suspend(struct early_suspend *h)
 {
 	struct dhd_info *dhd = container_of(h, struct dhd_info, early_suspend);
 
-	MF_DEBUG("00220000");
 	DHD_TRACE(("%s: enter\n", __FUNCTION__));
 
-	MF_DEBUG("00220001");
 	if (dhd)
 		dhd_suspend_resume_helper(dhd, 1, 0);
-	MF_DEBUG("00220002");
 }
 
 static void dhd_late_resume(struct early_suspend *h)

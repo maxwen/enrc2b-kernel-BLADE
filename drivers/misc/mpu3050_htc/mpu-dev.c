@@ -36,7 +36,6 @@
 #include <linux/slab.h>
 #include <linux/version.h>
 #include <linux/pm.h>
-#include <mach/mfootprint.h>
 #ifdef CONFIG_HAS_EARLYSUSPEND
 #include <linux/earlysuspend.h>
 #endif
@@ -1010,22 +1009,17 @@ void mpu3050_early_suspend(struct early_suspend *h)
 	struct i2c_adapter *pressure_adapter;
 
 	accel_adapter = i2c_get_adapter(mldl_cfg->pdata->accel.adapt_num);
-	MF_DEBUG("0010000");
 	compass_adapter =
 	    i2c_get_adapter(mldl_cfg->pdata->compass.adapt_num);
-	MF_DEBUG("0010001");
 	pressure_adapter =
 	    i2c_get_adapter(mldl_cfg->pdata->pressure.adapt_num);
-	MF_DEBUG("0010002");
 
 	dev_dbg(&this_client->adapter->dev, "%s: %d, %d\n", __func__,
 		h->level, mpu->mldl_cfg.gyro_is_suspended);
-	MF_DEBUG("0010003");
 	if (MPU3050_EARLY_SUSPEND_IN_DRIVER)
 		(void) mpu3050_suspend(mldl_cfg, this_client->adapter,
 				accel_adapter, compass_adapter,
 				pressure_adapter, TRUE, TRUE, TRUE, TRUE);
-	MF_DEBUG("0010004");
 }
 
 void mpu3050_early_resume(struct early_suspend *h)

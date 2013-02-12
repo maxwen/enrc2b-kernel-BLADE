@@ -17,7 +17,6 @@
 #include <linux/gfp.h>
 #include <linux/suspend.h>
 #include <trace/events/power.h>
-#include <mach/mfootprint.h>
 
 #ifdef CONFIG_SMP
 /* Serializes the updates to cpu_online_mask, cpu_present_mask */
@@ -110,7 +109,6 @@ static void cpu_hotplug_begin(void)
 {
 	cpu_hotplug.active_writer = current;
 
-	MF_DEBUG("00UP0004");
 	for (;;) {
 		mutex_lock(&cpu_hotplug.lock);
 		if (likely(!cpu_hotplug.refcount))
@@ -119,15 +117,12 @@ static void cpu_hotplug_begin(void)
 		mutex_unlock(&cpu_hotplug.lock);
 		schedule();
 	}
-	MF_DEBUG("00UP0005");
 }
 
 static void cpu_hotplug_done(void)
 {
-	MF_DEBUG("00UP0024");
 	cpu_hotplug.active_writer = NULL;
 	mutex_unlock(&cpu_hotplug.lock);
-	MF_DEBUG("00UP0025");
 }
 
 #else /* #if CONFIG_HOTPLUG_CPU */
@@ -150,7 +145,6 @@ static int __cpu_notify(unsigned long val, void *v, int nr_to_call,
 {
 	int ret;
 
-	MF_DEBUG("00UP0006");
 	ret = __raw_notifier_call_chain(&cpu_chain, val, v, nr_to_call,
 					nr_calls);
 
@@ -396,16 +390,11 @@ int __cpuinit cpu_up(unsigned int cpu)
 		goto out;
 	}
 
-	MF_DEBUG("00UP0003");
 	err = _cpu_up(cpu, 0);
 
 out:
-	MF_DEBUG("00UP0026");
 	cpu_maps_update_done();
-	MF_DEBUG("00UP0027");
 	trace_cpu_hotplug(cpu, POWER_CPU_UP_DONE);
-
-	MF_DEBUG("00UP0028");
 
     /* make cpu frequency seenable ASAP in systrace */
     if (!err)

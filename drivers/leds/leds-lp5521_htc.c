@@ -27,7 +27,7 @@
 #include <linux/leds.h>
 #include <linux/leds-lp5521_htc.h>
 #include <linux/regulator/consumer.h>
-#include <mach/mfootprint.h>
+
 #define LP5521_MAX_LEDS			3	/* Maximum number of LEDs */
 #define LED_DEBUG				1
 #if LED_DEBUG
@@ -1269,13 +1269,11 @@ static void lp5521_led_early_suspend(struct early_suspend *handler)
 
 	printk("[LED][SUSPEND] lp5521_led_early_suspend +++\n");
 	suspend_mode = 1;
-	MF_DEBUG("00210000");
 	if( backlight_mode == 1 )
 		lp5521_backlight_off(client);
 	else if ( backlight_mode == 2 )
 		lp5521_led_current_set_for_key(0);
 	printk("[LED][SUSPEND] lp5521_led_early_suspend ---\n");
-	MF_DEBUG("00210001");
 }
 
 static void lp5521_led_late_resume(struct early_suspend *handler)

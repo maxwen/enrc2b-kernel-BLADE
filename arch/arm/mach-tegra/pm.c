@@ -59,7 +59,6 @@
 #include <mach/iomap.h>
 #include <mach/irqs.h>
 #include <mach/powergate.h>
-#include <mach/mfootprint.h>
 #include "board.h"
 #include "clock.h"
 #include "cpuidle.h"
@@ -1397,15 +1396,10 @@ static void delayed_adjusting_work(struct work_struct *work)
 
 static void pm_early_suspend(struct early_suspend *h)
 {
-	MF_DEBUG("00230000");
 	mutex_lock(&early_suspend_lock);
-	MF_DEBUG("00230001");
 	schedule_delayed_work(&delayed_adjust, msecs_to_jiffies(SCLK_ADJUST_DELAY));
-	MF_DEBUG("00230002");
 	pm_qos_update_request(&awake_cpu_freq_req, PM_QOS_DEFAULT_VALUE);
-	MF_DEBUG("00230003");
 	mutex_unlock(&early_suspend_lock);
-	MF_DEBUG("00230004");
 }
 
 static void pm_late_resume(struct early_suspend *h)

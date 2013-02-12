@@ -37,7 +37,6 @@
 #include <linux/wakelock.h>
 #include <linux/jiffies.h>
 #include "../../../arch/arm/mach-tegra/board.h"
-#include <mach/mfootprint.h>
 
 #define debug_flag 0
 #define D(x...) pr_info(x)
@@ -2196,11 +2195,9 @@ static void cm3629_early_suspend(struct early_suspend *h)
 	struct cm3629_info *lpi = lp_info;
 
 	D("LS][cm3629] %s\n", __func__);
-	MF_DEBUG("00040000");
 	if (lpi->als_enable)
 		lightsensor_disable(lpi);
 
-	MF_DEBUG("00040001");
 }
 
 static void cm3629_late_resume(struct early_suspend *h)

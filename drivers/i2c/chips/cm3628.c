@@ -39,7 +39,6 @@
 #include <linux/notifier.h>
 #include <linux/suspend.h>
 #include "../../../arch/arm/mach-tegra/board.h"
-#include <mach/mfootprint.h>
 
 
 #define debug_flag 0
@@ -1893,11 +1892,9 @@ static void cm3628_early_suspend(struct early_suspend *h)
 	struct cm3628_info *lpi = lp_info;
 
 	D("[LS][CM3628] %s\n", __func__);
-	MF_DEBUG("00020000");
 	if (lpi->als_enable)
 		lightsensor_disable(lpi);
 	
-	MF_DEBUG("00020001");
 }
 
 static void cm3628_late_resume(struct early_suspend *h)

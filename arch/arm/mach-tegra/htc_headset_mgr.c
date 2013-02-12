@@ -24,7 +24,6 @@
 #include <linux/slab.h>
 #include <linux/termios.h>
 #include <linux/tty.h>
-#include <mach/mfootprint.h>
 #include "devices.h"
 
 #include <mach/htc_headset_mgr.h>
@@ -1878,9 +1877,7 @@ static void headset_mgr_init(void)
 
 static void htc_headset_mgr_early_suspend(struct early_suspend *h)
 {
-	MF_DEBUG("00260000");
 	HS_DBG();
-	MF_DEBUG("00260001");
 }
 
 static void htc_headset_mgr_late_resume(struct early_suspend *h)
