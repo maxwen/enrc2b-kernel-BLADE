@@ -347,12 +347,13 @@ CHECK		= sparse
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void $(CF)
-MODFLAGS  = -DMODULE -mtune=cortex-a9 -ftree-vectorize -ffast-math -fsingle-precision-constant -march=armv7-a -mfpu=neon -mvectorize-with-neon-quad -funroll-loops -fsched-spec-load
+LDFLAGS_MODULE  =
+CFLAGS_KERNEL  = -mcpu=cortex-a9 -mtune=cortex-a9 -ffast-math -fsingle-precision-constant -march=armv7-a -mfpu=neon-vfpv4 -mvectorize-with-neon-quad -fsched-spec-load
+AFLAGS_KERNEL	=
+MODFLAGS  = -DMODULE $(CFLAGS_KERNEL)
 CFLAGS_MODULE   = $(MODFLAGS)
 AFLAGS_MODULE   = $(MODFLAGS)
-LDFLAGS_MODULE  =
-CFLAGS_KERNEL  = -mtune=cortex-a9 -ftree-vectorize -ffast-math -fsingle-precision-constant -march=armv7-a -mfpu=neon -mvectorize-with-neon-quad -funroll-loops -fsched-spec-load
-AFLAGS_KERNEL	=
+
 CFLAGS_GCOV	= -fprofile-arcs -ftest-coverage
 
 
@@ -562,7 +563,7 @@ all: vmlinux
 ifdef CONFIG_CC_OPTIMIZE_FOR_SIZE
 KBUILD_CFLAGS	+= -Os -Wno-address -Wno-unused-function -Wno-unused-variable
 else
-KBUILD_CFLAGS	+= -O2 -Wno-address -Wno-unused-function -Wno-unused-variable
+KBUILD_CFLAGS	+= -O3 -Wno-address -Wno-unused-function -Wno-unused-variable
 endif
 
 include $(srctree)/arch/$(SRCARCH)/Makefile
