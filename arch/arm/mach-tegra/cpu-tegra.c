@@ -2004,11 +2004,21 @@ int tegra_input_boost (
    )
 {
     int ret = 0;
-    unsigned int curfreq = 0;
+    unsigned int curfreq = 0, scaling_max_limit = 0;
 
     mutex_lock(&tegra_cpu_lock);
     curfreq = tegra_getspeed(0);
+
+    /* get global caped limit */
     target_freq = get_scaled_freq(target_freq);
+
+    /* get any per cpu defined limit cause input_boost
+     might not be validated against policy->max */
+    scaling_max_limit = get_cpu_freq_limit(cpu);
+
+    /* apply any scaling max limits */
+    if (scaling_max_limit < target_freq)
+        target_freq = scaling_max_limit;
 
     /* dont need to boost cpu at this moment */
     if (!curfreq || curfreq >= target_freq) {
