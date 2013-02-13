@@ -83,8 +83,9 @@ int enable_oc = 0;
 // maxwen: see tegra_cpu_init
 // values can be changed in sysfs interface of cpufreq
 // for scaling_max_freq_limit
-static inline unsigned int get_cpu_freq_limit(unsigned int cpu){
-
+static inline unsigned int get_cpu_freq_limit(unsigned int cpu)
+{
+	BUG_ON(cpu > 3);
 	if(tegra_pmqos_cpu_freq_limits[cpu]!=0){
 		return tegra_pmqos_cpu_freq_limits[cpu];
 	}
