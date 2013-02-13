@@ -46,7 +46,7 @@ static unsigned int awake_ideal_freq;
  * Zero disables and causes to always jump straight to max frequency.
  * When below the ideal freqeuncy we always ramp up to the ideal freq.
  */
-#define DEFAULT_RAMP_UP_STEP 256000
+#define DEFAULT_RAMP_UP_STEP 250000
 static unsigned int ramp_up_step;
 
 /*
@@ -54,33 +54,33 @@ static unsigned int ramp_up_step;
  * Zero disables and will calculate ramp down according to load heuristic.
  * When above the ideal freqeuncy we always ramp down to the ideal freq.
  */
-#define DEFAULT_RAMP_DOWN_STEP 256000
+#define DEFAULT_RAMP_DOWN_STEP 250000
 static unsigned int ramp_down_step;
 
 /*
  * CPU freq will be increased if measured load > max_cpu_load;
  */
-#define DEFAULT_MAX_CPU_LOAD 85
+#define DEFAULT_MAX_CPU_LOAD 80
 static unsigned long max_cpu_load;
 
 /*
  * CPU freq will be decreased if measured load < min_cpu_load;
  */
-#define DEFAULT_MIN_CPU_LOAD 50
+#define DEFAULT_MIN_CPU_LOAD 45
 static unsigned long min_cpu_load;
 
 /*
  * The minimum amount of time to spend at a frequency before we can ramp up.
  * Notice we ignore this when we are below the ideal frequency.
  */
-#define DEFAULT_UP_RATE_US 24000
+#define DEFAULT_UP_RATE_US 20000
 static unsigned long up_rate_us;
 
 /*
  * The minimum amount of time to spend at a frequency before we can ramp down.
  * Notice we ignore this when we are above the ideal frequency.
  */
-#define DEFAULT_DOWN_RATE_US 48000
+#define DEFAULT_DOWN_RATE_US 40000
 static unsigned long down_rate_us;
 
 #define DEFAULT_SAMPLING_RATE 50000
@@ -314,10 +314,12 @@ inline static void target_freq(struct cpufreq_policy *policy, struct smartmax_in
 	}
 	else target = new_freq;
 
+	mutex_lock(&set_speed_lock);
+		
 	if(ramp_dir < 0 && sync_cpu_downscale){
 		// only if all cpus get the target they will really scale down
 		// cause the largest defines the speed for all
-		mutex_lock(&set_speed_lock);
+
 		for_each_online_cpu(j) {
 			struct smartmax_info_s *j_this_smartmax = &per_cpu(smartmax_info, j);
 				
@@ -325,11 +327,9 @@ inline static void target_freq(struct cpufreq_policy *policy, struct smartmax_in
 				struct cpufreq_policy *j_policy = j_this_smartmax->cur_policy;
 				dprintk(SMARTMAX_DEBUG_JUMPS,"SmartassQ: jumping from %d to %d => %d (%d) cpu %d\n",
 					old_freq,new_freq,target,policy->cur, j_this_smartmax->cpu);
-
 				__cpufreq_driver_target(j_policy, target, prefered_relation);
 			}
 		}	
-		mutex_unlock(&set_speed_lock);
 	} else {
 		// one time is enough - larget will define the speed for all 
 		dprintk(SMARTMAX_DEBUG_JUMPS,"SmartassQ: jumping from %d to %d => %d (%d) cpu %d\n",
@@ -337,7 +337,9 @@ inline static void target_freq(struct cpufreq_policy *policy, struct smartmax_in
 
 		__cpufreq_driver_target(policy, target, prefered_relation);	
 	}
-	
+
+	mutex_unlock(&set_speed_lock);
+			
 	// remember last time we changed frequency
 	this_smartmax->freq_change_time = now;
 }
