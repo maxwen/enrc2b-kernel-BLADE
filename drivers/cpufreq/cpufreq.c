@@ -436,7 +436,6 @@ static ssize_t store_##file_name					\
 }
 
 store_one(scaling_min_freq, min);
-store_one(scaling_max_freq, max);
 
 /**
  * show_cpuinfo_cur_freq - current CPU frequency as detected by hardware
@@ -653,7 +652,7 @@ static ssize_t store_scaling_max_freq_limit(struct cpufreq_policy *policy,
 		&tegra_pmqos_cpu_freq_limits[2], &tegra_pmqos_cpu_freq_limits[3]);
 		
 	if (ret < 4)
-		return ret;
+		return -EINVAL;
 
 	// maxwen: apply new policy->max to all online cpus
 	// all non-online will get correct policy->max when they become
@@ -668,6 +667,7 @@ static ssize_t store_scaling_max_freq_limit(struct cpufreq_policy *policy,
 		if (ret)							
 			continue;
 
+		BUG_ON(cpu > 3);
 		max = tegra_pmqos_cpu_freq_limits[cpu];
 		if (max == 0)
 			// valus = 0 means reset to default
@@ -684,6 +684,53 @@ static ssize_t store_scaling_max_freq_limit(struct cpufreq_policy *policy,
 #endif
 	return count;
 }
+
+static ssize_t store_scaling_max_freq(struct cpufreq_policy *policy,
+					const char *buf, size_t count)
+{
+	unsigned int ret = -EINVAL;		
+	unsigned int cpu;			
+	struct cpufreq_policy new_policy;				
+	int max = 0;
+	unsigned int max_freq;
+	
+	ret = sscanf(buf, "%u", &max_freq);
+		
+	if (ret !=1 )
+		return -EINVAL;
+
+	// maxwen: this will overwrite any values set by
+	// scaling_max_freq_limit
+	tegra_pmqos_cpu_freq_limits[0]=max_freq;
+	tegra_pmqos_cpu_freq_limits[1]=max_freq;
+	tegra_pmqos_cpu_freq_limits[2]=max_freq;
+	tegra_pmqos_cpu_freq_limits[3]=max_freq;
+				
+	// maxwen: apply new policy->max to all online cpus
+	// all non-online will get correct policy->max when they become
+	// online again in cpu-tegra.c:tegra_cpu_init
+#ifdef CONFIG_HOTPLUG_CPU
+	for_each_online_cpu(cpu) {
+		policy = cpufreq_cpu_get(cpu);
+		if (!policy)
+			continue;
+		
+		ret = cpufreq_get_policy(&new_policy, cpu);
+		if (ret)							
+			continue;					
+		
+		new_policy.max = max_freq;
+		ret = __cpufreq_set_policy(policy, &new_policy);
+		policy->user_policy.max = new_policy.max;
+		if (!ret)
+			pr_info("maxwen:store_scaling_max_freq set policy->max of cpu %d to %d - ok\n", cpu, new_policy.max);
+		
+		cpufreq_cpu_put(policy);
+	}
+#endif
+	return count;
+}
+
 
 cpufreq_freq_attr_ro_perm(cpuinfo_cur_freq, 0400);
 cpufreq_freq_attr_ro(cpuinfo_min_freq);
