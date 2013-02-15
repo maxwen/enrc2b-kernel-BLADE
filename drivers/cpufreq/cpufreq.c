@@ -696,7 +696,10 @@ static ssize_t store_scaling_max_freq(struct cpufreq_policy *policy,
 	
 	ret = sscanf(buf, "%u", &max_freq);
 		
-	if (ret !=1 )
+	if (ret !=1)
+		return -EINVAL;
+
+	if (max_freq!=0 && max_freq < 475000)
 		return -EINVAL;
 
 	// maxwen: this will overwrite any values set by
@@ -719,7 +722,13 @@ static ssize_t store_scaling_max_freq(struct cpufreq_policy *policy,
 		if (ret)							
 			continue;					
 		
-		new_policy.max = max_freq;
+		BUG_ON(cpu > 3);
+		max = tegra_pmqos_cpu_freq_limits[cpu];
+		if (max == 0)
+			// valus = 0 means reset to default
+			max = tegra_pmqos_boost_freq;						
+
+		new_policy.max = max;
 		ret = __cpufreq_set_policy(policy, &new_policy);
 		policy->user_policy.max = new_policy.max;
 		if (!ret)
