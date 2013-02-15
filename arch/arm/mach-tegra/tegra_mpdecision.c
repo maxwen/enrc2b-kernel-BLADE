@@ -42,6 +42,7 @@
 #include "clock.h"
 #include "cpu-tegra.h"
 #include "pm.h"
+#include "tegra_pmqos.h"
 
 #define DEBUG 0
 
@@ -51,7 +52,7 @@
 #define TEGRA_MPDEC_PAUSE                 10000
 
 /* will be overwritten later by lpcpu max clock */
-#define TEGRA_MPDEC_IDLE_FREQ             475000
+#define TEGRA_MPDEC_IDLE_FREQ             T3_LP_MAX_FREQ
 
 /* This rq value will be used if we only have the lpcpu online */
 #define TEGRA_MPDEC_LPCPU_RQ_DOWN         36
@@ -64,11 +65,11 @@
 
 /*
  * LPCPU hysteresis default values
- * we need at least 5 requests to go into lpmode and
+ * we need at least 4 requests to go into lpmode and
  * we need at least 3 requests to come out of lpmode.
  * This does not affect frequency overrides
  */
-#define TEGRA_MPDEC_LPCPU_UP_HYS        4
+#define TEGRA_MPDEC_LPCPU_UP_HYS        3
 #define TEGRA_MPDEC_LPCPU_DOWN_HYS      2
 
 enum {
@@ -519,7 +520,7 @@ static void tegra_mpdec_work_thread(struct work_struct *work)
                 if ((!is_lp_cluster()) && (lp_possible())) {
                         /* hysteresis loop for lpcpu powerup
                            this prevents the lpcpu to kick in too early and produce lags
-                           we need at least 5 requests in order to power up the lpcpu */
+                           we need at least 4 requests in order to power up the lpcpu */
                         lpup_req++;
                         if (lpup_req > tegra_mpdec_tuners_ins.lp_cpu_up_hysteresis) {
                                 if(!tegra_lp_cpu_handler(true, false))

@@ -529,12 +529,12 @@ int tegra_update_cpu_speed(unsigned long rate)
 	freqs.old = tegra_getspeed(0);
 	freqs.new = rate;
 
-	if (rate_save > 475000) {
+	if (rate_save > T3_LP_MAX_FREQ) {
 		if (is_lp_cluster()) {
 
 			pr_info("LP off %d %d %ld\n", freqs.old, freqs.new, rate_save);
 			/* set rate to max of LP mode */
-			ret = clk_set_rate(cpu_clk, 475000 * 1000);
+			ret = clk_set_rate(cpu_clk, T3_LP_MAX_FREQ * 1000);
 #ifndef CONFIG_TEGRA_MPDECISION
 			/* change to g mode */
 			clk_set_parent(cpu_clk, cpu_g_clk);

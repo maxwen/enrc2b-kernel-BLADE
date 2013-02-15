@@ -436,6 +436,9 @@ static ssize_t store_##file_name					\
 }
 
 store_one(scaling_min_freq, min);
+#ifndef CONFIG_HOTPLUG_CPU
+store_one(scaling_max_freq, max);
+#endif
 
 /**
  * show_cpuinfo_cur_freq - current CPU frequency as detected by hardware
@@ -685,6 +688,7 @@ static ssize_t store_scaling_max_freq_limit(struct cpufreq_policy *policy,
 	return count;
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 static ssize_t store_scaling_max_freq(struct cpufreq_policy *policy,
 					const char *buf, size_t count)
 {
@@ -696,10 +700,10 @@ static ssize_t store_scaling_max_freq(struct cpufreq_policy *policy,
 	
 	ret = sscanf(buf, "%u", &max_freq);
 		
-	if (ret !=1)
+	if (ret != 1)
 		return -EINVAL;
 
-	if (max_freq!=0 && max_freq < 475000)
+	if (max_freq != 0 && max_freq < T3_LP_MAX_FREQ)
 		return -EINVAL;
 
 	// maxwen: this will overwrite any values set by
@@ -712,14 +716,11 @@ static ssize_t store_scaling_max_freq(struct cpufreq_policy *policy,
 	// maxwen: apply new policy->max to all online cpus
 	// all non-online will get correct policy->max when they become
 	// online again in cpu-tegra.c:tegra_cpu_init
-#ifdef CONFIG_HOTPLUG_CPU
 	for_each_online_cpu(cpu) {
 		policy = cpufreq_cpu_get(cpu);
 		if (!policy)
 			continue;
-#else
-		cpu = policy->cpu;
-#endif		
+	
 		ret = cpufreq_get_policy(&new_policy, cpu);
 		if (ret)							
 			continue;					
@@ -736,13 +737,11 @@ static ssize_t store_scaling_max_freq(struct cpufreq_policy *policy,
 		if (!ret)
 			pr_info("maxwen:store_scaling_max_freq set policy->max of cpu %d to %d - ok\n", cpu, new_policy.max);
 		
-#ifdef CONFIG_HOTPLUG_CPU
 		cpufreq_cpu_put(policy);
 	}
-#endif
 	return count;
 }
-
+#endif
 
 cpufreq_freq_attr_ro_perm(cpuinfo_cur_freq, 0400);
 cpufreq_freq_attr_ro(cpuinfo_min_freq);

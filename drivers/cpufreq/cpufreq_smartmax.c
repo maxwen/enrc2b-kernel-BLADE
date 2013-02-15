@@ -31,6 +31,8 @@
 #include <linux/slab.h>
 #include <linux/kernel_stat.h>
 
+#include "../../arch/arm/mach-tegra/tegra_pmqos.h"
+
 /******************** Tunable parameters: ********************/
 
 /*
@@ -38,7 +40,7 @@
  * towards the ideal frequency and slower after it has passed it. Similarly,
  * lowering the frequency towards the ideal frequency is faster than below it.
  */
-#define DEFAULT_IDEAL_FREQ 475000
+#define DEFAULT_IDEAL_FREQ T3_LP_MAX_FREQ
 static unsigned int ideal_freq;
 
 /*
