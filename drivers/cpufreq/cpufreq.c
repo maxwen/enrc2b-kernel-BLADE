@@ -717,7 +717,9 @@ static ssize_t store_scaling_max_freq(struct cpufreq_policy *policy,
 		policy = cpufreq_cpu_get(cpu);
 		if (!policy)
 			continue;
-		
+#else
+		cpu = policy->cpu;
+#endif		
 		ret = cpufreq_get_policy(&new_policy, cpu);
 		if (ret)							
 			continue;					
@@ -734,6 +736,7 @@ static ssize_t store_scaling_max_freq(struct cpufreq_policy *policy,
 		if (!ret)
 			pr_info("maxwen:store_scaling_max_freq set policy->max of cpu %d to %d - ok\n", cpu, new_policy.max);
 		
+#ifdef CONFIG_HOTPLUG_CPU
 		cpufreq_cpu_put(policy);
 	}
 #endif
