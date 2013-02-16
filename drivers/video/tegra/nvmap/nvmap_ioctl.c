@@ -3,7 +3,7 @@
  *
  * User-space interface to nvmap
  *
- * Copyright (c) 2011-2012, NVIDIA CORPORATION. All rights reserved.
+ * Copyright (c) 2011, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -175,9 +175,6 @@ int nvmap_ioctl_alloc(struct file *filp, void __user *arg)
 	/* user-space handles are aligned to page boundaries, to prevent
 	 * data leakage. */
 	op.align = max_t(size_t, op.align, PAGE_SIZE);
-#if defined(CONFIG_NVMAP_FORCE_ZEROED_USER_PAGES)
-	op.flags |= NVMAP_HANDLE_ZEROED_PAGES;
-#endif
 
 	return nvmap_alloc_handle_id(client, op.handle, op.heap_mask,
 				     op.align, op.flags);
@@ -545,32 +542,14 @@ static void heap_page_cache_maint(struct nvmap_client *client,
 	}
 }
 
-static bool fast_cache_maint_outer(unsigned long start,
-		unsigned long end, unsigned int op)
-{
-	bool result = false;
-#if defined(CONFIG_NVMAP_OUTER_CACHE_MAINT_BY_SET_WAYS)
-	if (end - start >= FLUSH_CLEAN_BY_SET_WAY_THRESHOLD_OUTER) {
-		if (op == NVMAP_CACHE_OP_WB_INV) {
-			outer_flush_all();
-			result = true;
-		}
-		if (op == NVMAP_CACHE_OP_WB) {
-			outer_clean_all();
-			result = true;
-		}
-	}
-#endif
-	return result;
-}
-
 static bool fast_cache_maint(struct nvmap_client *client, struct nvmap_handle *h,
 	unsigned long start, unsigned long end, unsigned int op)
 {
 	int ret = false;
+
 #if defined(CONFIG_NVMAP_CACHE_MAINT_BY_SET_WAYS)
 	if ((op == NVMAP_CACHE_OP_INV) ||
-		((end - start) < FLUSH_CLEAN_BY_SET_WAY_THRESHOLD_INNER))
+		((end - start) < FLUSH_CLEAN_BY_SET_WAY_THRESHOLD))
 		goto out;
 
 	if (op == NVMAP_CACHE_OP_WB_INV)
@@ -578,19 +557,13 @@ static bool fast_cache_maint(struct nvmap_client *client, struct nvmap_handle *h
 	else if (op == NVMAP_CACHE_OP_WB)
 		inner_clean_cache_all();
 
-	/* outer maintenance */
-	if (h->flags != NVMAP_HANDLE_INNER_CACHEABLE ) {
-		if(!fast_cache_maint_outer(start, end, op))
-		{
-			if (h->heap_pgalloc) {
-				heap_page_cache_maint(client, h, start,
-					end, op, false, true, NULL, 0, 0);
-			} else  {
-				start += h->carveout->base;
-				end += h->carveout->base;
-				outer_cache_maint(op, start, end - start);
-			}
-		}
+	if (h->heap_pgalloc && (h->flags != NVMAP_HANDLE_INNER_CACHEABLE)) {
+		heap_page_cache_maint(client, h, start, end, op,
+				false, true, NULL, 0, 0);
+	} else if (h->flags != NVMAP_HANDLE_INNER_CACHEABLE) {
+		start += h->carveout->base;
+		end += h->carveout->base;
+		outer_cache_maint(op, start, end - start);
 	}
 	ret = true;
 out:
