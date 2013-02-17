@@ -171,6 +171,7 @@ struct tegra_dc {
 	u32 suspend_status;
 };
 
+#if 0
 #define print_mode_info(dc, mode) do {					\
 	trace_printk("%s:Mode settings: "				\
 			"ref_to_sync: H = %d V = %d, "			\
@@ -186,6 +187,10 @@ struct tegra_dc {
 			mode.h_active, mode.v_active,			\
 			mode.h_front_porch, mode.v_front_porch,		\
 			mode.pclk, mode.stereo_mode);			\
+	} while (0)
+#endif
+
+#define print_mode_info(dc, mode) do {					\
 	} while (0)
 
 static inline void tegra_dc_io_start(struct tegra_dc *dc)
@@ -208,7 +213,6 @@ static inline unsigned long tegra_dc_readl(struct tegra_dc *dc,
 		WARN(1, "DC is clock-gated.\n");
 
 	ret = readl(dc->base + reg * 4);
-	trace_printk("readl %p=%#08lx\n", dc->base + reg * 4, ret);
 	return ret;
 }
 
@@ -219,7 +223,6 @@ static inline void tegra_dc_writel(struct tegra_dc *dc, unsigned long val,
 	if (!tegra_is_clk_enabled(dc->clk))
 		WARN(1, "DC is clock-gated.\n");
 
-	trace_printk("writel %p=%#08lx\n", dc->base + reg * 4, val);
 	writel(val, dc->base + reg * 4);
 }
 
