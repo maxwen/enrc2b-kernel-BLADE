@@ -156,6 +156,13 @@
 #define RP_VEND_XP						0x00000F00
 #define RP_VEND_XP_DL_UP					(1 << 30)
 
+//https://github.com/Xmister/endeavoru-jb-crc-3.1.10/commit/e505aa2a12cc7f6bc1ec66794d3e5b09f227e124
+#define  RP_TXBA1						0x00000E1C
+#define  RP_TXBA1_CM_OVER_PW_BURST_MASK			(0xF << 4)
+#define  RP_TXBA1_CM_OVER_PW_BURST_INIT_VAL			(0x4 << 4)
+#define  RP_TXBA1_PW_OVER_CM_BURST_MASK			(0xF)
+#define  RP_TXBA1_PW_OVER_CM_BURST_INIT_VAL			(0x4)
+
 #define RP_LINK_CONTROL_STATUS					0x00000090
 #define RP_LINK_CONTROL_STATUS_LINKSTAT_MASK			0x3fff0000
 
@@ -1227,6 +1234,7 @@ static void tegra_pcie_enable_aspm_l1_support(int index)
 static void tegra_pcie_add_port(int index, u32 offset, u32 reset_reg)
 {
 	struct tegra_pcie_port *pp;
+	unsigned int data;
 
 	pp = tegra_pcie.port + tegra_pcie.num_ports;
 
@@ -1241,6 +1249,18 @@ static void tegra_pcie_add_port(int index, u32 offset, u32 reset_reg)
 	}
 	tegra_pcie_enable_clock_clamp(index);
 	tegra_pcie_enable_aspm_l1_support(index);
+
+	/*
+	 * Initialize TXBA1 register to fix the unfair arbitration
+	 * between downstream reads and completions to upstream reads
+	 */
+	data = rp_readl(RP_TXBA1, index);
+	data &= ~(RP_TXBA1_PW_OVER_CM_BURST_MASK);
+	data |= RP_TXBA1_PW_OVER_CM_BURST_INIT_VAL;
+	data &= ~(RP_TXBA1_CM_OVER_PW_BURST_MASK);
+	data |= RP_TXBA1_CM_OVER_PW_BURST_INIT_VAL;
+	rp_writel(data, RP_TXBA1, index);
+
 	tegra_pcie.num_ports++;
 	pp->index = index;
 	memset(pp->res, 0, sizeof(pp->res));
@@ -1277,7 +1297,7 @@ static int tegra_pcie_init(void)
 	}
 
 	if (tegra_pcie.plat_data->use_dock_detect) {
-		unsigned int irq;
+		int irq;
 
 		pr_info("acquiring dock_detect = %d\n",
 				tegra_pcie.plat_data->gpio);
@@ -1288,7 +1308,7 @@ static int tegra_pcie_init(void)
 			pr_err("Unable to get irq number for dock_detect\n");
 			goto err_irq;
 		}
-		err = request_irq(irq,
+		err = request_irq((unsigned int)irq,
 				gpio_pcie_detect_isr,
 				IRQF_TRIGGER_RISING | IRQF_TRIGGER_FALLING,
 				"pcie_dock_detect",
