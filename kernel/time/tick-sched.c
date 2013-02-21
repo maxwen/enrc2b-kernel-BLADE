@@ -329,7 +329,7 @@ void tick_nohz_stop_sched_tick(int inidle)
 	} while (read_seqretry(&xtime_lock, seq));
 
 	if (rcu_needs_cpu(cpu) || printk_needs_cpu(cpu) ||
-	    arch_needs_cpu(cpu)) {
+	    arch_needs_cpu(cpu) || this_cpu_load()) {
 		next_jiffies = last_jiffies + jiffies_per_tick;
 		delta_jiffies = jiffies_per_tick;
 	} else {
