@@ -419,46 +419,34 @@ static int balanced_start(void)
 	int err, count;
 	struct cpufreq_frequency_table *table;
 	struct cpufreq_freqs initial_freq;
-
-	pr_info("0\n");
 	
 	err = balanced_sysfs();
 	if (err)
 		return err;
-
-	pr_info("1\n");
 	
 	balanced_wq = alloc_workqueue("cpuquiet-balanced",
 			WQ_UNBOUND | WQ_RESCUER | WQ_FREEZABLE, 1);
 	if (!balanced_wq)
 		return -ENOMEM;
 
-	pr_info("2\n");
 	INIT_DELAYED_WORK(&balanced_work, balanced_work_func);
-
-	pr_info("3\n");
+	
 	up_delay = msecs_to_jiffies(100);
 	down_delay = msecs_to_jiffies(2000);
 
-	pr_info("4\n");
 	table = cpufreq_frequency_get_table(0);
 
-	pr_info("41\n");	
 	for (count = 0; table[count].frequency != CPUFREQ_TABLE_END; count++);
 
-	pr_info("5\n");
 	idle_top_freq = table[(count / 2) - 1].frequency;
 	idle_bottom_freq = table[(count / 2) - 2].frequency;
 
-	pr_info("6\n");
 	cpufreq_register_notifier(&balanced_cpufreq_nb,
 		CPUFREQ_TRANSITION_NOTIFIER);
 
-	pr_info("7\n");
 	init_timer(&load_timer);
 	load_timer.function = calculate_load_timer;
 
-	pr_info("8\n");
 	/*FIXME: Kick start the state machine by faking a freq notification*/
 	initial_freq.new = cpufreq_get(0);
 	if (initial_freq.new != 0)
