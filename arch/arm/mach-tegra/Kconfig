@@ -869,3 +869,10 @@ config VOLTAGE_CONTROL
     default n
     help
       Enable CPU voltage control
+      
+config SMARTDIMMER
+    bool "Enable smartdimmer"
+    default n
+    help
+      Enable panel smartdimmer support
+
