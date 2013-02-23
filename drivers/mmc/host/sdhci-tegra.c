@@ -1308,6 +1308,9 @@ static int __devinit sdhci_tegra_probe(struct platform_device *pdev)
 		mmc_bkops_alarm_handler);
         }
 
+	/* enable async suspend/resume to reduce LP0 latency */
+	device_enable_async_suspend(&pdev->dev);
+
 	return 0;
 
 err_add_host:
