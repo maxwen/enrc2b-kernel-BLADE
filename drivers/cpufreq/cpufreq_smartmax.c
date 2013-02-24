@@ -986,12 +986,16 @@ static int cpufreq_smartmax_boost_task (
 			
         boost_running = true;
         /* boost ASAP */
+        /* we always boost cpu 0 */
         if (tegra_input_boost(0, cur_boost_freq) < 0){
             continue;
         }
 
         boost_end_time =
             ktime_to_ns(ktime_get()) + boost_duration;
+
+        if (lock_policy_rwsem_write(0) < 0)
+            continue;
 
         this_smartass = &per_cpu(smartmax_info, 0);
         if (this_smartass) {
@@ -1003,6 +1007,7 @@ static int cpufreq_smartmax_boost_task (
                                      &this_smartass->prev_cpu_wall);
             }
         }
+        unlock_policy_rwsem_write(0);
     }
 
     return 0;
