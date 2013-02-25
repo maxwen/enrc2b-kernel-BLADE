@@ -717,15 +717,6 @@ static struct tegra_suspend_platform_data enrc2b_suspend_data = {
 	.board_resume = enrc2b_board_resume,
 	.cpu_resume_boost	= 1700000,
 	.boost_resume_reason	= 0x80,
-//https://github.com/Xmister/endeavoru-jb-crc-3.1.10/commit/96b42a3b48b1587baeacfd0e7e78ef2a51619b66
-#ifdef CONFIG_TEGRA_LP1_950
-    .lp1_lowvolt_support = true,
-    .i2c_base_addr = TEGRA_I2C5_BASE,
-    .pmuslave_addr = 0x24,
-    .core_reg_addr = 0x5B,
-    .lp1_core_volt_low = 0x1D,
-    .lp1_core_volt_high = 0x33,
-#endif
 };
 
 int __init enrc2b_suspend_init(void)
