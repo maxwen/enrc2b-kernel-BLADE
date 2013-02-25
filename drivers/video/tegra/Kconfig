@@ -119,7 +119,7 @@ config NVMAP_PAGE_POOL_SIZE
 	default 0x0
 
 config NVMAP_CACHE_MAINT_BY_SET_WAYS
-	bool "Enalbe cache maintenance by set/ways"
+	bool "Enable cache maintenance by set/ways"
 	depends on TEGRA_NVMAP
 	help
 	 Say Y here to reduce cache maintenance overhead by MVA.
