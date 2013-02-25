@@ -955,6 +955,8 @@ static struct attribute * smartmax_attributes[] = {
 	&sync_cpu_downscale_attr.attr,
 	&boost_freq_attr.attr,
 	&boost_duration_attr.attr,
+	&io_is_busy_attr.attr,
+	&ignore_nice_attr.attr,
 	NULL,
 };
 
