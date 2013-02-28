@@ -2139,14 +2139,14 @@ static int tegra_cpu_init(struct cpufreq_policy *policy)
 		policy->max = get_cpu_freq_limit(policy->cpu);
 		policy->min = T3_CPU_MIN_FREQ;
 		register_pm_notifier(&tegra_cpu_pm_notifier);
-		pr_info("cpu-tegra_cpufreq: restored cpu[%d]'s freq: %u\n", policy->cpu, policy->max);
+		pr_debug("cpu-tegra_cpufreq: restored cpu[%d]'s freq: %u\n", policy->cpu, policy->max);
 	}
 
     /* restore saved cpu frequency */
     if (policy->cpu > 0) {
 		policy->max = get_cpu_freq_limit(policy->cpu);
 		tegra_update_cpu_speed(policy->max);
-		pr_info("cpu-tegra_cpufreq: restored cpu[%d]'s freq: %u\n", policy->cpu, policy->max);
+		pr_debug("cpu-tegra_cpufreq: restored cpu[%d]'s freq: %u\n", policy->cpu, policy->max);
 	}
 
 	return 0;
