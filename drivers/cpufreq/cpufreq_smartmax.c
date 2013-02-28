@@ -986,13 +986,14 @@ static int cpufreq_smartmax_boost_task (
 		if (boost_running)
 			continue;
 			
-        boost_running = true;
         /* boost ASAP */
         /* we always boost cpu 0 */
         if (tegra_input_boost(0, cur_boost_freq) < 0){
             continue;
         }
 
+        boost_running = true;
+        
         boost_end_time =
             ktime_to_ns(ktime_get()) + boost_duration;
 
