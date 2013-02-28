@@ -61,15 +61,15 @@
  * This will replace TEGRA_MPDEC_DELAY in each case.
  */
 #define TEGRA_MPDEC_LPCPU_UPDELAY         70
-#define TEGRA_MPDEC_LPCPU_DOWNDELAY       500
+#define TEGRA_MPDEC_LPCPU_DOWNDELAY       2000
 
 /*
  * LPCPU hysteresis default values
- * we need at least 4 requests to go into lpmode and
+ * we need at least 5 requests to go into lpmode and
  * we need at least 3 requests to come out of lpmode.
  * This does not affect frequency overrides
  */
-#define TEGRA_MPDEC_LPCPU_UP_HYS        3
+#define TEGRA_MPDEC_LPCPU_UP_HYS        4
 #define TEGRA_MPDEC_LPCPU_DOWN_HYS      2
 
 enum {
@@ -520,7 +520,7 @@ static void tegra_mpdec_work_thread(struct work_struct *work)
                 if ((!is_lp_cluster()) && (lp_possible())) {
                         /* hysteresis loop for lpcpu powerup
                            this prevents the lpcpu to kick in too early and produce lags
-                           we need at least 4 requests in order to power up the lpcpu */
+                           we need at least 5 requests in order to power up the lpcpu */
                         lpup_req++;
                         if (lpup_req > tegra_mpdec_tuners_ins.lp_cpu_up_hysteresis) {
                                 if(!tegra_lp_cpu_handler(true, false))
