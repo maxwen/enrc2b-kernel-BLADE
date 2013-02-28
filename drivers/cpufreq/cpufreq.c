@@ -516,7 +516,7 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 		if (ret)
 			continue;
 
-		pr_info("maxwen:store_scaling_governor setting governor %s on cpu %d ok\n", str_governor, cpu);
+		pr_debug("store_scaling_governor setting governor %s on cpu %d ok\n", str_governor, cpu);
 #ifdef CONFIG_HOTPLUG_CPU
 		cpufreq_cpu_put(policy);
 	}
@@ -680,7 +680,7 @@ static ssize_t store_scaling_max_freq_limit(struct cpufreq_policy *policy,
 		ret = __cpufreq_set_policy(policy, &new_policy);
 		policy->user_policy.max = new_policy.max;
 		if (!ret)
-			pr_info("maxwen:store_scaling_max_freq_limit set policy->max of cpu %d to %d - ok\n", cpu, new_policy.max);
+			pr_debug("store_scaling_max_freq_limit set policy->max of cpu %d to %d - ok\n", cpu, new_policy.max);
 		
 		cpufreq_cpu_put(policy);
 	}
@@ -735,7 +735,7 @@ static ssize_t store_scaling_max_freq(struct cpufreq_policy *policy,
 		ret = __cpufreq_set_policy(policy, &new_policy);
 		policy->user_policy.max = new_policy.max;
 		if (!ret)
-			pr_info("maxwen:store_scaling_max_freq set policy->max of cpu %d to %d - ok\n", cpu, new_policy.max);
+			pr_debug("store_scaling_max_freq set policy->max of cpu %d to %d - ok\n", cpu, new_policy.max);
 		
 		cpufreq_cpu_put(policy);
 	}
@@ -1123,10 +1123,6 @@ static int cpufreq_add_dev(struct sys_device *sys_dev)
 	if (!found){
 		policy->governor = CPUFREQ_DEFAULT_GOVERNOR;
 	}
-
-#if 0
-	pr_info("maxwen: cpufreq_add_dev set governor for cpu %d to %s\n", cpu, policy->governor->name);	
-#endif
 
 	/* call driver. From then on the cpufreq must be able
 	 * to accept all calls to ->verify and ->setpolicy for this CPU
@@ -1841,11 +1837,6 @@ static int __cpufreq_set_policy(struct cpufreq_policy *data,
 		   data->user_policy.max);
 	qmax = max((unsigned int)pm_qos_request(PM_QOS_CPU_FREQ_MAX),
 		   data->user_policy.min);
-
-#if 0
-	pr_info("maxwen:_cpufreq_set_policy setting new policy for CPU %u: %u - %u (%u - %u) kHz\n",
-		policy->cpu, pmin, pmax, qmin, qmax);
-#endif
 
 	/* clamp the new policy to PM QoS limits */
 	policy->min = max(pmin, qmin);
