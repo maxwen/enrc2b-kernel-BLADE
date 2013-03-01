@@ -46,6 +46,8 @@
 
 #define DEBUG 0
 
+extern unsigned int best_core_to_turn_up (void);
+
 #define MPDEC_TAG                       "[MPDEC]: "
 #define TEGRA_MPDEC_STARTDELAY            20000
 #define TEGRA_MPDEC_DELAY                 70
@@ -185,21 +187,6 @@ static bool lp_possible(void)
 		return false;
 
 	return true;
-}
-
-static unsigned int best_core_to_turn_up (void) {
-    /* mitigate high temperature, 0 -> 3 -> 2 -> 1 */
-    if (!cpu_online (3))
-        return 3;
-
-    if (!cpu_online (2))
-        return 2;
-
-    if (!cpu_online (1))
-        return 1;
-
-    /* NOT found, return >= nr_cpu_id */
-    return nr_cpu_ids;
 }
 
 static int mp_decision(void)
@@ -574,8 +561,12 @@ static void tegra_mpdec_early_suspend(struct early_suspend *h)
 	}
 
         /* main work thread can sleep now */
+        pr_info("maxwen: before cancel_delayed_work_sync(&tegra_mpdec_work)");
+		mutex_lock(&mpdec_tegra_cpu_lock);
         cancel_delayed_work_sync(&tegra_mpdec_work);
-
+		mutex_unlock(&mpdec_tegra_cpu_lock);
+        pr_info("maxwen: after cancel_delayed_work_sync(&tegra_mpdec_work)");
+        
         if ((lp_possible()) && (!is_lp_cluster())) {
                 if(!tegra_lp_cpu_handler(true, false))
                         pr_err(MPDEC_TAG"CPU[LP] error, cannot power up.\n");
@@ -590,7 +581,9 @@ static void tegra_mpdec_late_resume(struct early_suspend *h)
 {
 	int cpu = nr_cpu_ids;
 	for_each_possible_cpu(cpu) {
+		mutex_lock(&per_cpu(tegra_mpdec_cpudata, cpu).suspend_mutex);
 		per_cpu(tegra_mpdec_cpudata, cpu).device_suspended = false;
+		mutex_unlock(&per_cpu(tegra_mpdec_cpudata, cpu).suspend_mutex);
 	}
         /* always switch back to g mode on resume */
         if (is_lp_cluster())

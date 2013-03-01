@@ -44,6 +44,8 @@
 #define UP2Gn_DELAY_MS		100
 #define DOWN_DELAY_MS		500
 
+extern unsigned int best_core_to_turn_up (void);
+
 static struct mutex *tegra3_cpu_lock;
 
 static struct workqueue_struct *hotplug_wq;
@@ -714,7 +716,7 @@ static void tegra_auto_hotplug_work_func(struct work_struct *work)
 			switch (tegra_cpu_speed_balance()) {
 			/* cpu speed is up and balanced - one more on-line */
 			case TEGRA_CPU_SPEED_BALANCED:
-				cpu = cpumask_next_zero(0, cpu_online_mask);
+				cpu = best_core_to_turn_up ();
 				if (cpu < nr_cpu_ids)
 					up = true;
 				break;
@@ -763,8 +765,6 @@ static void tegra_auto_hotplug_work_func(struct work_struct *work)
 }
 
 #if defined(CONFIG_BEST_TRADE_HOTPLUG)
-extern unsigned int best_core_to_turn_up (void);
-
 unsigned int g2lp_bottom_freq (void) {
     return idle_bottom_freq;
 }

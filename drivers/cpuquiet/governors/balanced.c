@@ -29,6 +29,9 @@
 #include <linux/tick.h>
 #include <asm/cputime.h>
 
+// from cpu-tegra.c
+extern unsigned int best_core_to_turn_up (void);
+
 #define CPUNAMELEN 8
 
 typedef enum {
@@ -208,21 +211,6 @@ static CPU_SPEED_BALANCE balanced_speed_balance(void)
 		return CPU_SPEED_BIASED;
 
 	return CPU_SPEED_BALANCED;
-}
-
-static unsigned int best_core_to_turn_up (void) {
-    /* mitigate high temperature, 0 -> 3 -> 2 -> 1 */
-    if (!cpu_online (3))
-        return 3;
-
-    if (!cpu_online (2))
-        return 2;
-
-    if (!cpu_online (1))
-        return 1;
-
-    /* NOT found, return >= nr_cpu_id */
-    return nr_cpu_ids;
 }
 
 static void balanced_work_func(struct work_struct *work)

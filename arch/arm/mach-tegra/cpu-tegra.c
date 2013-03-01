@@ -529,6 +529,12 @@ int tegra_update_cpu_speed(unsigned long rate)
 	freqs.old = tegra_getspeed(0);
 	freqs.new = rate;
 
+	rate = clk_round_rate(cpu_clk, rate * 1000);
+	if (!IS_ERR_VALUE(rate))
+		freqs.new = rate / 1000;
+
+// maxwen - cpuquiet is handling this on its own
+#ifndef CONFIG_TEGRA_CPUQUIET
 	if (rate_save > T3_LP_MAX_FREQ) {
 		if (is_lp_cluster()) {
 
@@ -555,6 +561,7 @@ int tegra_update_cpu_speed(unsigned long rate)
 			freqs.new = rate_save;
 		}
 	}
+#endif
 
 	if (freqs.old == freqs.new){
 		return ret;
@@ -728,6 +735,22 @@ static unsigned int get_scaled_freq (unsigned int target_freq)
 	//pr_info("get_scaled_freq cpu %d %d %d\n", cpu, save_freq, target_freq);
     return target_freq;
 }
+
+unsigned int best_core_to_turn_up (void) {
+    /* mitigate high temperature, 0 -> 3 -> 2 -> 1 */
+    if (!cpu_online (3))
+        return 3;
+
+    if (!cpu_online (2))
+        return 2;
+
+    if (!cpu_online (1))
+        return 1;
+
+    /* NOT found, return >= nr_cpu_id */
+    return nr_cpu_ids;
+}
+EXPORT_SYMBOL(best_core_to_turn_up);
 
 #if defined(CONFIG_BEST_TRADE_HOTPLUG)
 
@@ -993,22 +1016,6 @@ static unsigned int best_core_to_turn_down (void) {
     /* NOT found, return >= nr_cpu_id */
     return tegra_get_slowest_cpu_n ();
 }
-
-unsigned int best_core_to_turn_up (void) {
-    /* mitigate high temperature, 0 -> 3 -> 2 -> 1 */
-    if (!cpu_online (3))
-        return 3;
-
-    if (!cpu_online (2))
-        return 2;
-
-    if (!cpu_online (1))
-        return 1;
-
-    /* NOT found, return >= nr_cpu_id */
-    return nr_cpu_ids;
-}
-EXPORT_SYMBOL(best_core_to_turn_up);
 
 static unsigned int big_two_mp_adjustment (
     int i_cpu,
