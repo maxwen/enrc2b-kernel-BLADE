@@ -315,6 +315,7 @@ void tegra_auto_hotplug_governor(unsigned int cpu_freq, bool suspend)
 
 	if (is_lp_cluster() && (cpu_freq >= idle_top_freq || no_lp)) {
 		lpdown_req++;
+		lpup_req = 0;
         if (lpdown_req > TEGRA_MPDEC_LPCPU_DOWN_HYS) {
        		cpq_state = TEGRA_CPQ_SWITCH_TO_G;
        		lpdown_req = 0;
@@ -323,6 +324,7 @@ void tegra_auto_hotplug_governor(unsigned int cpu_freq, bool suspend)
 	} else if (!is_lp_cluster() && !no_lp &&
 		   cpu_freq <= idle_bottom_freq) {
 		lpup_req++;
+		lpdown_req = 0;
         if (lpup_req > TEGRA_MPDEC_LPCPU_UP_HYS) {
 			cpq_state = TEGRA_CPQ_SWITCH_TO_LP;
 			lpup_req = 0;
