@@ -95,19 +95,18 @@ static struct dvfs_rail *tegra3_dvfs_rails[] = {
 static int tegra3_get_core_floor_mv(int cpu_mv)
 {
 	if (cpu_mv < 800)
-		return 900;
+		return VDD_CORE_MIN;
 	if (cpu_mv < 900)
-		return 950;
-	if (cpu_mv < 1000)
 		return 1000;
-	if (cpu_mv < 1050)
-		return 1050;
-	if (cpu_mv < 1100)
+	if (cpu_mv < 1000)
 		return 1100;
-	if (cpu_mv < 1150)
-		return 1150;
-	if (cpu_mv < 1200)
-		return 1250;
+	if ((tegra_cpu_speedo_id() < 2) ||
+	    (tegra_cpu_speedo_id() == 4) ||
+	    (tegra_cpu_speedo_id() == 7) ||
+	    (tegra_cpu_speedo_id() == 8))
+		return 1200;
+	if (cpu_mv < 1100)
+		return 1200;
 	if (cpu_mv <= 1250)
 		return 1300;
 	BUG();
@@ -544,7 +543,7 @@ static void __init init_dvfs_cold(struct dvfs *d, int nominal_mv_index)
 			cpu_cold_freqs[i] = d->freqs[i] - offs;
 		else {
 			cpu_cold_freqs[i] = d->freqs[i];
-			pr_warn("tegra3_dvfs: cold offset %lu is too high for"
+			pr_debug("tegra3_dvfs: cold offset %lu is too high for"
 				" regular dvfs limit %lu\n", offs, d->freqs[i]);
 		}
 
