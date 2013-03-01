@@ -62,12 +62,29 @@ static struct clk *cpu_lp_clk;
 
 static struct cpumask cr_online_requests;
 
+#define CPUQUIET_TAG                       "[CPUQUIET]: "
+/*
+ * LPCPU hysteresis default values
+ * we need at least 5 requests to go into lpmode and
+ * we need at least 2 requests to come out of lpmode.
+ * This does not affect frequency overrides
+ */
+#define TEGRA_MPDEC_LPCPU_UP_HYS        4
+#define TEGRA_MPDEC_LPCPU_DOWN_HYS      1
+
 enum {
 	TEGRA_CPQ_DISABLED = 0,
 	TEGRA_CPQ_IDLE,
 	TEGRA_CPQ_SWITCH_TO_LP,
 	TEGRA_CPQ_SWITCH_TO_G,
 };
+
+static void show_status()
+{
+	pr_info(CPUQUIET_TAG "Mask=[%d.%d%d%d%d]\n",
+    	is_lp_cluster(), ((is_lp_cluster() == 1) ? 0 : cpu_online(0)),
+        cpu_online(1), cpu_online(2), cpu_online(3));
+}
 
 static int cpq_state;
 
@@ -77,7 +94,8 @@ static int update_core_config(unsigned int cpunumber, bool up)
 	unsigned int nr_cpus = num_online_cpus();
 	int max_cpus = pm_qos_request(PM_QOS_MAX_ONLINE_CPUS) ? : 4;
 	int min_cpus = pm_qos_request(PM_QOS_MIN_ONLINE_CPUS);
-
+	bool changed = false;
+	
 	if (cpq_state == TEGRA_CPQ_DISABLED || cpunumber >= nr_cpu_ids)
 		return ret;
 
@@ -87,18 +105,25 @@ static int update_core_config(unsigned int cpunumber, bool up)
 			ret = -EBUSY;
 		} else {
 			if (tegra_cpu_edp_favor_up(nr_cpus, mp_overhead) &&
-			    nr_cpus < max_cpus)
+			    nr_cpus < max_cpus){
 				ret = cpu_up(cpunumber);
+				changed = true;
+			}
 		}
 	} else {
 		if (is_lp_cluster()) {
 			ret = -EBUSY;
 		} else {
-			if (nr_cpus > min_cpus)
+			if (nr_cpus > min_cpus){
 				ret = cpu_down(cpunumber);
+				changed = true;
+			}
 		}
 	}
 
+	if(changed)
+		show_status();
+		
 	return ret;
 }
 
@@ -145,6 +170,7 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 		case TEGRA_CPQ_SWITCH_TO_G:
 			if (is_lp_cluster()) {
 				if(!clk_set_parent(cpu_clk, cpu_g_clk)) {
+					pr_info(CPUQUIET_TAG "LP off\n"),
 					/*catch-up with governor target speed */
 					tegra_cpu_set_speed_cap(NULL);
 					/* process pending core requests*/
@@ -157,6 +183,7 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 				!pm_qos_request(PM_QOS_MIN_ONLINE_CPUS)
 				&& num_online_cpus() == 1) {
 				if (!clk_set_parent(cpu_clk, cpu_lp_clk)) {
+					pr_info(CPUQUIET_TAG "LP on\n"),
 					/*catch-up with governor target speed*/
 					tegra_cpu_set_speed_cap(NULL);
 					device_busy = 1;
@@ -252,6 +279,9 @@ static int max_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
 
 void tegra_auto_hotplug_governor(unsigned int cpu_freq, bool suspend)
 {
+    static int lpup_req = 0;
+    static int lpdown_req = 0;
+
 	if (!is_g_cluster_present())
 		return;
 
@@ -260,6 +290,8 @@ void tegra_auto_hotplug_governor(unsigned int cpu_freq, bool suspend)
 
 	if (suspend) {
 		cpq_state = TEGRA_CPQ_IDLE;
+        lpup_req = 0;
+        lpdown_req = 0;
 
 		/* Switch to G-mode if suspend rate is high enough */
 		if (is_lp_cluster() && (cpu_freq >= idle_bottom_freq)) {
@@ -273,6 +305,8 @@ void tegra_auto_hotplug_governor(unsigned int cpu_freq, bool suspend)
 		if (cpq_state != TEGRA_CPQ_SWITCH_TO_G) {
 			/* Force switch */
 			cpq_state = TEGRA_CPQ_SWITCH_TO_G;
+            lpup_req = 0;
+            lpdown_req = 0;
 			queue_delayed_work(
 				cpuquiet_wq, &cpuquiet_work, up_delay);
 		}
@@ -280,14 +314,24 @@ void tegra_auto_hotplug_governor(unsigned int cpu_freq, bool suspend)
 	}
 
 	if (is_lp_cluster() && (cpu_freq >= idle_top_freq || no_lp)) {
-		cpq_state = TEGRA_CPQ_SWITCH_TO_G;
-		queue_delayed_work(cpuquiet_wq, &cpuquiet_work, up_delay);
+		lpdown_req++;
+        if (lpdown_req > TEGRA_MPDEC_LPCPU_DOWN_HYS) {
+       		cpq_state = TEGRA_CPQ_SWITCH_TO_G;
+       		lpdown_req = 0;
+			queue_delayed_work(cpuquiet_wq, &cpuquiet_work, up_delay);
+		}
 	} else if (!is_lp_cluster() && !no_lp &&
 		   cpu_freq <= idle_bottom_freq) {
-		cpq_state = TEGRA_CPQ_SWITCH_TO_LP;
-		queue_delayed_work(cpuquiet_wq, &cpuquiet_work, down_delay);
+		lpup_req++;
+        if (lpup_req > TEGRA_MPDEC_LPCPU_UP_HYS) {
+			cpq_state = TEGRA_CPQ_SWITCH_TO_LP;
+			lpup_req = 0;
+			queue_delayed_work(cpuquiet_wq, &cpuquiet_work, down_delay);
+		}
 	} else {
 		cpq_state = TEGRA_CPQ_IDLE;
+        lpup_req = 0;
+        lpdown_req = 0;
 	}
 }
 
