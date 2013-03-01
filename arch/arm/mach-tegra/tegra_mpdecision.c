@@ -561,10 +561,9 @@ static void tegra_mpdec_early_suspend(struct early_suspend *h)
 	}
 
         /* main work thread can sleep now */
+        // maxwen: TODO added for debugging purposes
         pr_info("maxwen: before cancel_delayed_work_sync(&tegra_mpdec_work)");
-		mutex_lock(&mpdec_tegra_cpu_lock);
         cancel_delayed_work_sync(&tegra_mpdec_work);
-		mutex_unlock(&mpdec_tegra_cpu_lock);
         pr_info("maxwen: after cancel_delayed_work_sync(&tegra_mpdec_work)");
         
         if ((lp_possible()) && (!is_lp_cluster())) {
