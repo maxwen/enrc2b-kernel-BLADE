@@ -56,11 +56,12 @@ extern int mpdecision_gmode_notifier(void);
 #endif
 
 unsigned int tegra_pmqos_boost_freq = BOOST_CPU_FREQ_MIN;
-unsigned int tegra_pmqos_cap_freq = CAP_CPU_FREQ_MAX;
+
+/* frequency cap used during suspend (screen off)*/
+static unsigned int suspend_cap_freq = CAP_CPU_FREQ_MAX;
 
 // maxwen: assumes 4 cores!
 unsigned int tegra_pmqos_cpu_freq_limits[CONFIG_NR_CPUS] = {0, 0, 0, 0};
-
 
 /* tegra throttling and edp governors require frequencies in the table
    to be in ascending order */
@@ -120,6 +121,23 @@ static struct kernel_param_ops policy_ops = {
 };
 module_param_cb(force_policy_max, &policy_ops, &force_policy_max, 0644);
 
+static int suspend_cap_freq_set(const char *arg, const struct kernel_param *kp)
+{
+    int ret = param_set_int(arg, kp);
+    pr_info("suspend_cap_freq %d\n", suspend_cap_freq);
+	return 0;
+}
+
+static int suspend_cap_freq_get(char *buffer, const struct kernel_param *kp)
+{
+	return param_get_uint(buffer, kp);
+}
+
+static struct kernel_param_ops suspend_cap_freq_ops = {
+	.set = suspend_cap_freq_set,
+	.get = suspend_cap_freq_get,
+};
+module_param_cb(suspend_cap_freq, &suspend_cap_freq_ops, &suspend_cap_freq, 0644);
 
 static unsigned int cpu_user_cap = 0;
 
@@ -168,11 +186,11 @@ static int cpu_user_cap_get(char *buffer, const struct kernel_param *kp)
 	return param_get_uint(buffer, kp);
 }
 
-static struct kernel_param_ops cap_ops = {
+static struct kernel_param_ops cpu_user_cap_ops = {
 	.set = cpu_user_cap_set,
 	.get = cpu_user_cap_get,
 };
-module_param_cb(cpu_user_cap, &cap_ops, &cpu_user_cap, 0644);
+module_param_cb(cpu_user_cap, &cpu_user_cap_ops, &cpu_user_cap, 0644);
 
 static unsigned int user_cap_speed(unsigned int requested_speed)
 {
@@ -180,6 +198,67 @@ static unsigned int user_cap_speed(unsigned int requested_speed)
 		return cpu_user_cap;
 	return requested_speed;
 }
+
+static int ril_boost = 0;
+
+static int ril_boost_set(const char *arg, const struct kernel_param *kp)
+{
+	pr_info("ril_boost not supported\n");
+	return 0;
+}
+
+static int ril_boost_get(char *buffer, const struct kernel_param *kp)
+{
+	return 0;
+}
+
+static struct kernel_param_ops ril_boost_ops = {
+	.set = ril_boost_set,
+	.get = ril_boost_get,
+};
+
+module_param_cb(ril_boost, &ril_boost_ops, &ril_boost, 0644);
+
+static int perf_early_suspend = 0;
+
+static int perf_early_suspend_set(const char *arg, const struct kernel_param *kp)
+{
+	pr_info("perf_early_suspend not supported\n");
+
+	return 0;
+}
+
+static int perf_early_suspend_get(char *buffer, const struct kernel_param *kp)
+{
+	return 0;
+}
+static struct kernel_param_ops perf_early_suspend_ops = {
+	.set = perf_early_suspend_set,
+	.get = perf_early_suspend_get,
+};
+
+module_param_cb(perf_early_suspend, &perf_early_suspend_ops, &perf_early_suspend, 0644);
+
+#ifdef CONFIG_TEGRA3_VARIANT_CPU_OVERCLOCK
+static int enable_oc_set(const char *arg, const struct kernel_param *kp)
+{
+    int ret = param_set_int(arg, kp);
+    pr_info("enable_oc %d\n", enable_oc);
+	return 0;
+}
+
+static int enable_oc_get(char *buffer, const struct kernel_param *kp)
+{
+	return param_get_uint(buffer, kp);
+}
+
+static struct kernel_param_ops enable_oc_ops = {
+	.set = enable_oc_set,
+	.get = enable_oc_get,
+};
+
+module_param_cb(enable_oc, &enable_oc_ops, &enable_oc, 0644);
+#endif
 
 #ifdef CONFIG_TEGRA_THERMAL_THROTTLE
 
@@ -2209,8 +2288,8 @@ static struct cpufreq_driver tegra_cpufreq_driver = {
 
 static void tegra_cpufreq_early_suspend(struct early_suspend *h)
 {
-	pr_info("tegra_cpufreq_early_suspend: cap cpu freq to %dMHz\n", tegra_pmqos_cap_freq);
-	pm_qos_update_request(&cap_cpu_freq_req, (s32)tegra_pmqos_cap_freq);
+	pr_info("tegra_cpufreq_early_suspend: cap cpu freq to %dMHz\n", suspend_cap_freq);
+	pm_qos_update_request(&cap_cpu_freq_req, (s32)suspend_cap_freq);
 }
 
 static void tegra_cpufreq_late_resume(struct early_suspend *h)
@@ -2219,68 +2298,6 @@ static void tegra_cpufreq_late_resume(struct early_suspend *h)
 	pm_qos_update_request(&cap_cpu_freq_req, (s32)PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE);
 }
 
-#endif
-
-static int ril_boost = 0;
-
-static int ril_boost_set(const char *arg, const struct kernel_param *kp)
-{
-	pr_info("ril_boost not supported\n");
-	return 0;
-}
-
-static int ril_boost_get(char *buffer, const struct kernel_param *kp)
-{
-	return 0;
-}
-
-
-static struct kernel_param_ops ril_boost_ops = {
-	.set = ril_boost_set,
-	.get = ril_boost_get,
-};
-
-module_param_cb(ril_boost, &ril_boost_ops, &ril_boost, 0644);
-
-static int perf_early_suspend = 0;
-
-static int perf_early_suspend_set(const char *arg, const struct kernel_param *kp)
-{
-	pr_info("perf_early_suspend not supported\n");
-
-	return 0;
-}
-
-static int perf_early_suspend_get(char *buffer, const struct kernel_param *kp)
-{
-	return 0;
-}
-static struct kernel_param_ops perf_early_suspend_ops = {
-	.set = perf_early_suspend_set,
-	.get = perf_early_suspend_get,
-};
-
-module_param_cb(perf_early_suspend, &perf_early_suspend_ops, &perf_early_suspend, 0644);
-
-#ifdef CONFIG_TEGRA3_VARIANT_CPU_OVERCLOCK
-static int enable_oc_set(const char *arg, const struct kernel_param *kp)
-{
-    int ret = param_set_int(arg, kp);
-    pr_info("enable_oc %d\n", enable_oc);
-	return 0;
-}
-
-static int enable_oc_get(char *buffer, const struct kernel_param *kp)
-{
-	return param_get_uint(buffer, kp);
-}
-
-static struct kernel_param_ops enable_oc_ops = {
-	.set = enable_oc_set,
-	.get = enable_oc_get,
-};
-
-module_param_cb(enable_oc, &enable_oc_ops, &enable_oc, 0644);
 #endif
 
 static int __init tegra_cpufreq_init(void)
