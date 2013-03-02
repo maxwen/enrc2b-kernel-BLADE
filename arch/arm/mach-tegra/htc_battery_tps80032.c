@@ -1606,6 +1606,35 @@ static void htc_battery_complete(struct device *dev)
 #endif
 }
 
+static void reevaluate_charger()
+{
+	BATT_LOG("%s", __func__);
+	
+	if ( !!(get_kernel_flag() & ALL_AC_CHARGING) ) {
+		BATT_LOG("Debug flag is set to force AC charging, fake as AC");
+		htc_batt_info.rep.charging_source = CHARGER_AC;
+	} else {
+		if(fast_charge){
+			BATT_LOG("fast_charge is set to force AC charging");	
+			htc_batt_info.rep.charging_source = CHARGER_AC;
+		} else 
+			htc_batt_info.rep.charging_source = CHARGER_USB;
+	}
+
+	if (htc_batt_info.rep.charging_source == CHARGER_USB) {
+		wake_lock(&htc_batt_info.vbus_wake_lock);
+		if (!!(get_kernel_flag() & ALL_AC_CHARGING))
+			tps80032_charger_set_ctrl(POWER_SUPPLY_ENABLE_FAST_CHARGE);
+		else
+			tps80032_charger_set_ctrl(POWER_SUPPLY_ENABLE_SLOW_CHARGE);
+		wake_unlock(&htc_batt_info.vbus_wake_lock);
+	} else if (htc_batt_info.rep.charging_source == CHARGER_AC) {
+		wake_lock(&htc_batt_info.vbus_wake_lock);
+		tps80032_charger_set_ctrl(POWER_SUPPLY_ENABLE_FAST_CHARGE);
+		wake_unlock(&htc_batt_info.vbus_wake_lock);
+	}
+}
+
 static struct dev_pm_ops htc_battery_tps80032_pm_ops = {
 	.prepare = htc_battery_prepare,
 	.complete = htc_battery_complete,
@@ -1627,8 +1656,11 @@ fast_charge_store(struct device *dev,
 
 	value = ((int) simple_strtoul(buf, NULL, 10));
 	if(value == 0 || value == 1){
-		fast_charge = value;
-		BATT_LOG("set fast_charge %d", fast_charge);
+		if(fast_charge != value){
+			fast_charge = value;
+			BATT_LOG("set fast_charge %d", fast_charge);
+			reevaluate_charger();
+		}
 	}
 	else
 		return -EINVAL;
