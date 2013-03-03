@@ -260,6 +260,14 @@ static struct kernel_param_ops enable_oc_ops = {
 module_param_cb(enable_oc, &enable_oc_ops, &enable_oc, 0644);
 #endif
 
+/* disable edp limitations */
+static unsigned int no_edp_limit = 0;
+module_param(no_edp_limit, uint, 0644);
+
+/* disable thermal throttling limitations */
+unsigned int no_thermal_throttle_limit = 0;
+module_param(no_thermal_throttle_limit, uint, 0644);
+
 #ifdef CONFIG_TEGRA_THERMAL_THROTTLE
 
 static ssize_t show_throttle(struct cpufreq_policy *policy, char *buf)
@@ -326,8 +334,6 @@ static void edp_update_limit(void)
 	edp_limit = freq_table[i-1].frequency;
 #endif
 }
-
-extern unsigned int no_edp_limit;
 
 static unsigned int edp_governor_speed(unsigned int requested_speed)
 {
@@ -791,16 +797,6 @@ unsigned int mips_aggressive_factor = 6;
 module_param(mips_aggressive_factor, uint, 0644);
 EXPORT_SYMBOL (mips_aggressive_factor);
 #endif
-
-/* disable edp limitations */
-unsigned int no_edp_limit = 0;
-module_param(no_edp_limit, uint, 0644);
-EXPORT_SYMBOL (no_edp_limit);
-
-/* disable thermal throttling limitations */
-unsigned int no_thermal_throttle_limit = 0;
-module_param(no_thermal_throttle_limit, uint, 0644);
-EXPORT_SYMBOL (no_thermal_throttle_limit);
 
 // maxwen: apply all limits to a frequency
 static unsigned int get_scaled_freq (unsigned int target_freq)
@@ -2168,13 +2164,6 @@ static int tegra_pm_notify(struct notifier_block *nb, unsigned long event,
 			freq);
 		tegra_update_cpu_speed(freq);
 		tegra_auto_hotplug_governor(freq, true);
-#if 0
-		for_each_online_cpu(cpu) {
-			if(cpu==0)
-				continue;
-			cpu_down(cpu);
-		}
-#endif
 	} else if (event == PM_POST_SUSPEND) {
 		unsigned int freq;
 		is_suspended = false;
@@ -2326,7 +2315,7 @@ static int __init tegra_cpufreq_init(void)
 	pm_qos_add_request(&boost_cpu_freq_req, PM_QOS_CPU_FREQ_MIN, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
 	pm_qos_add_request(&cap_cpu_freq_req, PM_QOS_CPU_FREQ_MAX, (s32)PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE);
 	
-	// will cap frequency and num cpus on screen off
+	// will cap frequency on screen off
 	tegra_cpufreq_early_suspender.suspend = tegra_cpufreq_early_suspend;
 	tegra_cpufreq_early_suspender.resume = tegra_cpufreq_late_resume;
 	tegra_cpufreq_early_suspender.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 100;
