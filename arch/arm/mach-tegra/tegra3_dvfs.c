@@ -107,7 +107,7 @@ static int tegra3_get_core_floor_mv(int cpu_mv)
 		return 1200;
 	if (cpu_mv < 1100)
 		return 1200;
-	if (cpu_mv <= 1250)
+	if (cpu_mv <= VDD_CPU_MAX)
 		return 1300;
 	BUG();
 }
