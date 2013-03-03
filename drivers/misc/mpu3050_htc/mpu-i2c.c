@@ -32,7 +32,7 @@
 #include "mpu_htc.h"
 #define MPU_I2C_RETRY_ENABLE 1
 #define MPU_I2C_RETRY_TIMES 3
-#define MPU_I2C_DELAY_TIMES_MS 10
+#define MPU_I2C_DELAY_TIMES_MS 20
 
 int sensor_i2c_write(struct i2c_adapter *i2c_adap,
 		     unsigned char address,
