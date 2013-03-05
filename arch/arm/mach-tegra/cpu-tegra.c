@@ -123,7 +123,12 @@ module_param_cb(force_policy_max, &policy_ops, &force_policy_max, 0644);
 
 static int suspend_cap_freq_set(const char *arg, const struct kernel_param *kp)
 {
-    int ret = param_set_int(arg, kp);
+	int tmp;
+	
+	if (1 != sscanf(arg, "%d", &tmp))
+		return -EINVAL;
+
+    suspend_cap_freq = tmp;
     pr_info("suspend_cap_freq %d\n", suspend_cap_freq);
 	return 0;
 }
@@ -461,7 +466,7 @@ static int tegra_cpu_edp_notify(
 		new_speed = edp_governor_speed(cpu_speed);
 		if (new_speed < cpu_speed) {
 			ret = tegra_cpu_set_speed_cap(NULL);
-			printk(KERN_DEBUG "cpu-tegra:%s cpu:%d force EDP limit %u kHz"
+			pr_debug("cpu-tegra:%s cpu:%d force EDP limit %u kHz"
 				"\n", ret ? " failed to " : " ", cpu, new_speed);
 		}
 		if (!ret)
