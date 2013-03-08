@@ -66,8 +66,6 @@ static struct mpuirq_dev_data mpuirq_dev_data;
 static struct mpuirq_data mpuirq_data;
 static char *interface = MPUIRQ_NAME;
 
-static int gyro_htc_board_info ;
-
 static void mpu_accel_data_work_fcn(struct work_struct *work);
 
 static int mpuirq_open(struct inode *inode, struct file *file)

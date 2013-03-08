@@ -1632,9 +1632,6 @@ void usb_hcd_flush_endpoint(struct usb_device *udev,
 {
 	struct usb_hcd		*hcd;
 	struct urb		*urb;
-	//HTC+++
-	struct usb_hcd		*urb_hcd;
-	//HTC---
 
 	if (!ep)
 		return;

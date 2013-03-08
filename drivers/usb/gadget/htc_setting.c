@@ -3,15 +3,12 @@
 #include <mach/board_htc.h>
 #include <mach/usb_phy.h>
 
-static int first_online;
-
 static struct wake_lock udc_wake_lock;
 static struct wake_lock udc_wake_lock2;
 struct wake_lock udc_resume_wake_lock;
 static DEFINE_MUTEX(notify_sem);
 
 static void update_wake_lock(int status);
-static void ac_detect_expired(unsigned long _data);
 static void usb_prepare(struct tegra_udc *udc);
 static void charger_detect(struct tegra_udc *udc);
 

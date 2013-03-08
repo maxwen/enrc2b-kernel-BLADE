@@ -52,7 +52,6 @@ struct keyreset_state {
 };
 
 static int restart_requested;
-static unsigned long restart_timeout;
 
 static volatile int power_off_led_requested = 0;
 static struct hrtimer led_timer;
@@ -82,20 +81,6 @@ static enum hrtimer_restart led_timer_func(struct hrtimer *timer)
 #if defined(CONFIG_LEDS_LP5521_HTC)
 		lp5521_led_current_set_for_key(1);
 #endif
-	}
-	return HRTIMER_NORESTART;
-}
-
-static enum hrtimer_restart power_reset_func(struct hrtimer *timer)
-{
-	pr_info("[PWR] %s in (%x)\n", __func__, power_reset_requested);
-	if (power_reset_requested == 1) {
-		pr_info("[PWR] power reset flag turn on\n");
-		power_reset_requested = 2;
-		pr_info("[PWR] clear reboot reason to RESTART_REASON_REBOOT\n");
-		reboot_params->reboot_reason = RESTART_REASON_REBOOT;
-		pr_info("[PWR] clear dirty\n");
-		set_dirty_state(0);
 	}
 	return HRTIMER_NORESTART;
 }

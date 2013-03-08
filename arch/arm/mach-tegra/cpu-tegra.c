@@ -248,6 +248,8 @@ module_param_cb(perf_early_suspend, &perf_early_suspend_ops, &perf_early_suspend
 static int enable_oc_set(const char *arg, const struct kernel_param *kp)
 {
     int ret = param_set_int(arg, kp);
+	if (ret)
+		return ret;
     pr_info("enable_oc %d\n", enable_oc);
 	return 0;
 }
@@ -613,9 +615,10 @@ int tegra_update_cpu_speed(unsigned long rate)
 {
 	int ret = 0;
 	struct cpufreq_freqs freqs;
+#ifndef CONFIG_TEGRA_CPUQUIET
 	unsigned long rate_save = rate;
 	int status = 1;
-
+#endif
 	freqs.old = tegra_getspeed(0);
 	freqs.new = rate;
 
@@ -806,13 +809,11 @@ EXPORT_SYMBOL (mips_aggressive_factor);
 // maxwen: apply all limits to a frequency
 static unsigned int get_scaled_freq (unsigned int target_freq)
 {
-	unsigned int save_freq = target_freq;
     /* chip-dependent, such as thermal throttle, edp, and user-defined freq. cap */
     target_freq = tegra_throttle_governor_speed (target_freq);
 	target_freq = edp_governor_speed (target_freq);
 	target_freq = user_cap_speed (target_freq);
 	
-	//pr_info("get_scaled_freq cpu %d %d %d\n", cpu, save_freq, target_freq);
     return target_freq;
 }
 

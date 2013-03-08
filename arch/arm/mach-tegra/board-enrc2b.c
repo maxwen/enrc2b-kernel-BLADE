@@ -578,7 +578,7 @@ static struct platform_device htc_headset_gpio = {
 };
 
 /* HTC_HEADSET_MICROP Driver */
-static struct htc_headset_microp_platform_data htc_headset_microp_data = {
+/*static struct htc_headset_microp_platform_data htc_headset_microp_data = {
 	.eng_cfg			= HS_ENRC2_U_XB,
 	.remote_int		= 1 << 13,
 //	.remote_irq		= TEGRA_uP_TO_INT(13),
@@ -593,7 +593,7 @@ static struct platform_device htc_headset_microp = {
 	.dev	= {
 		.platform_data	= &htc_headset_microp_data,
 	},
-};
+};*/
 
 /* HTC_HEADSET_PMIC Driver */
 static struct htc_headset_pmic_platform_data htc_headset_pmic_data_xe = {
@@ -789,7 +789,9 @@ static struct uart_clk_parent uart_parent_clk[] = {
 #endif
 };
 static struct tegra_uart_platform_data enrc2b_uart_pdata;
+/* GPS uses UARTE
 static struct tegra_uart_platform_data enrc2b_loopback_uart_pdata;
+*/
 
 #ifdef CONFIG_SERIAL_TEGRA_BRCM
 static struct tegra_uart_platform_data enrc2b_brcm_uart_pdata;
@@ -1754,7 +1756,7 @@ static void config_tegra_usb_id_gpios(bool output)
 }
 
 /* Config RESET_EN_CLR and CHG_WDT_EN gpio for reset chip*/
-static void config_tegra_usb_reset_wdt_gpios()
+static void config_tegra_usb_reset_wdt_gpios(void)
 {
 	int ret = 0;
 	pr_info("[CABLE] %s:\n", __func__);
@@ -1992,7 +1994,6 @@ static struct platform_device tegra_baseband_m7400_device = {
 
 static void enrc2b_modem_init(void)
 {
-        struct board_info board_info;
         int ret;
         
         pr_info("%s: enable baseband gpio(s)\n", __func__);
@@ -2051,45 +2052,6 @@ static void enrc2b_modem_init(void)
         tegra_gpio_enable(TEGRA_GPIO_PN2);
         gpio_export(TEGRA_GPIO_PN2, true);
         /*enable core dumo dectect--*/
-}
-
-static void gpio_o_l(int gpio, char* name)
-{
-        int ret = gpio_request(gpio, name);
-        if (ret < 0)
-        {
-                pr_err("[KW] %s: gpio_request failed for gpio %s\n",
-                        __func__, name);
-                //return;
-        }
-        ret = gpio_direction_output(gpio, 0);
-        if (ret < 0) {
-                pr_err("[KW] %s: gpio_direction_output failed %d\n", __func__, ret);
-                gpio_free(gpio);
-                return;
-        }
-        tegra_gpio_enable(gpio);
-        gpio_export(gpio, true);
-}
-
-static void modem_not_init(void)
-{
-        pr_info("%s: disable gpio\n", __func__);
-
-        gpio_o_l(TEGRA_GPIO_PM4, "TEGRA_GPIO_PM4");
-        gpio_o_l(TEGRA_GPIO_PC1, "TEGRA_GPIO_PC1");
-        gpio_o_l(TEGRA_GPIO_PN0, "TEGRA_GPIO_PN0");
-        gpio_o_l(TEGRA_GPIO_PN3, "TEGRA_GPIO_PN3");
-        gpio_o_l(TEGRA_GPIO_PC6, "TEGRA_GPIO_PC6");
-        gpio_o_l(TEGRA_GPIO_PJ0, "TEGRA_GPIO_PJ0");
-        gpio_o_l(TEGRA_GPIO_PV0, "TEGRA_GPIO_PV0");
-        gpio_o_l(TEGRA_GPIO_PN1, "TEGRA_GPIO_PN1");
-        gpio_o_l(TEGRA_GPIO_PN2, "TEGRA_GPIO_PN2");
-        gpio_o_l(TEGRA_GPIO_PJ7, "TEGRA_GPIO_PJ7");
-        gpio_o_l(TEGRA_GPIO_PK7, "TEGRA_GPIO_PK7");
-        gpio_o_l(TEGRA_GPIO_PB0, "TEGRA_GPIO_PB0");
-        gpio_o_l(TEGRA_GPIO_PB1, "TEGRA_GPIO_PB1");
-
 }
 
 #define DEFAULT_PINMUX(_pingroup, _mux, _pupd, _tri, _io)   \
@@ -2183,7 +2145,7 @@ static struct platform_device enr_reset_keys_device = {
 #define BOOT_DEBUG_LOG_LEAVE(fn) \
 	printk(KERN_NOTICE "[BOOT_LOG] Leaving %s\n", fn);
 
-static int enrkey_wakeup() {
+static int enrkey_wakeup(void) {
 	if ( is_resume_from_deep_suspend() ) {
 		unsigned long status =
 			readl(IO_ADDRESS(TEGRA_PMC_BASE) + PMC_WAKE_STATUS);
@@ -2192,7 +2154,7 @@ static int enrkey_wakeup() {
 		return KEY_RESERVED;
 }
 
-static int mistouch_gpio_normal() {
+static int mistouch_gpio_normal(void) {
 	int ret;
 	ret = gpio_direction_input(TEGRA_GPIO_PD2);
 	if (ret < 0) {
@@ -2204,7 +2166,7 @@ static int mistouch_gpio_normal() {
 	return 0;
 }
 
-static int mistouch_gpio_active() {
+static int mistouch_gpio_active(void) {
 	int ret;
 	ret = gpio_direction_output(TEGRA_GPIO_PD2, 0);
 	if (ret < 0) {
@@ -2271,7 +2233,6 @@ static int __init ENRC2_PROJECT_keys_init(void)
 static int mhl_sii_power(int on)
 {
 	int rc = 0;
-	int err = 0;
 
 	pr_info("[DISP]%s(%d) IN\n", __func__, __LINE__);
 	

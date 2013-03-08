@@ -42,10 +42,10 @@
 #define CONFIG_USB_ANNOUNCE_NEW_DEVICES
 #endif
 #endif
-extern int debug_gpio_dump();
+extern int debug_gpio_dump(void);
 extern int trigger_radio_fatal_get_coredump(char *reason);
 extern int trigger_silent_reset(char *reason);
-extern int Modem_is_IMC();
+extern int Modem_is_IMC(void);
 
 struct usb_hub {
 	struct device		*intfdev;	/* the "interface" device */

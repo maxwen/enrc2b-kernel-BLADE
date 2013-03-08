@@ -379,7 +379,7 @@ static void hs_pmic_register(void)
 static int htc_headset_pmic_probe(struct platform_device *pdev)
 {
 	int ret = 0;
-	uint32_t vers = 0;
+	
 	struct htc_headset_pmic_platform_data *pdata = pdev->dev.platform_data;
 
 	HS_LOG("++++++++++++++++++++");

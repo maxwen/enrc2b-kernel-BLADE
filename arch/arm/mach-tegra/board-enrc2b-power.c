@@ -159,10 +159,6 @@ static struct regulator_consumer_supply tps80031_vbus_supply_common[] = {
 	REGULATOR_SUPPLY("usb_vbus", NULL),
 };
 
-static struct regulator_consumer_supply tps80031_battery_charge_supply[] = {
-	REGULATOR_SUPPLY("usb_bat_chg", NULL),
-};
-
 #define TPS_PDATA_INIT(_id, _sname, _minmv, _maxmv, _supply_reg, _always_on,		\
 	_boot_on, _apply_uv, _init_uV, _init_enable, _init_apply,			\
 	_flags, _ectrl, _delay)								\
@@ -313,13 +309,6 @@ static struct tps80031_clk32k_init_data clk32k_idata[] = {
 	},
 };
 
-static struct tps80031_pupd_init_data pupd_idata[] = {
-	{
-		.input_pin = TPS80031_PREQ1,
-		.setting = TPS80031_PUPD_PULLUP,
-	},
-};
-
 static struct tps80031_platform_data tps_platform = {
 	.irq_base	= ENT_TPS80031_IRQ_BASE,
 	.gpio_base	= ENT_TPS80031_GPIO_BASE,
@@ -372,10 +361,6 @@ static struct regulator_consumer_supply fixed_reg_vib_3v_en_supply[] = {
 
 static struct regulator_consumer_supply fixed_reg_mhl_3v3_en_supply[] = {
 	REGULATOR_SUPPLY("v_tp_3v3", NULL),  //v_mhl_3v3
-};
-
-static struct regulator_consumer_supply fixed_reg_aud_3v3_en_supply[] = {
-	REGULATOR_SUPPLY("v_aud_3v3", NULL),
 };
 
 static struct regulator_consumer_supply fixed_reg_lcmio_1v8_en_supply[] = {

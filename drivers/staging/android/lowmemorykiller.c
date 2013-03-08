@@ -77,7 +77,7 @@ static unsigned long lowmem_fork_boost_timeout;
 static uint32_t lowmem_fork_boost = 1;
 static int last_min_adj = OOM_ADJUST_MAX + 1;;
 
-extern int compact_nodes();
+extern int compact_nodes(void);
 
 #define lowmem_print(level, x...)			\
 	do {						\

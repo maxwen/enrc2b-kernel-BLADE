@@ -1159,7 +1159,7 @@ static int usb_resume_interface(struct usb_device *udev,
 			if (status) {
 				dev_err(&intf->dev, "%s error %d\n",
 						"resume", status);
-				pr_info("%s:driver = 0x%x resume error status = %d\n",__func__, driver, status);
+				pr_info("%s:driver = %p resume error status = %d\n",__func__, driver, status);
 			}
 		} else {
 			intf->needs_binding = 1;
@@ -1173,7 +1173,7 @@ static int usb_resume_interface(struct usb_device *udev,
 			if (status) {
 				dev_err(&intf->dev, "%s error %d\n",
 				        "resume", status);
-				pr_info("%s:driver = 0x%x resume error status = %d\n",__func__, driver, status);
+				pr_info("%s:driver = %p resume error status = %d\n",__func__, driver, status);
 			}
 		} else {
 			intf->needs_binding = 1;

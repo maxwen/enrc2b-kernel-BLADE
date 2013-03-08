@@ -1148,7 +1148,7 @@ int tegra_dc_get_frame_time(void)
 		return (int)(total_frame_time/frame_count);
 }
 
-void tegra_dc_frame_time_statistic()
+void tegra_dc_frame_time_statistic(void)
 {
 	if(frame_count < MAX_STATISTIC_COUNT) {
 		ktime_t now = ktime_get();

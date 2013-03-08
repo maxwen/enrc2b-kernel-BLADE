@@ -990,6 +990,7 @@ static int tegra_uart_hw_init(struct tegra_uart_port *t)
 	return 0;
 }
 
+#ifndef CONFIG_SERIAL_TEGRA_BRCM_LPM
 static irqreturn_t bluesleep_hostwake_isr(int irq, void *dev)
 {
 #ifdef USE_BCM_BT_CHIP	/* bt for brcm */
@@ -1038,6 +1039,7 @@ static irqreturn_t bluesleep_hostwake_isr(int irq, void *dev)
 #endif /* USE_BCM_BT_CHIP */
 	return IRQ_HANDLED;
 }
+#endif
 
 static int tegra_uart_init_rx_dma_buffer(struct tegra_uart_port *t)
 {
@@ -1189,7 +1191,6 @@ fail:
 static void tegra_shutdown(struct uart_port *u)
 {
 	struct tegra_uart_port *t;
-	int ret = 0;
 	t = container_of(u, struct tegra_uart_port, uport);
 #ifdef BCM_BT_DEBUG
 	dev_info(t->uport.dev, "[SER_BRCM] +tegra_shutdown\n");
@@ -2108,7 +2109,6 @@ void tegra_brcm_uart_request_clock_off(struct uart_port *uport)
 
 void tegra_brcm_uart_request_clock_off_locked(struct uart_port *uport)
 {
-	unsigned long flags;
 	struct tegra_uart_port *t;
 	bool is_clk_disable = false;
 
@@ -2161,7 +2161,6 @@ void tegra_brcm_uart_request_clock_on(struct uart_port *uport)
 
 void tegra_brcm_uart_request_clock_on_locked(struct uart_port *uport)
 {
-	unsigned long flags;
 	struct tegra_uart_port *t;
 	bool is_clk_enable = false;
 
@@ -2248,7 +2247,6 @@ void tegra_lpm_off_locked(struct uart_port *u)
 {
 #ifdef USE_BCM_BT_CHIP /*bt for brcm*/
 	struct tegra_uart_port *tegra_uport = container_of(u, struct tegra_uart_port, uport);
-	unsigned long tflags;
 
     if (tegra_uport->host_wakeup_level == 0){
         return;

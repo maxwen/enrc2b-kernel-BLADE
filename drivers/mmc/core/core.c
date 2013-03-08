@@ -2232,7 +2232,7 @@ int mmc_suspend_host(struct mmc_host *host)
                                 int ret = 0;
                                 pr_info("Force to do bkops at least %d ms\n",htc_mmc_needs_bkops);
 
-                                if (ret = mmc_bkops_start(host->card, false, false))
+                                if ((ret = mmc_bkops_start(host->card, false, false)))
                                         pr_err("mmc0: Failed to send bkops (%d)\n", ret);
 	                             htc_mmc_bkops_flag = 1;
 	                             bkops_start = ktime_to_ms(ktime_get_real());

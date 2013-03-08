@@ -469,7 +469,7 @@ static u32 utmip_rctrl_val, utmip_tctrl_val;
 static DEFINE_SPINLOCK(utmip_pad_lock);
 static int utmip_pad_count;
 
-int Modem_is_IMC();
+int Modem_is_IMC(void);
 
 static struct tegra_xtal_freq utmip_freq_table[] = {
 	{

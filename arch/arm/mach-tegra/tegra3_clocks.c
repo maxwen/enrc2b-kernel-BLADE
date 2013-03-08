@@ -848,7 +848,9 @@ static int tegra3_cpu_clk_set_rate(struct clk *c, unsigned long rate)
      * to port to any other platforms,
      * pls. modify lt_rate to lt_rate[NR_CPUS] accordingly
      */
+#if defined(CONFIG_BEST_TRADE_HOTPLUG)
     static unsigned long lt_rate = 0;
+#endif
 
 	if (c->dvfs) {
 		if (!c->dvfs->dvfs_rail)

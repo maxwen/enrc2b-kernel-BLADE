@@ -29,7 +29,7 @@
 #include <linux/regulator/consumer.h>
 
 #define LP5521_MAX_LEDS			3	/* Maximum number of LEDs */
-#define LED_DEBUG				1
+#define LED_DEBUG				0
 #if LED_DEBUG
 	#define D(x...) printk(KERN_DEBUG "[LED]" x)
 	#define I(x...) printk(KERN_INFO "[LED]" x)
@@ -1462,7 +1462,6 @@ static int lp5521_led_probe(struct i2c_client *client
 	struct lp5521_chip		*cdata;
 	struct led_i2c_platform_data *pdata;
 	int ret, i;
-	uint8_t data;
 
 	printk("[LED][PROBE] led driver probe +++\n");
 

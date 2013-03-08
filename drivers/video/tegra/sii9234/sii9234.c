@@ -139,8 +139,8 @@ static void Mhl_Proc_Remote_Event(T_MHL_SII9234_INFO *pInfo);
 static void Mhl_Proc_Reset_Key_Status(void);
 #endif
 
-extern void hdmi_hdcp_early_suspend();
-extern void hdmi_hdcp_late_resume();
+extern void hdmi_hdcp_early_suspend(void);
+extern void hdmi_hdcp_late_resume(void);
 
 /*********************************************************************
 	Functions
@@ -517,7 +517,6 @@ static DEVICE_ATTR(rcp_event, 0644, NULL, write_keyevent);
 void sii9234_mhl_device_wakeup(void)
 {
 	int err;
-	int ret = 0 ;
 	T_MHL_SII9234_INFO *pInfo = sii9234_info_ptr;
 
 	PR_DISP_INFO("%s\n", __func__);
@@ -604,12 +603,6 @@ static int sii9234_suspend(struct i2c_client *client, pm_message_t mesg)
 	if (Status_Query() != POWER_STATE_D3)
 		SiiMhlTxDrvTmdsControl(false);
 	return 0;
-}
-
-static void sii9234_EnableTMDS(void)
-{
-	if (Status_Query() == POWER_STATE_D0_MHL)
-		SiiMhlTxDrvTmdsControl(true);
 }
 
 void sii9234_change_usb_owner(bool bMHL)

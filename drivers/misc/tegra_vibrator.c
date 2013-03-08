@@ -34,7 +34,7 @@
 #define PLAYBACK_DUTY_US 		43000
 #define ZERO_DUTY_US 			25000
 
-#undef VIBE_DEBUG
+#define VIBE_DEBUG 0
 #if VIBE_DEBUG
 	#define D(x...) pr_info("[VIB]" ":" x)
 #else
@@ -56,7 +56,6 @@ struct vibrator *g_vib;
 static struct regulator *regulator;
 static struct workqueue_struct *vib_work_queue;
 static struct workqueue_struct *vib_work_feedback_queue;
-static struct pm_qos_request_list boost_cpu_freq_req;
 static unsigned long long disable_time;
 static int vib_state ;
 static unsigned long long enable_time;

@@ -1606,7 +1606,7 @@ static void htc_battery_complete(struct device *dev)
 #endif
 }
 
-static void reevaluate_charger()
+static void reevaluate_charger(void)
 {
 	BATT_LOG("%s", __func__);
 	

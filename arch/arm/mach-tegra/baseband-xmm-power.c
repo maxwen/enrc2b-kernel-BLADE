@@ -208,7 +208,6 @@ static struct workqueue_struct *workqueue;
 static struct work_struct init1_work;
 static struct work_struct init2_work;
 static struct work_struct L2_resume_work;
-static struct delayed_work init4_work;
 static struct baseband_power_platform_data *baseband_power_driver_data;
 static bool register_hsic_device;
 static struct wake_lock wakelock;
@@ -227,7 +226,6 @@ static int baseband_xmm_power_driver_handle_resume(
 static bool wakeup_pending;
 static int uart_pin_pull_state=1; // 1 for UART, 0 for GPIO
 static bool modem_sleep_flag = false;
-static struct regulator *endeavor_dsi_reg = NULL;//for avdd_csi_dsi
 static spinlock_t xmm_lock;
 static bool system_suspending;
 
@@ -358,7 +356,7 @@ int Modem_is_6260()
 }
 EXPORT_SYMBOL_GPL(Modem_is_6260);
 
-int Modem_is_IMC()
+int Modem_is_IMC(void)
 {
 	return ( machine_is_enrc2b() || machine_is_endeavoru() || machine_is_enrc2u() );
 }
@@ -501,7 +499,7 @@ static int gpio_o_l_uart(int gpio, char* name)
     return ret;
 }
 
-void modem_on_for_uart_config()
+void modem_on_for_uart_config(void)
 {
 
 
@@ -519,7 +517,7 @@ void modem_on_for_uart_config()
 
 }
 
-int modem_off_for_uart_config()
+int modem_off_for_uart_config(void)
 {
 	int err=0;
 
@@ -568,7 +566,7 @@ int modem_on_for_usb_config(struct gpio *array, size_t num)
 }
 #endif
 
-int config_gpio_for_power_off()
+int config_gpio_for_power_off(void)
 {
 	int err=0;
 
@@ -701,7 +699,6 @@ static int baseband_xmm_power_on(struct platform_device *device)
 		= (struct baseband_power_platform_data *)
 			device->dev.platform_data;
 	int ret; /* HTC: ENR#U wakeup src fix */
-	int value;
 
 	pr_debug(MODULE_NAME "%s{\n", __func__);
 
@@ -799,7 +796,6 @@ static int baseband_xmm_power_off(struct platform_device *device)
 	struct baseband_power_platform_data *data;
 	int ret; /* HTC: ENR#U wakeup src fix */
 	unsigned long flags;
-	int err=0;
 	
 	pr_debug("%s {\n", __func__);
 
@@ -847,7 +843,7 @@ static int baseband_xmm_power_off(struct platform_device *device)
 	}
 
 	/* unregister usb host controller */
-	pr_debug("%s: hsic device: %x\n", __func__, data->modem.xmm.hsic_device);
+	pr_debug("%s: hsic device: %p\n", __func__, data->modem.xmm.hsic_device);
 	if (data->hsic_unregister && data->modem.xmm.hsic_device)
 	{
 		data->hsic_unregister(data->modem.xmm.hsic_device);
@@ -923,7 +919,6 @@ static ssize_t baseband_xmm_onoff(struct device *dev,
 	struct device_attribute *attr,
 	const char *buf, size_t count)
 {
-	int size;
 	struct platform_device *device = to_platform_device(dev);
 
 	mutex_lock(&baseband_xmm_onoff_lock);
@@ -970,7 +965,6 @@ static DEVICE_ATTR(xmm_onoff, S_IRUSR | S_IWUSR | S_IRGRP,
 void baseband_xmm_set_power_status(unsigned int status)
 {
 	struct baseband_power_platform_data *data = baseband_power_driver_data;
-	int value = 0;
 	unsigned long flags;
 
 	if (baseband_xmm_powerstate == status)
@@ -1048,7 +1042,7 @@ void baseband_xmm_set_power_status(unsigned int status)
 			modem_sleep_flag = true;
 		}
 		if (short_autosuspend && (&usbdev->dev)) {
-				pr_debug("autosuspend delay %d ms,disable short_autosuspend\n", autosuspend_delay);
+				pr_debug("autosuspend delay %lu ms,disable short_autosuspend\n", autosuspend_delay);
 				queue_work(workqueue_susp, &work_defaultsusp);
 				short_autosuspend = false;
 		}
@@ -1443,7 +1437,7 @@ static void baseband_xmm_power_defaultsusp(struct work_struct *work)
 	}
 
 	pm_runtime_set_autosuspend_delay(&usbdev->dev, autosuspend_delay);
-	pr_debug("%s set_autosuspend_delay <%d>", __func__, autosuspend_delay);	
+	pr_debug("%s set_autosuspend_delay <%lu>", __func__, autosuspend_delay);	
 }
 
 /* Do the work for CP initiated L2->L0 */
@@ -1602,7 +1596,7 @@ static void baseband_xmm_device_add_handler(struct usb_device *udev)
 		pm_runtime_set_autosuspend_delay(&udev->dev, autosuspend_delay);//for ICS 39kernel
 
 		usb_enable_autosuspend(udev);
-		pr_debug("enable autosuspend, timer <%d>", autosuspend_delay);
+		pr_debug("enable autosuspend, timer <%lu>", autosuspend_delay);
 	}
 }
 
@@ -1700,7 +1694,7 @@ static int baseband_xmm_power_driver_probe(struct platform_device *device)
 	int err, ret=0;
 
 	 pr_debug(MODULE_NAME"%s 0705 - xmm_wake_pin_miss. \n", __func__);
-	 pr_debug(MODULE_NAME"enum_delay_ms=%d\n", enum_delay_ms);
+	 pr_debug(MODULE_NAME"enum_delay_ms=%lu\n", enum_delay_ms);
 	 htcpcbid=htc_get_pcbid_info();
 	 pr_debug(MODULE_NAME"htcpcbid=%d\n", htcpcbid);
 
@@ -2056,10 +2050,6 @@ static int baseband_xmm_power_driver_handle_resume(
 #ifdef CONFIG_REMOVE_HSIC_L3_STATE
 static int baseband_xmm_power_driver_suspend(struct device *dev)
 {
-	int delay = 10000; /* maxmum delay in msec */
-	struct platform_device *pdev = to_platform_device(dev);
-	struct baseband_power_platform_data *pdata = pdev->dev.platform_data;
-
 	//pr_debug("%s\n", __func__);
 
     /* check if modem is on */
@@ -2084,11 +2074,6 @@ static int baseband_xmm_power_driver_suspend(struct device *dev)
 
 static int baseband_xmm_power_driver_resume(struct device *dev)
 {
-	struct platform_device *pdev = to_platform_device(dev);
-	struct baseband_power_platform_data *data
-		= (struct baseband_power_platform_data *)
-			pdev->dev.platform_data;
-
 	pr_debug("%s\n", __func__);
 #ifdef CONFIG_REMOVE_HSIC_L3_STATE
 	/* check if modem is on */
@@ -2155,14 +2140,14 @@ static int __init baseband_xmm_power_init(void)
 	/* HTC */
 	host_dbg_flag = 0;
 	mfg_mode = board_mfg_mode();
-	pr_debug("%s - host_dbg_flag<0x%x>, modem_ver<0x%x>, mfg_mode<%d>"
+	pr_debug("%s - host_dbg_flag<0x%x>, modem_ver<%lu>, mfg_mode<%d>"
 			, __func__, host_dbg_flag, modem_ver, mfg_mode);
 
 	if( mfg_mode )
 	{
 		autosuspend_delay = 365*86400;
 		short_autosuspend_delay = 365*86400;
-		pr_debug("In MFG mode, autosuspend_delay <%d>, short_autosuspend_delay <%d>"
+		pr_debug("In MFG mode, autosuspend_delay <%lu>, short_autosuspend_delay <%d>"
 				, autosuspend_delay, short_autosuspend_delay );
 	}
 

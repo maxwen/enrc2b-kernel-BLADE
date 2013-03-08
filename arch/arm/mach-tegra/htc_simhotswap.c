@@ -35,9 +35,6 @@
 #define SIM_DETECT SIM_DETECT_LOW_ACTIVE
 
 static int oldStatus=-1, newStatus=-1;//-1=init 0=insert 1=remove
-static uint32_t sim_gpio_table[] = {
-	//GPIO_CFG(VERDI_LTE_SIM_DETECT, 0, GPIO_CFG_INPUT, GPIO_CFG_NO_PULL, GPIO_CFG_2MA),
-};
 
 static int
 htc_hotswap_open( struct inode * inode, struct file * file )
@@ -108,21 +105,6 @@ static void hotswap_work_func(struct work_struct *work)
 	mutex_unlock(&htc_hotswap_info.lock);
 
 	return;
-}
-
-static void config_gpio_table(uint32_t *table, int len)
-{
-/*
-	int n, rc;
-	for (n = 0; n < len; n++) {
-		rc = gpio_tlmm_config(table[n], GPIO_CFG_ENABLE);
-		if (rc) {
-			pr_err("%s: gpio_tlmm_config(%#x)=%d\n",
-				__func__, table[n], rc);
-			break;
-		}
-	}
-*/
 }
 
 static irqreturn_t sim_detect_irq(int irq, void *dev_id)

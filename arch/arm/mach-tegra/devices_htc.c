@@ -1010,7 +1010,7 @@ static int reboot_callback(struct notifier_block *nb,
 
 	cmd = (char*) (data ? data : "");
 	pr_info("kernel_restart(cmd=%s) - triggered with task: %s (%d:%d)\n",
-			data ? data : "<null>",
+			data ? (char *)data : "<null>",
 			current->comm, current->tgid, current->pid);
 	pr_info("parents of %s:\n", current->comm);
 	t = current->parent;

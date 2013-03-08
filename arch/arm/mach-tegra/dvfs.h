@@ -168,7 +168,7 @@ int tegra_dvfs_rail_post_enable(struct dvfs_rail *rail);
 #if 0
 void tegra_dvfs_age_cpu(int cur_linear_age);
 #endif
-void tegra_cpu_mvs_init();
+void tegra_cpu_mvs_init(void);
 #else
 static inline int tegra_dvfs_rail_disable_prepare(struct dvfs_rail *rail)
 { return 0; }

@@ -1290,14 +1290,17 @@ queue_max_integrity_segments(struct request_queue *q)
 }
 
 #else /* CONFIG_BLK_DEV_INTEGRITY */
-
+struct gendisk;
+struct blk_integrity;
 #define blk_integrity_rq(rq)			(0)
 #define blk_rq_count_integrity_sg(a, b)		(0)
 #define blk_rq_map_integrity_sg(a, b, c)	(0)
 #define bdev_get_integrity(a)			(0)
 #define blk_get_integrity(a)			(0)
 #define blk_integrity_compare(a, b)		(0)
-#define blk_integrity_register(a, b)		(0)
+static inline int blk_integrity_register(struct gendisk *a, struct blk_integrity *b){
+	return 0;
+}
 #define blk_integrity_unregister(a)		do { } while (0)
 #define blk_queue_max_integrity_segments(a, b)	do { } while (0)
 #define queue_max_integrity_segments(a)		(0)

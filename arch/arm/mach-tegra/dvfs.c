@@ -40,7 +40,7 @@
 #include "dvfs.h"
 #include "timer.h"
 
-#undef DEBUG
+#define DEBUG 0
 
 #define DVFS_RAIL_STATS_BIN	25
 #define DVFS_RAIL_STATS_SCALE	2

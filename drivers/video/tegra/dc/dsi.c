@@ -314,7 +314,6 @@ inline unsigned long tegra_dsi_readl(struct tegra_dc_dsi_data *dsi, u32 reg)
 	if (nvhost_get_parent(dsi->dc->ndev))
 		BUG_ON(!nvhost_module_powered_ext(nvhost_get_parent(dsi->dc->ndev)));
 	ret = readl(dsi->base + reg * 4);
-	trace_printk("readl %p=%#08lx\n", dsi->base + reg * 4, ret);
 	return ret;
 }
 EXPORT_SYMBOL(tegra_dsi_readl);
@@ -323,7 +322,6 @@ inline void tegra_dsi_writel(struct tegra_dc_dsi_data *dsi, u32 val, u32 reg)
 {
 	if (nvhost_get_parent(dsi->dc->ndev))
 		BUG_ON(!nvhost_module_powered_ext(nvhost_get_parent(dsi->dc->ndev)));
-	trace_printk("writel %p=%#08x\n", dsi->base + reg * 4, val);
 	writel(val, dsi->base + reg * 4);
 }
 EXPORT_SYMBOL(tegra_dsi_writel);

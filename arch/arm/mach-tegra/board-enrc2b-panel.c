@@ -67,14 +67,11 @@
 
 #ifdef CONFIG_TEGRA_DC
 static struct regulator *enrc2b_dsi_reg = NULL;
-static bool dsi_regulator_status = 0;
-static struct regulator *enrc2b_lcd_reg = NULL;
 static struct regulator *v_lcm_3v = NULL;
 static struct regulator *v_lcmio_1v8 = NULL;
 
 static struct regulator *enrc2b_hdmi_reg = NULL;
 static struct regulator *enrc2b_hdmi_pll = NULL;
-static struct regulator *enrc2b_hdmi_vddio = NULL;
 #endif
 
 #define LCM_TE		TEGRA_GPIO_PJ1
@@ -186,8 +183,6 @@ static bool g_display_on = true;
 
 static p_tegra_dc_bl_output bl_output;
 
-static bool kernel_1st_panel_init = true;
-
 #define BACKLIGHT_MAX 255
 
 #define ORIG_PWM_MAX 255
@@ -226,8 +221,6 @@ static unsigned char shrink_pwm(int val)
 
 static int enrc2b_backlight_notify(struct device *unused, int brightness)
 {
-	int cur_sd_brightness = atomic_read(&sd_brightness);
-
 	if (brightness > 0)
 		brightness = shrink_pwm(brightness);
 
@@ -365,7 +358,7 @@ static struct tegra_dc_sd_settings enrc2b_sd_settings = {
 #else
 	// smartdimmer config
 	// https://android.googlesource.com/kernel/tegra/+/a3afaafbd1075ed6ca3986a417282f7b2621bd75/arch/arm/mach-tegra/board-grouper-panel.c
-	.enable = 1, /* enabled by default. */
+	.enable = 0, /* disabled by default. */
     .use_auto_pwm = false,
 	.hw_update_delay = 0,
 	.bin_width = -1,
@@ -715,7 +708,6 @@ static u8 init_cmd[] = {0xB9,0xFF,0x83,0x92};
 static u8 eq_cmd[] = {0xD5,0x00,0x00,0x02};
 static u8 ptbf_cmd[] = {0xBF,0x05,0x60,0x02};
 static u8 pwm_freq_hx[] = {0xC9,0x1F,0x01};
-static u8 porch[] = {0x3B,0x03,0x03,0x07,0x02,0x02};
 static u8 flash_issue[] = {0xC6,0x35,0x00,0x00,0x04};
 static u8 dsi_set[] = {0xBA,0x11,0x83,0x00,0xD6,0xC6,0x00,0x0A};
 static u8 stba[] = {0xC0,0x01,0x94};

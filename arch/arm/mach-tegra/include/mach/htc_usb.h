@@ -44,11 +44,13 @@ static char *usb_functions_adb[] = {
 	"adb",
 };
 
+#if 0
 static char *usb_functions_mtp_ums_adb[] = {
 	"mtp",
 	"adb",
 	"mass_storage",
 };
+#endif
 
 static char *usb_functions_mtp_ums[] = {
 	"mtp",
@@ -73,6 +75,7 @@ static char *usb_functions_rndis_mtp_ums[] = {
 	"mtp",
 	"mass_storage",
 };
+#if 0
 static char *usb_functions_rndis_mtp_ums_diag[] = {
 	"rndis",
 	"mtp",
@@ -82,12 +85,14 @@ static char *usb_functions_rndis_mtp_ums_diag[] = {
 	"diag_mdm",
 #endif
 };
+#endif
 static char *usb_functions_rndis_mtp_ums_adb[] = {
 	"rndis",
 	"mtp",
 	"adb",
 	"mass_storage",
 };
+#if 0
 static char *usb_functions_rndis_mtp_ums_adb_diag[] = {
 	"rndis",
 	"mtp",
@@ -98,6 +103,7 @@ static char *usb_functions_rndis_mtp_ums_adb_diag[] = {
 	"diag_mdm",
 #endif
 };
+#endif
 #if defined(CONFIG_USB_ANDROID_DIAG) || defined(CONFIG_USB_ANDROID_QCT_DIAG)
 static char *usb_functions_rndis_diag[] = {
 	"rndis",

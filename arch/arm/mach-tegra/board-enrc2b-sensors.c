@@ -58,37 +58,6 @@
 
 #define SENSOR_MPU_NAME "mpu3050"
 
-static struct regulator *v_ps_2v85_en ;
-static struct regulator *v_srio_1v8_en ;
-
-static void cm3629_enable_power(int enable)
-{
-	if(enable == 1) {
-		if (v_ps_2v85_en == NULL) {
-			v_ps_2v85_en = regulator_get(NULL, "v_ps_2v85");
-				if (WARN_ON(IS_ERR(v_ps_2v85_en))) {
-				pr_err("[v_ps_2v85] %s: couldn't get regulator v_ps_2v85_en: %ld\n", __func__, PTR_ERR(v_ps_2v85_en));
-			}
-		}
-		regulator_enable(v_ps_2v85_en);
-
-		if (v_srio_1v8_en == NULL) {
-	  		v_srio_1v8_en = regulator_get(NULL, "v_srio_1v8");
-	  		if (WARN_ON(IS_ERR(v_srio_1v8_en))) {
-				pr_err("[v_srio_1v8] %s: couldn't get regulator v_srio_1v8_en: %ld\n", __func__, PTR_ERR(v_srio_1v8_en));
-			}
-		}
-		regulator_enable(v_srio_1v8_en);
-	}else if(enable == 0) {
-		if(regulator_is_enabled(v_srio_1v8_en)) {
-			regulator_disable(v_srio_1v8_en);
-		}
-		if(regulator_is_enabled(v_ps_2v85_en)) {
-			regulator_disable(v_ps_2v85_en);
-		}
-	}
-}
-
 static struct cm3628_platform_data cm3628_pdata = {
 	/*.intr = PSNENOR_INTz,*/
 	.pwr = 0,
@@ -589,30 +558,6 @@ static inline void enrc2b_msleep(u32 t)
 	*/
 	usleep_range(t*1000, t*1000 + 500);
 }
-
-static struct i2c_board_info enrc2b_i2c0_isl_board_info[] = {
-	{
-		I2C_BOARD_INFO("isl29028", 0x44),
-	}
-};
-
-static void enrc2b_isl_init(void)
-{
-	i2c_register_board_info(0, enrc2b_i2c0_isl_board_info,
-				ARRAY_SIZE(enrc2b_i2c0_isl_board_info));
-}
-
-static struct pca954x_platform_mode enrc2b_pca954x_modes[] = {
-	{ .adap_id = PCA954x_I2C_BUS0, .deselect_on_exit = true, },
-	{ .adap_id = PCA954x_I2C_BUS1, .deselect_on_exit = true, },
-	{ .adap_id = PCA954x_I2C_BUS2, .deselect_on_exit = true, },
-	{ .adap_id = PCA954x_I2C_BUS3, .deselect_on_exit = true, },
-};
-
-static struct pca954x_platform_data enrc2b_pca954x_data = {
-	.modes    = enrc2b_pca954x_modes,
-	.num_modes      = ARRAY_SIZE(enrc2b_pca954x_modes),
-};
 
 struct enrc2b_battery_gpio {
 	int gpio;

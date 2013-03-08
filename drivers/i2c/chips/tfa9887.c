@@ -374,7 +374,6 @@ static int tfa9887_release(struct inode *inode, struct file *file)
 void set_tfa9887_spkamp(int en, int dsp_mode)
 {
 	int i = 0;
-        unsigned char write_reg[1] = {0x03};
         unsigned char mute_reg[1] = {0x06};
 	unsigned char mute_data[3] = {0, 0, 0};
         unsigned char power_reg[1] = {0x09};

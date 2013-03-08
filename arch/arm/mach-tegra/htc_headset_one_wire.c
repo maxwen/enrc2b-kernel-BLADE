@@ -171,7 +171,7 @@ static int hs_1wire_init(void)
 
 	HS_LOG("[1-wire]hs_1wire_init");
 	fp = openFile(hi->pdata.onewire_tty_dev,O_CREAT|O_RDWR|O_NONBLOCK,0666);
-	HS_LOG("Open %s, fp = 0x%x", hi->pdata.onewire_tty_dev, fp);
+	HS_LOG("Open %s, fp = %p", hi->pdata.onewire_tty_dev, fp);
 	if(!fp)
 		return -1;
 	if (!fp->private_data) {

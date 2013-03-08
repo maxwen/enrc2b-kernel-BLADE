@@ -64,9 +64,9 @@ struct dma_align_buffer {
 };
 
 /* SSD_RIL */
-int debug_gpio_dump();
+int debug_gpio_dump(void);
 int trigger_radio_fatal_get_coredump(char *reason);
-int Modem_is_IMC();
+int Modem_is_IMC(void);
 
 //++SSD_RIL
 bool device_ehci_shutdown;
@@ -251,7 +251,6 @@ static int tegra_ehci_hub_control(
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
 	int	retval = 0;
 	u32 __iomem	*status_reg;
-	void  __iomem *apb_misc = IO_ADDRESS(TEGRA_APB_MISC_BASE);
 	struct platform_device *pdev = container_of(hcd->self.controller, struct platform_device, dev);
 	int ehci_id = pdev->id;
 

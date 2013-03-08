@@ -209,8 +209,6 @@ static void tegra_thermal_alert_unlocked(void *data)
 	long lo_limit_edp_tj = 0, hi_limit_edp_tj = 0;
 	long temp_low_dev, temp_low_tj;
 	int lo_limit_tj = 0, hi_limit_tj = 0;
-	int throttle_temp;
-	int last_throttle_temp;
 #ifdef CONFIG_TEGRA_EDP_LIMITS
 	const struct tegra_edp_limits *z;
 	int zones_sz;

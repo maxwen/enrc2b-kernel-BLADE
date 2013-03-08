@@ -1290,8 +1290,6 @@ static void mtp_function_disable(struct usb_function *f)
 }
 
 static void mtp_update_mode(int _mac_mtp_mode) {
-	struct mtp_dev *dev = _mtp_dev;
-
 	mac_mtp_mode = _mac_mtp_mode;
 
 	if (mac_mtp_mode) {

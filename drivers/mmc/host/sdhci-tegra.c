@@ -1419,7 +1419,6 @@ static int sdhci_pltfm_prepare(struct device *dev) {
 
 	struct platform_device *plt_dev = to_platform_device(dev);
 	struct sdhci_host *host = platform_get_drvdata(plt_dev);
-	int err;
 
 	if (host->mmc && host->mmc->card && host->mmc->card->type == MMC_TYPE_MMC) {
 		printk(KERN_INFO "mmc0: bkops_urgent_checking =%d\n", host->mmc->card->ext_csd.bkops_urgent_checking);

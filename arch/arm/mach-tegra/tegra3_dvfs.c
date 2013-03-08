@@ -727,7 +727,7 @@ static void tegra_adjust_cpu_mvs(int mvs)
 	mutex_unlock(&dvfs_lock);
 }
 
-static void tegra_reset_cpu_mvs()
+static void tegra_reset_cpu_mvs(void)
 {
 	int i;
 
@@ -1164,9 +1164,7 @@ cpu_millivolts_show(struct kobject *kobj, struct kobj_attribute *attr,
 	int j;
 	int i;
 	int cpu_speedo_id = tegra_cpu_speedo_id();
-	int soc_speedo_id = tegra_soc_speedo_id();
 	int cpu_process_id = tegra_cpu_process_id();
-	int core_process_id = tegra_core_process_id();
 	char *out = buf;
 	struct dvfs *d;
 	struct clk *c;

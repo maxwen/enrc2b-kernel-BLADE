@@ -46,7 +46,7 @@
 extern unsigned int host_dbg_flag;
 #define MODULE_NAME "[USBCHRv1] "
 
-extern int Modem_is_6360();
+extern int Modem_is_6360(void);
 
 /* HTC: debug flag */
 /*	chrlog1: ipc write file log for modem download */

@@ -1458,7 +1458,7 @@ static int pcie_bus_configure_set(struct pci_dev *dev, void *data)
  */
 void pcie_bus_configure_settings(struct pci_bus *bus, u8 mpss)
 {
-	u8 smpss;
+	u8 smpss = 0;
 
 	if (!pci_is_pcie(bus->self))
 		return;

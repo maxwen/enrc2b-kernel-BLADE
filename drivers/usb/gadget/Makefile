@@ -73,4 +73,5 @@ obj-$(CONFIG_USB_G_MULTI)	+= g_multi.o
 obj-$(CONFIG_USB_G_NOKIA)	+= g_nokia.o
 obj-$(CONFIG_USB_G_WEBCAM)	+= g_webcam.o
 obj-$(CONFIG_USB_G_NCM)		+= g_ncm.o
+CFLAGS_android.o += -Wno-unused -Wno-strict-prototypes
 obj-$(CONFIG_USB_G_ANDROID)	+= g_android.o

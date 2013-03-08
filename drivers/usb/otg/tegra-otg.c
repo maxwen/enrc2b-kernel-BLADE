@@ -94,7 +94,7 @@ extern void cable_detection_queue_recovery_host_work(int time);
 #if (defined(CONFIG_USB_OTG) && defined(CONFIG_USB_OTG_HOST))
 void usb_host_status_notifier_func(bool isEnable)
 {
-	unsigned long flags, val;
+	unsigned long val;
 	USBH_INFO("%s %d", __func__, isEnable);
 	if (isEnable) {
 		enable_interrupt(tegra_clone, false);
@@ -625,7 +625,6 @@ static int tegra_otg_suspend(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct tegra_otg_data *tegra = platform_get_drvdata(pdev);
-	struct otg_transceiver *otg = &tegra->otg;
 	int val;
 	DBG("%s(%d) BEGIN state : %s\n", __func__, __LINE__,
 					tegra_state_name(otg->state));

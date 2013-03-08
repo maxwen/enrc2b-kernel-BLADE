@@ -48,17 +48,13 @@
 #include <asm/byteorder.h>
 #include <asm/unaligned.h>
 #include <linux/list.h>
-extern int debug_gpio_dump();
+extern int debug_gpio_dump(void);
 extern int trigger_radio_fatal_get_coredump(char *reason);
 
 /* HTC include file */
 #include <mach/htc_hostdbg.h>
 
 #include "cdc-acm.h"
-
-
-/* HTC: usage cnt checking */
-static int autopm_refcnt = 0;
 
 /* HTC: TP statistic variables */
 #define MAX_ACM_NUM 1 /* bert: currently support for ttyACM0 only */
@@ -75,22 +71,17 @@ struct acm_tp {
 	int tx_total;
 	int rx_total;
 };
-static struct acm_tp acm_tp[MAX_ACM_NUM];
+
 struct timer_list acm_timer;
-static int timer_on = 0;
+
 #define is_minor_valid(m) (m >= 0 && m < MAX_ACM_NUM)? 1 : 0
 
 extern unsigned int host_dbg_flag;
-
-/* HTC: TP statistic functions*/
-static void timer_handler(unsigned long data);
-static void start_timer(void);
 
 static int max_intfs = 2;
 unsigned static int txbyte=0,rxbyte=0;
 char gpr_buf[512];
 static int pcount=0;
-static int debugtestcoung=0; 
 module_param(max_intfs, int, 0644);
 MODULE_PARM_DESC(max_intfs, "usb class (cdc-acm) - Number of TTYACMs");
 

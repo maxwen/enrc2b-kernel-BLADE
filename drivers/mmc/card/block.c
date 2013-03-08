@@ -1065,7 +1065,6 @@ static int mmc_blk_issue_rw_rq(struct mmc_queue *mq, struct request *rqc)
 	struct mmc_queue_req *mq_rq;
 	struct request *req;
 	struct mmc_async_req *areq;
-	static unsigned int i = 0;
 
 	if (!rqc && !mq->mqrq_prev->req)
 		return 0;

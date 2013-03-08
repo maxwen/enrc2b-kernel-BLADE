@@ -546,12 +546,6 @@ EXPORT_SYMBOL_GPL(aic3008_set_mic_bias);
 /*****************************************************************************/
 /* other Audio Codec controls                                                */
 /*****************************************************************************/
-static void aic3008_sw_reset(struct snd_soc_codec *codec)
-{
-	AUD_DBG("aic3008 soft reset\n");
-	/*  SW RESET on AIC3008. */
-	aic3008_config(CODEC_SW_RESET, ARRAY_SIZE(CODEC_SW_RESET));
-}
 
 static int aic3008_volatile_register(struct snd_soc_codec *codec, unsigned int reg)
 {
@@ -592,18 +586,6 @@ table_failed:
 	kfree(table_ptr);
 table_ptr_failed:
 	return NULL;
-}
-
-static void spi_aic3008_prevent_sleep(void)
-{
-	wake_lock(&codec_clk.wakelock);
-	wake_lock(&codec_clk.idlelock);
-}
-
-static void spi_aic3008_allow_sleep(void)
-{
-	wake_unlock(&codec_clk.idlelock);
-	wake_unlock(&codec_clk.wakelock);
 }
 
 /* Access function pointed by ctl_ops to call control operations */
@@ -897,7 +879,7 @@ static void aic3008_set_loopback(int mode)
 	}
 }
 
-static void dump_dspindex()
+static void dump_dspindex(void)
 {
     int i = 0;
 
@@ -909,7 +891,7 @@ static void dump_dspindex()
 /* this is the default dspindex for the HOX+
 this is dependent on /system/etc/soundimages!!!! 
 ICS audio driver are not calling AIC3008_IO_SET_DSP_INDEX */
-static void init_default_dspindex()
+static void init_default_dspindex(void)
 {
     aic3008_dspindex[0] = 1;
     aic3008_dspindex[1] = 2;
@@ -1702,7 +1684,6 @@ static int aic3008_dai_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_codec *codec = rtd->codec;
 	struct aic3008_priv *aic3008 = snd_soc_codec_get_drvdata(codec);
-	struct spi_device *spi = codec->control_data;
 	struct snd_pcm_runtime *master_runtime;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)

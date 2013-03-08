@@ -634,10 +634,6 @@ qh_urb_transaction (
 	u32			token;
 	int			i;
 	struct scatterlist	*sg;
-	//htc_dbg+++
-	int			qtd_count = 0;
-	struct ehci_qtd		*qtd_array[10] = {0};
-	//htc_dbg---
 
 	/*
 	 * URBs map to sequences of QTDs:  one logical transaction
