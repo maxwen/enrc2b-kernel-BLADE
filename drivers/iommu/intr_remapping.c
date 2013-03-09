@@ -21,7 +21,6 @@ int intr_remapping_enabled;
 
 static int disable_intremap;
 static int disable_sourceid_checking;
-static int no_x2apic_optout;
 
 static __init int setup_nointremap(char *str)
 {
@@ -35,26 +34,18 @@ static __init int setup_intremap(char *str)
 	if (!str)
 		return -EINVAL;
 
-	while (*str) {
-		if (!strncmp(str, "on", 2))
-			disable_intremap = 0;
-		else if (!strncmp(str, "off", 3))
-			disable_intremap = 1;
-		else if (!strncmp(str, "nosid", 5))
-			disable_sourceid_checking = 1;
-		else if (!strncmp(str, "no_x2apic_optout", 16))
-			no_x2apic_optout = 1;
-
-		str += strcspn(str, ",");
-		while (*str == ',')
-			str++;
-	}
+	if (!strncmp(str, "on", 2))
+		disable_intremap = 0;
+	else if (!strncmp(str, "off", 3))
+		disable_intremap = 1;
+	else if (!strncmp(str, "nosid", 5))
+		disable_sourceid_checking = 1;
 
 	return 0;
 }
 early_param("intremap", setup_intremap);
 
-static DEFINE_RAW_SPINLOCK(irq_2_ir_lock);
+static DEFINE_SPINLOCK(irq_2_ir_lock);
 
 static struct irq_2_iommu *irq_2_iommu(unsigned int irq)
 {
@@ -71,12 +62,12 @@ int get_irte(int irq, struct irte *entry)
 	if (!entry || !irq_iommu)
 		return -1;
 
-	raw_spin_lock_irqsave(&irq_2_ir_lock, flags);
+	spin_lock_irqsave(&irq_2_ir_lock, flags);
 
 	index = irq_iommu->irte_index + irq_iommu->sub_handle;
 	*entry = *(irq_iommu->iommu->ir_table->base + index);
 
-	raw_spin_unlock_irqrestore(&irq_2_ir_lock, flags);
+	spin_unlock_irqrestore(&irq_2_ir_lock, flags);
 	return 0;
 }
 
@@ -110,7 +101,7 @@ int alloc_irte(struct intel_iommu *iommu, int irq, u16 count)
 		return -1;
 	}
 
-	raw_spin_lock_irqsave(&irq_2_ir_lock, flags);
+	spin_lock_irqsave(&irq_2_ir_lock, flags);
 	do {
 		for (i = index; i < index + count; i++)
 			if  (table->base[i].present)
@@ -122,7 +113,7 @@ int alloc_irte(struct intel_iommu *iommu, int irq, u16 count)
 		index = (index + count) % INTR_REMAP_TABLE_ENTRIES;
 
 		if (index == start_index) {
-			raw_spin_unlock_irqrestore(&irq_2_ir_lock, flags);
+			spin_unlock_irqrestore(&irq_2_ir_lock, flags);
 			printk(KERN_ERR "can't allocate an IRTE\n");
 			return -1;
 		}
@@ -136,7 +127,7 @@ int alloc_irte(struct intel_iommu *iommu, int irq, u16 count)
 	irq_iommu->sub_handle = 0;
 	irq_iommu->irte_mask = mask;
 
-	raw_spin_unlock_irqrestore(&irq_2_ir_lock, flags);
+	spin_unlock_irqrestore(&irq_2_ir_lock, flags);
 
 	return index;
 }
@@ -161,10 +152,10 @@ int map_irq_to_irte_handle(int irq, u16 *sub_handle)
 	if (!irq_iommu)
 		return -1;
 
-	raw_spin_lock_irqsave(&irq_2_ir_lock, flags);
+	spin_lock_irqsave(&irq_2_ir_lock, flags);
 	*sub_handle = irq_iommu->sub_handle;
 	index = irq_iommu->irte_index;
-	raw_spin_unlock_irqrestore(&irq_2_ir_lock, flags);
+	spin_unlock_irqrestore(&irq_2_ir_lock, flags);
 	return index;
 }
 
@@ -176,14 +167,14 @@ int set_irte_irq(int irq, struct intel_iommu *iommu, u16 index, u16 subhandle)
 	if (!irq_iommu)
 		return -1;
 
-	raw_spin_lock_irqsave(&irq_2_ir_lock, flags);
+	spin_lock_irqsave(&irq_2_ir_lock, flags);
 
 	irq_iommu->iommu = iommu;
 	irq_iommu->irte_index = index;
 	irq_iommu->sub_handle = subhandle;
 	irq_iommu->irte_mask = 0;
 
-	raw_spin_unlock_irqrestore(&irq_2_ir_lock, flags);
+	spin_unlock_irqrestore(&irq_2_ir_lock, flags);
 
 	return 0;
 }
@@ -199,7 +190,7 @@ int modify_irte(int irq, struct irte *irte_modified)
 	if (!irq_iommu)
 		return -1;
 
-	raw_spin_lock_irqsave(&irq_2_ir_lock, flags);
+	spin_lock_irqsave(&irq_2_ir_lock, flags);
 
 	iommu = irq_iommu->iommu;
 
@@ -211,7 +202,7 @@ int modify_irte(int irq, struct irte *irte_modified)
 	__iommu_flush_cache(iommu, irte, sizeof(*irte));
 
 	rc = qi_flush_iec(iommu, index, 0);
-	raw_spin_unlock_irqrestore(&irq_2_ir_lock, flags);
+	spin_unlock_irqrestore(&irq_2_ir_lock, flags);
 
 	return rc;
 }
@@ -279,7 +270,7 @@ int free_irte(int irq)
 	if (!irq_iommu)
 		return -1;
 
-	raw_spin_lock_irqsave(&irq_2_ir_lock, flags);
+	spin_lock_irqsave(&irq_2_ir_lock, flags);
 
 	rc = clear_entries(irq_iommu);
 
@@ -288,7 +279,7 @@ int free_irte(int irq)
 	irq_iommu->sub_handle = 0;
 	irq_iommu->irte_mask = 0;
 
-	raw_spin_unlock_irqrestore(&irq_2_ir_lock, flags);
+	spin_unlock_irqrestore(&irq_2_ir_lock, flags);
 
 	return rc;
 }
@@ -418,7 +409,7 @@ static void iommu_set_intr_remapping(struct intel_iommu *iommu, int mode)
 
 	addr = virt_to_phys((void *)iommu->ir_table->base);
 
-	raw_spin_lock_irqsave(&iommu->register_lock, flags);
+	spin_lock_irqsave(&iommu->register_lock, flags);
 
 	dmar_writeq(iommu->reg + DMAR_IRTA_REG,
 		    (addr) | IR_X2APIC_MODE(mode) | INTR_REMAP_TABLE_REG_SIZE);
@@ -429,7 +420,7 @@ static void iommu_set_intr_remapping(struct intel_iommu *iommu, int mode)
 
 	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG,
 		      readl, (sts & DMA_GSTS_IRTPS), sts);
-	raw_spin_unlock_irqrestore(&iommu->register_lock, flags);
+	spin_unlock_irqrestore(&iommu->register_lock, flags);
 
 	/*
 	 * global invalidation of interrupt entry cache before enabling
@@ -437,7 +428,7 @@ static void iommu_set_intr_remapping(struct intel_iommu *iommu, int mode)
 	 */
 	qi_global_iec(iommu);
 
-	raw_spin_lock_irqsave(&iommu->register_lock, flags);
+	spin_lock_irqsave(&iommu->register_lock, flags);
 
 	/* Enable interrupt-remapping */
 	iommu->gcmd |= DMA_GCMD_IRE;
@@ -446,7 +437,7 @@ static void iommu_set_intr_remapping(struct intel_iommu *iommu, int mode)
 	IOMMU_WAIT_OP(iommu, DMAR_GSTS_REG,
 		      readl, (sts & DMA_GSTS_IRES), sts);
 
-	raw_spin_unlock_irqrestore(&iommu->register_lock, flags);
+	spin_unlock_irqrestore(&iommu->register_lock, flags);
 }
 
 
@@ -494,7 +485,7 @@ static void iommu_disable_intr_remapping(struct intel_iommu *iommu)
 	 */
 	qi_global_iec(iommu);
 
-	raw_spin_lock_irqsave(&iommu->register_lock, flags);
+	spin_lock_irqsave(&iommu->register_lock, flags);
 
 	sts = dmar_readq(iommu->reg + DMAR_GSTS_REG);
 	if (!(sts & DMA_GSTS_IRES))
@@ -507,16 +498,7 @@ static void iommu_disable_intr_remapping(struct intel_iommu *iommu)
 		      readl, !(sts & DMA_GSTS_IRES), sts);
 
 end:
-	raw_spin_unlock_irqrestore(&iommu->register_lock, flags);
-}
-
-static int __init dmar_x2apic_optout(void)
-{
-	struct acpi_table_dmar *dmar;
-	dmar = (struct acpi_table_dmar *)dmar_tbl;
-	if (!dmar || no_x2apic_optout)
-		return 0;
-	return dmar->flags & DMAR_X2APIC_OPT_OUT;
+	spin_unlock_irqrestore(&iommu->register_lock, flags);
 }
 
 int __init intr_remapping_supported(void)
@@ -539,23 +521,14 @@ int __init intr_remapping_supported(void)
 	return 1;
 }
 
-int __init enable_intr_remapping(void)
+int __init enable_intr_remapping(int eim)
 {
 	struct dmar_drhd_unit *drhd;
 	int setup = 0;
-	int eim = 0;
 
 	if (parse_ioapics_under_ir() != 1) {
 		printk(KERN_INFO "Not enable interrupt remapping\n");
 		return -1;
-	}
-
-	if (x2apic_supported()) {
-		eim = !dmar_x2apic_optout();
-		WARN(!eim, KERN_WARNING
-			   "Your BIOS is broken and requested that x2apic be disabled\n"
-			   "This will leave your machine vulnerable to irq-injection attacks\n"
-			   "Use 'intremap=no_x2apic_optout' to override BIOS request\n");
 	}
 
 	for_each_drhd_unit(drhd) {
@@ -633,9 +606,8 @@ int __init enable_intr_remapping(void)
 		goto error;
 
 	intr_remapping_enabled = 1;
-	pr_info("Enabled IRQ remapping in %s mode\n", eim ? "x2apic" : "xapic");
 
-	return eim ? IRQ_REMAP_X2APIC_MODE : IRQ_REMAP_XAPIC_MODE;
+	return 0;
 
 error:
 	/*
@@ -772,15 +744,6 @@ int __init parse_ioapics_under_ir(void)
 
 	return ir_supported;
 }
-
-int __init ir_dev_scope_init(void)
-{
-	if (!intr_remapping_enabled)
-		return 0;
-
-	return dmar_dev_scope_init();
-}
-rootfs_initcall(ir_dev_scope_init);
 
 void disable_intr_remapping(void)
 {
