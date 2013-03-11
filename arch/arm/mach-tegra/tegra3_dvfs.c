@@ -46,9 +46,7 @@ static const unsigned int cpu_cold_offs_mhz[MAX_DVFS_FREQS] = {
 #define CORE_MILIVOLTS {\
 	950, 1000, 1050, 1100, 1150, 1200, 1250, 1300, 1350};
 
-static int core_millivolts[MAX_DVFS_FREQS] = CORE_MILIVOLTS;
-
-static const int core_millivolts_orig[MAX_DVFS_FREQS] = CORE_MILIVOLTS;
+static const int core_millivolts[MAX_DVFS_FREQS] = CORE_MILIVOLTS;
 	
 #define KHZ 1000
 #define MHZ 1000000
@@ -65,9 +63,8 @@ static int cpu_below_core = VDD_CPU_BELOW_VDD_CORE;
 #define VDD_CPU_MAX				1250	
 #define VDD_CPU_DEFAULT_MVS		-25
 
-#define VDD_CORE_MIN			900
+#define VDD_CORE_MIN			950
 #define VDD_CORE_MAX			1350
-#define VDD_CORE_DEFAULT_MVS	0
 
 static int curr_cpu_vdd_change = 0;
 extern struct mutex dvfs_lock;
@@ -749,27 +746,6 @@ void tegra_cpu_mvs_init()
 	tegra_adjust_cpu_mvs(VDD_CPU_DEFAULT_MVS);
 }
 
-static void tegra_core_mvs_init(int mvs)
-{
-	int i;
-
-	pr_info("tegra_core_mvs_init: mvs %d\n", mvs);
-	BUG_ON(ARRAY_SIZE(core_millivolts) != ARRAY_SIZE(core_millivolts_orig));
-	
-	for (i = 0; i < ARRAY_SIZE(core_millivolts); i++){
-		int old_val = core_millivolts_orig[i];
-		int new_val = old_val + mvs;
-		
-		if (new_val < VDD_CORE_MIN)
-			new_val = VDD_CORE_MIN;
-		 
-		if(new_val > VDD_CORE_MAX)
-			new_val = VDD_CORE_MAX;
-
-		core_millivolts[i] = core_millivolts_orig[i];
-	}
-}
-
 //maxwen: WTF 
 #if 0
 /**
@@ -815,8 +791,6 @@ void __init tegra_soc_init_dvfs(void)
 #ifndef CONFIG_TEGRA_CPU_DVFS
 	tegra_dvfs_cpu_disabled = true;
 #endif
-
-    tegra_core_mvs_init(VDD_CORE_DEFAULT_MVS);
 
 	/*
 	 * Find nominal voltages for core (1st) and cpu rails before rail
