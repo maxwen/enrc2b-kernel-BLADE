@@ -1190,6 +1190,9 @@ fail:
 
 static void tegra_shutdown(struct uart_port *u)
 {
+#ifndef CONFIG_SERIAL_TEGRA_BRCM_LPM
+	int ret = 0;
+#endif
 	struct tegra_uart_port *t;
 	t = container_of(u, struct tegra_uart_port, uport);
 #ifdef BCM_BT_DEBUG

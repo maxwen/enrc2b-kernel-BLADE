@@ -44,7 +44,7 @@ static char *usb_functions_adb[] = {
 	"adb",
 };
 
-#if 0
+#ifdef CONFIG_SENSE_4_PLUS
 static char *usb_functions_mtp_ums_adb[] = {
 	"mtp",
 	"adb",
