@@ -103,11 +103,10 @@ static int reset_queues_mute(struct tegra_udc *udc);
 #define UTMIP_HS_SYNC_START_DLY(x)	(((x) & 0x1f) << 1)
 /* -- htc -- */
 
-#ifdef CONFIG_TEGRA_GADGET_BOOST_CPU_FREQ
-	static struct pm_qos_request_list boost_cpu_freq_req;
-	static u32 ep_queue_request_count;
-	static u8 boost_cpufreq_work_flag;
-#endif
+#define TEGRA_GADGET_BOOST_CPU_FREQ 475000
+static struct pm_qos_request_list boost_cpu_freq_req;
+static u32 ep_queue_request_count;
+static u8 boost_cpufreq_work_flag;
 
 static inline void udc_writel(struct tegra_udc *udc, u32 val, u32 offset)
 {
@@ -211,13 +210,12 @@ static void done(struct tegra_ep *ep, struct tegra_req *req, int status)
 			req->req.actual, req->req.length);
 
 	ep->stopped = 1;
-#ifdef CONFIG_TEGRA_GADGET_BOOST_CPU_FREQ
+
 	if (req->req.complete && req->req.length >= BOOST_TRIGGER_SIZE) {
 		ep_queue_request_count--;
 		if (!ep_queue_request_count)
 			schedule_work(&udc->boost_cpufreq_work);
 	}
-#endif
 
 	/* complete() is from gadget layer,
 	 * eg fsg->bulk_in_complete() */
@@ -932,13 +930,11 @@ tegra_ep_queue(struct usb_ep *_ep, struct usb_request *_req, gfp_t gfp_flags)
 		}
 	}
 
-#ifdef CONFIG_TEGRA_GADGET_BOOST_CPU_FREQ
 	if (req->req.length >= BOOST_TRIGGER_SIZE) {
 		ep_queue_request_count++;
 		if (ep_queue_request_count && boost_cpufreq_work_flag)
 			schedule_work(&udc->boost_cpufreq_work);
 	}
-#endif
 
 	dir = ep_is_in(ep) ? DMA_TO_DEVICE : DMA_FROM_DEVICE;
 
@@ -2176,12 +2172,11 @@ static void tegra_udc_set_current_limit_work(struct work_struct *work)
 	}
 }
 
-#ifdef CONFIG_TEGRA_GADGET_BOOST_CPU_FREQ
 static void tegra_udc_boost_cpu_frequency_work(struct work_struct *work)
 {
 	if (ep_queue_request_count && boost_cpufreq_work_flag) {
 		pm_qos_update_request(&boost_cpu_freq_req,
-			(s32)CONFIG_TEGRA_GADGET_BOOST_CPU_FREQ * 1000);
+			(s32)TEGRA_GADGET_BOOST_CPU_FREQ);
 		boost_cpufreq_work_flag = 0;
 	} else if (!ep_queue_request_count && !boost_cpufreq_work_flag) {
 		pm_qos_update_request(&boost_cpu_freq_req,
@@ -2189,7 +2184,6 @@ static void tegra_udc_boost_cpu_frequency_work(struct work_struct *work)
 		boost_cpufreq_work_flag = 1;
 	}
 }
-#endif
 
 static void tegra_udc_irq_work(struct work_struct *irq_work)
 {
@@ -2724,14 +2718,13 @@ static int __init tegra_udc_probe(struct platform_device *pdev)
 	err = usb_add_gadget_udc(&pdev->dev, &udc->gadget);
 	if (err)
 		goto err_del_udc;
-#ifdef CONFIG_TEGRA_GADGET_BOOST_CPU_FREQ
+
 	boost_cpufreq_work_flag = 1;
 	ep_queue_request_count = 0;
 	INIT_WORK(&udc->boost_cpufreq_work,
 					tegra_udc_boost_cpu_frequency_work);
 	pm_qos_add_request(&boost_cpu_freq_req, PM_QOS_CPU_FREQ_MIN,
 					PM_QOS_DEFAULT_VALUE);
-#endif
 
 	usb_prepare(udc);	/* htc */
 
@@ -2814,9 +2807,7 @@ static int __exit tegra_udc_remove(struct platform_device *pdev)
 	udc->done = &done;
 
 	cancel_delayed_work(&udc->work);
-#ifdef CONFIG_TEGRA_GADGET_BOOST_CPU_FREQ
 	cancel_work_sync(&udc->boost_cpufreq_work);
-#endif
 
 	if (udc->vbus_reg)
 		regulator_put(udc->vbus_reg);
