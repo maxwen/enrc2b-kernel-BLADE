@@ -51,6 +51,7 @@
 #include "tegra_udc.h"
 
 #include <mach/htc_battery_common.h>
+#include "../../../arch/arm/mach-tegra/tegra_pmqos.h"
 
 #define VBUS_WAKEUP_ENR 19
 extern int global_wakeup_state;
@@ -103,7 +104,6 @@ static int reset_queues_mute(struct tegra_udc *udc);
 #define UTMIP_HS_SYNC_START_DLY(x)	(((x) & 0x1f) << 1)
 /* -- htc -- */
 
-#define TEGRA_GADGET_BOOST_CPU_FREQ 475000
 static struct pm_qos_request_list boost_cpu_freq_req;
 static u32 ep_queue_request_count;
 static u8 boost_cpufreq_work_flag;
@@ -2176,7 +2176,7 @@ static void tegra_udc_boost_cpu_frequency_work(struct work_struct *work)
 {
 	if (ep_queue_request_count && boost_cpufreq_work_flag) {
 		pm_qos_update_request(&boost_cpu_freq_req,
-			(s32)TEGRA_GADGET_BOOST_CPU_FREQ);
+			(s32)TEGRA_GADGET_CPU_FREQ_MIN);
 		boost_cpufreq_work_flag = 0;
 	} else if (!ep_queue_request_count && !boost_cpufreq_work_flag) {
 		pm_qos_update_request(&boost_cpu_freq_req,

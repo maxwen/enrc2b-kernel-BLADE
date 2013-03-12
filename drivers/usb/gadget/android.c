@@ -35,9 +35,8 @@
 #include <linux/usb/android_composite.h>//htc
 #include <linux/wakelock.h>
 #include "gadget_chips.h"
+#include "../../../arch/arm/mach-tegra/tegra_pmqos.h"
 
-
-#define PM_QOS_USB_TP_CPU_FREQ 475000
 static struct pm_qos_request_list pm_qos_req_tp;
 
 enum {
@@ -248,7 +247,7 @@ void network_pm_qos_update_latency(int vote)
 		return;
 
 	if (vote) {
-		pm_qos_update_request(&pm_qos_req_tp, (s32)PM_QOS_USB_TP_CPU_FREQ);
+		pm_qos_update_request(&pm_qos_req_tp, (s32)USB_TP_CPU_FREQ_MIN);
 	} else {
 		pm_qos_update_request(&pm_qos_req_tp, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
 	}

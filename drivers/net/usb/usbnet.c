@@ -49,6 +49,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/pm_qos_params.h> //HTC
 
+#include "../../../arch/arm/mach-tegra/tegra_pmqos.h"
+
 #define DRIVER_VERSION		"22-Aug-2005"
 
 //++SSD_RIL:20121017: get -71 but already register rmnet netdev
@@ -101,9 +103,6 @@ MODULE_PARM_DESC (msg_level, "Override default message level");
 #define USBNET_DONE_QUEUE_HIGH_WATERMARK 1000
 #define USBNET_DONE_QUEUE_LOW_WATERMARK 5
 #define PM_QOS_USBNET_PERF_UNLOCK_TIMER 3000
-
-#define PM_QOS_USBNET_CPU_FREQ_MIN_VALUE 475000
-#define PM_QOS_USBNET_MIN_ONLINE_CPUS 2
 
 static struct pm_qos_request_list usbnet_req_freq;
 static struct pm_qos_request_list usbnet_req_cpus;

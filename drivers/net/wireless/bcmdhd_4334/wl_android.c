@@ -60,6 +60,8 @@ extern void mmc_set_clock(struct mmc_host *host, unsigned int hz);
 extern PBCMSDH_SDMMC_INSTANCE gInstance;
 /*HTC_WIFI_END*/
 
+#include "../../../../arch/arm/mach-tegra/tegra_pmqos.h"
+
 /*
  * Android private command strings, PLEASE define new private commands here
  * so they can be updated easily in the future (if needed)
@@ -420,15 +422,13 @@ static unsigned long last_traffic_count = 0;
 
 struct pm_qos_request_list req_freq;
 struct pm_qos_request_list req_cpus;
-#define PM_QOS_CPU_WIFI_FREQ_MAX_DEFAULT_VALUE 1600000
-#define PM_QOS_MIN_ONLINE_CPUS_WIFI_VALUE 2
 static int wlan_req_perflock_active = 0;
 
 void wlan_lock_perf(void)
 {
 	printk(KERN_INFO "[WLAN] %s, perf on\n", __func__);
-	pm_qos_update_request(&req_freq, (s32)PM_QOS_CPU_WIFI_FREQ_MAX_DEFAULT_VALUE);
-	pm_qos_update_request(&req_cpus, (s32)PM_QOS_MIN_ONLINE_CPUS_WIFI_VALUE);
+	pm_qos_update_request(&req_freq, (s32)WIFI_CPU_FREQ_MIN);
+	pm_qos_update_request(&req_cpus, (s32)WIFI_ONLINE_CPUS_MIN);
 }
 
 void wlan_unlock_perf(void)

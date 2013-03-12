@@ -47,6 +47,8 @@
 #define A2DP_TUNING_SUPPORTED
 #define OPP_TUNING_SUPPORTED
 
+#include "../../../arch/arm/mach-tegra/tegra_pmqos.h"
+
 #ifdef A2DP_TUNING_SUPPORTED
 #include <linux/pm_qos_params.h>
 #endif
@@ -107,14 +109,6 @@ const int dma_req_sel_brcm[] = {
 #define TEGRA_UART_TX_TRIG_8B  0x10
 #define TEGRA_UART_TX_TRIG_4B  0x20
 #define TEGRA_UART_TX_TRIG_1B  0x30
-
-#ifdef A2DP_TUNING_SUPPORTED
-#define A2DP_CPU_FREQ_MIN 204000
-#endif
-
-#ifdef OPP_TUNING_SUPPORTED
-#define OPP_CPU_FREQ_MIN 800000
-#endif
 
 #define T_LOW 0
 #define T_HIGH 1

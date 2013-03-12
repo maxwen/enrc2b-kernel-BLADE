@@ -58,7 +58,7 @@ extern int mpdecision_gmode_notifier(void);
 unsigned int tegra_pmqos_boost_freq = BOOST_CPU_FREQ_MIN;
 
 /* frequency cap used during suspend (screen off)*/
-static unsigned int suspend_cap_freq = CAP_CPU_FREQ_MAX;
+static unsigned int suspend_cap_freq = SUSPEND_CPU_FREQ_MAX;
 
 // maxwen: assumes 4 cores!
 unsigned int tegra_pmqos_cpu_freq_limits[CONFIG_NR_CPUS] = {0, 0, 0, 0};

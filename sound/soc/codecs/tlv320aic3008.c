@@ -38,6 +38,8 @@
 #include <linux/spi-tegra.h>
 #include <linux/pm_qos_params.h>
 
+#include "../../../arch/arm/mach-tegra/tegra_pmqos.h"
+
 #undef LOG_TAG
 #define LOG_TAG "AUD"
 
@@ -58,7 +60,6 @@
 #define AUD_DBG(fmt, ...) do { } while (0)
 #endif
 
-#define AUD_CPU_FREQ_MIN 102000
 static unsigned int audio_min_freq = AUD_CPU_FREQ_MIN;
 
 static int audio_min_freq_set(const char *arg, const struct kernel_param *kp)

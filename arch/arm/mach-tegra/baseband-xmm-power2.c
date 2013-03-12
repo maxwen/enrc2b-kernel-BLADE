@@ -27,7 +27,6 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/wakelock.h>
-#include <linux/pm_qos_params.h>
 #include <mach/usb_phy.h>
 #include "baseband-xmm-power.h"
 #include "board.h"
@@ -104,7 +103,6 @@ MODULE_PARM_DESC(XYZ,
 static struct baseband_power_platform_data *baseband_power2_driver_data;
 static struct workqueue_struct *workqueue;
 static struct baseband_xmm_power_work_t *baseband_xmm_power2_work;
-extern struct pm_qos_request_list modem_boost_cpu_freq_req;
 
 static enum {
 	IPC_AP_WAKE_UNINIT,
@@ -595,10 +593,6 @@ static void baseband_xmm_power2_flashless_pm_ver_ge_1130_step3
 			baseband_xmm_power2_work);
 	} else
 		pr_debug("%s - enum success\n", __func__);
-
-//	pr_debug("VP:%s - pm qos CPU back to normal\n", __func__);
-//	pm_qos_update_request(&modem_boost_cpu_freq_req,
-//		(s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
 
 	pr_debug("%s }\n", __func__);
 }
