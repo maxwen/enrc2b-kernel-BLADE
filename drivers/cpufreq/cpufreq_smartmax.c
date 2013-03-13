@@ -56,7 +56,7 @@ static unsigned int ideal_freq;
  * Zero disables and causes to always jump straight to max frequency.
  * When below the ideal freqeuncy we always ramp up to the ideal freq.
  */
-#define DEFAULT_RAMP_UP_STEP 250000
+#define DEFAULT_RAMP_UP_STEP 300000
 static unsigned int ramp_up_step;
 
 /*
@@ -64,13 +64,13 @@ static unsigned int ramp_up_step;
  * Zero disables and will calculate ramp down according to load heuristic.
  * When above the ideal freqeuncy we always ramp down to the ideal freq.
  */
-#define DEFAULT_RAMP_DOWN_STEP 250000
+#define DEFAULT_RAMP_DOWN_STEP 150000
 static unsigned int ramp_down_step;
 
 /*
  * CPU freq will be increased if measured load > max_cpu_load;
  */
-#define DEFAULT_MAX_CPU_LOAD 75
+#define DEFAULT_MAX_CPU_LOAD 80
 static unsigned int max_cpu_load;
 
 /*
@@ -83,17 +83,17 @@ static unsigned int min_cpu_load;
  * The minimum amount of time to spend at a frequency before we can ramp up.
  * Notice we ignore this when we are below the ideal frequency.
  */
-#define DEFAULT_UP_RATE_US 80000
+#define DEFAULT_UP_RATE_US 50000
 static unsigned int up_rate_us;
 
 /*
  * The minimum amount of time to spend at a frequency before we can ramp down.
  * Notice we ignore this when we are above the ideal frequency.
  */
-#define DEFAULT_DOWN_RATE_US 120000
+#define DEFAULT_DOWN_RATE_US 100000
 static unsigned int down_rate_us;
 
-#define DEFAULT_SAMPLING_RATE 40000
+#define DEFAULT_SAMPLING_RATE 50000
 static unsigned int sampling_rate;
 
 #define DEFAULT_INPUT_BOOST_DURATION 50000000
@@ -328,6 +328,8 @@ inline static void target_freq(struct cpufreq_policy *policy,
 		}
 	} else
 		target = new_freq;
+
+	dprintk(SMARTMAX_DEBUG_ALG, "old_freq %u new_freq %u target %u\n", old_freq, new_freq, target);
 
 	mutex_lock(&set_speed_lock);
 
