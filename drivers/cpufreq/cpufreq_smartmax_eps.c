@@ -102,7 +102,7 @@ static unsigned int input_boost_duration;
 static unsigned int touch_poke_freq = 760000;
 static bool touch_poke = true;
 
-static bool sync_cpu_downscale = true;
+static bool sync_cpu_downscale = false;
 
 static unsigned int boost_freq = 760000;
 static bool boost = true;
