@@ -786,7 +786,7 @@ static unsigned int cpu_mv_init(void)
 	return get_mv_table_for_name("cpu_g",0);
 }
 
-static ssize_t show_cpu_mv_table(char *buf)
+ssize_t show_cpu_mv_table(char *buf)
 {
 	int num, i = 0;
 	char *out = buf;
@@ -799,7 +799,7 @@ static ssize_t show_cpu_mv_table(char *buf)
 	return out - buf;
 }
 
-static ssize_t store_cpu_mv_table(const char *buf, size_t count)
+ssize_t store_cpu_mv_table(const char *buf, size_t count)
 {
 	int i = 0, j = 0;
 	int ret;
