@@ -91,6 +91,7 @@ static struct dvfs_rail *tegra3_dvfs_rails[] = {
 
 static int tegra3_get_core_floor_mv(int cpu_mv)
 {
+#if 0
 	if (cpu_mv < 800)
 		return VDD_CORE_MIN;
 	if (cpu_mv < 900)
@@ -105,7 +106,13 @@ static int tegra3_get_core_floor_mv(int cpu_mv)
 	if (cpu_mv < 1100)
 		return 1200;
 	if (cpu_mv <= VDD_CPU_MAX)
-		return 1300;
+		return VDD_CORE_MAX;
+#endif
+	int i;
+	
+	for (i=0; i<ARRAY_SIZE(core_millivolts) && core_millivolts[i] < cpu_mv; ++i);
+		return core_millivolts[i];
+		
 	BUG();
 }
 
@@ -207,7 +214,7 @@ static struct dvfs cpu_dvfs_table[] = {
 	CPU_DVFS("cpu_g", 14, -1, MHZ,  1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,    1,    1,    1,    1,    1,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900),
 	CPU_DVFS("cpu_g", 15, -1, MHZ,  1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900),
 
-	CPU_DVFS("cpu_g", 12, 3, MHZ,   1,   475, 475, 475, 475, 620, 620, 620, 620, 760, 760, 760, 760,  760,  910,  910,  1000,  1000, 1000, 1000, 1150, 1150, 1150, 1150, 1150, 1300, 1300, 1300, 1300, 1400, 1400, 1400, 1400, 1500, 1500, 1500, 1500, 1500, 1500, 1700),
+	CPU_DVFS("cpu_g", 12, 3, MHZ,   1, 475, 475, 475, 475, 620, 620, 620, 620, 760, 760, 760, 760,  760,  910,  910,  1000,  1000, 1000, 1000, 1150, 1150, 1150, 1150, 1150, 1300, 1300, 1300, 1300, 1400, 1400, 1400, 1400, 1500, 1500, 1500, 1500, 1500, 1500, 1700),
 	CPU_DVFS("cpu_g", 12, 4, MHZ,   475, 475, 475, 475, 475, 620, 620, 620, 760, 760, 760, 760, 910,  910,  910, 1000,  1000,  1000, 1000, 1150, 1150, 1150, 1150, 1300, 1300, 1300, 1300, 1400, 1400, 1400, 1400, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1700),
 
 	CPU_DVFS("cpu_g", 13, 3, MHZ,   1,   1,   1,   1, 550, 550, 550, 770, 770, 770, 770,  910,  910,  910,  910,  910,  910,  910, 1150, 1150, 1230, 1230, 1230, 1280, 1280, 1330, 1330, 1370, 1370, 1400, 1400, 1470, 1470, 1500, 1500, 1500, 1500, 1540, 1540, 1700),
@@ -685,19 +692,6 @@ static int __init get_core_nominal_mv_index(int speedo_id)
 	return (i - 1);
 }
 
-#if 0
-static void tegra_adjust_cpu_mvs_aged(int mvs)
-{
-	int i;
-
-	pr_info("tegra_adjust_cpu_mvs_aged: mvs %d\n", mvs);
-	BUG_ON(ARRAY_SIZE(cpu_millivolts) != ARRAY_SIZE(cpu_millivolts_aged));
-
-	for (i = 0; i < ARRAY_SIZE(cpu_millivolts); i++)
-		cpu_millivolts[i] = cpu_millivolts_aged[i] - mvs;
-}
-#endif
-
 static void tegra_adjust_cpu_mvs(int mvs)
 {
 	int i;
@@ -746,33 +740,112 @@ void tegra_cpu_mvs_init()
 	tegra_adjust_cpu_mvs(VDD_CPU_DEFAULT_MVS);
 }
 
-//maxwen: WTF 
-#if 0
-/**
- * Adjust VDD_CPU to offset aging.
- * 25mV for 1st year
- * 12mV for 2nd and 3rd year
- * 0mV for 4th year onwards
- */
-void tegra_dvfs_age_cpu(int cur_linear_age)
-{
-	int chip_linear_age;
-	int chip_life;
-	chip_linear_age = tegra_get_age();
-	chip_life = cur_linear_age - chip_linear_age;
+struct mv_struct {
+	unsigned long mhz;
+	int mv_table[MAX_DVFS_FREQS];
+	int min_pos;
+	int max_pos;
+};
 
-	/*For T37 and AP37*/
-	if (tegra_cpu_speedo_id() == 12 || tegra_cpu_speedo_id() == 13) {
-		if (chip_linear_age <= 0) {
-			return;
-		} else if (chip_life <= 12) {
-			tegra_adjust_cpu_mvs_aged(25);
-		} else if (chip_life <= 36) {
-			tegra_adjust_cpu_mvs_aged(13);
+// TODO why *2?
+static struct mv_struct mv_list[MAX_DVFS_FREQS*2];
+
+/* combine entries for the same frequency */
+static unsigned int get_mv_table_for_name(const char* cpu_name, const int pos) 
+{
+	int i = 0, sum = 0, j = pos, k = 0;
+	struct clk *cpu_clk_g = tegra_get_clock_by_name(cpu_name);
+
+	/* find how many actual entries there are */
+	sum = cpu_clk_g->dvfs->num_freqs;
+	if (sum == 0) 
+		return 0;
+	j = j - 1;
+	for (i = 0; i < sum; i++) {
+		if (i == 0 || (cpu_clk_g->dvfs->freqs[i] != cpu_clk_g->dvfs->freqs[i - 1])) {
+			j++;
+			k = 0;
+			mv_list[j].mv_table[k] = cpu_clk_g->dvfs->millivolts[i];
+			mv_list[j].mhz = cpu_clk_g->dvfs->freqs[i]/1000000;
+			mv_list[j].min_pos = i;
+			mv_list[j].max_pos = i;
+		} else {
+			mv_list[j].mv_table[++k] = cpu_clk_g->dvfs->millivolts[i];
+			mv_list[j].max_pos = i;
 		}
 	}
+	return j + 1;
 }
-#endif
+
+static unsigned int cpu_mv_init(void) 
+{
+	return get_mv_table_for_name("cpu_g",0);
+}
+
+static ssize_t show_cpu_mv_table(char *buf)
+{
+	int num, i = 0;
+	char *out = buf;
+	/* find how many actual entries there are */
+	num = cpu_mv_init();
+
+	for (i = 0; i < num; i++) {
+		out += sprintf(out, "%lumhz: %i mV\n", mv_list[i].mhz, mv_list[i].mv_table[0]);
+	}
+	return out - buf;
+}
+
+static ssize_t store_cpu_mv_table(const char *buf, size_t count)
+{
+	int i = 0, j = 0;
+	int ret;
+	long temp;
+	int uv;
+	char size_cur[16];
+	const int num = cpu_mv_init();
+	int user_cpu_millivolts[MAX_DVFS_FREQS] = CPU_MILLIVOLTS;
+
+	if (num == 0)
+		return -EINVAL;
+
+	pr_info("store_cpu_mv_table %s\n", buf);
+							
+	curr_cpu_vdd_change = 0;
+	
+	for (i = 0; i < num; i++) {
+		if (mv_list[i].mhz != 0) {
+			ret = sscanf(buf, "%ld", &(temp));
+			if (ret == 1) {
+				if (temp < VDD_CPU_MIN)
+					temp = VDD_CPU_MIN;
+
+				if (temp > VDD_CPU_MAX)
+					temp = VDD_CPU_MAX;
+
+				uv = mv_list[i].mv_table[0]-temp; //This is the UV value
+			}
+			else
+				return -EINVAL;
+			
+			for (j = mv_list[i].min_pos; j <= mv_list[i].max_pos; ++j) {
+				temp = mv_list[i].mv_table[j - mv_list[i].min_pos] - uv;
+				user_cpu_millivolts[j] = temp;
+			}
+
+			/* Non-standard sysfs interface: advance buf */
+			ret = sscanf(buf, "%s", size_cur);
+			buf += (strlen(size_cur)+1);			
+		}
+	}
+
+	mutex_lock(&dvfs_lock);
+	for (i = 0; i < ARRAY_SIZE(cpu_millivolts); i++){
+		cpu_millivolts[i] = user_cpu_millivolts[i];
+	}
+	mutex_unlock(&dvfs_lock);
+
+	return count;
+}
 
 void __init tegra_soc_init_dvfs(void)
 {
@@ -1135,36 +1208,10 @@ static ssize_t
 cpu_millivolts_show(struct kobject *kobj, struct kobj_attribute *attr,
 		    char *buf)
 {
-	int j;
-	int i;
-	int cpu_speedo_id = tegra_cpu_speedo_id();
-	int cpu_process_id = tegra_cpu_process_id();
 	char *out = buf;
-	struct dvfs *d;
-	struct clk *c;
 	
 	out += sprintf(out, "current mv change %d\n", curr_cpu_vdd_change);
-	for (i = 0, j = 0; j <  ARRAY_SIZE(cpu_dvfs_table); j++) {
-		d = &cpu_dvfs_table[j];
-		if (match_dvfs_one(d, cpu_speedo_id, cpu_process_id)) {
-			c = tegra_get_clock_by_name(d->clk_name);
-			if (!c) {
-				out += sprintf(out, "no clock found for %s\n", d->clk_name);
-				break;
-			}
-			BUG_ON(!c);
-
-			out += sprintf(out, "clock %s\n", d->clk_name);
-			for (; i < MAX_DVFS_FREQS; i++) {
-				if ((d->freqs[i] == 0) ||
-				    (d->millivolts[i] == 0))
-					continue;
-
-				out += sprintf(out, "%lu mhz: %i mV\n", d->freqs[i]/1000, d->millivolts[i]);
-			}
-			break;
-		}
-	}
+	out += show_cpu_mv_table(out);
 
 	return out - buf;
 }
@@ -1198,8 +1245,31 @@ cpu_millivolts_store(struct kobject *kobj, struct kobj_attribute *attr,
 static struct kobj_attribute cpu_millivolts_attribute =
 	__ATTR(cpu_millivolts, 0644, cpu_millivolts_show, cpu_millivolts_store);
 
+static ssize_t
+cpu_millivolts_new_show(struct kobject *kobj, struct kobj_attribute *attr,
+		    char *buf)
+{
+	char *out = buf;
+	out += show_cpu_mv_table(out);
+	return out - buf;
+}
+
+static ssize_t
+cpu_millivolts_new_store(struct kobject *kobj, struct kobj_attribute *attr,
+		     const char *buf, size_t count)
+{
+#ifdef CONFIG_VOLTAGE_CONTROL
+	return store_cpu_mv_table(buf, count);
+#endif
+	return 0;
+}
+
+static struct kobj_attribute cpu_millivolts_new_attribute =
+	__ATTR(cpu_millivolts_new, 0644, cpu_millivolts_new_show, cpu_millivolts_new_store);
+
 const struct attribute *dvfs_attributes[] = {
 	&cpu_millivolts_attribute.attr,
+	&cpu_millivolts_new_attribute.attr,
 	NULL,
 };
 void tegra_dvfs_core_cap_enable(bool enable)
