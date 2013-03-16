@@ -338,12 +338,42 @@ static void delay_callback(struct cpuquiet_attribute *attr)
 	}
 }
 
+ssize_t show_nr_run_thresholds(struct cpuquiet_attribute *cattr, char *buf)
+{
+	char *out = buf;
+	
+	out += sprintf(out, "%d %d %d %d\n", nr_run_thresholds[0], nr_run_thresholds[1], nr_run_thresholds[2], nr_run_thresholds[3]);
+
+	return out - buf;
+}
+
+ssize_t store_nr_run_thresholds(struct cpuquiet_attribute *cattr,
+					const char *buf, size_t count)
+{
+	int ret;
+	int user_nr_run_thresholds[] = { 5, 9, 10, UINT_MAX };
+	
+	ret = sscanf(buf, "%d %d %d %d", &user_nr_run_thresholds[0], &user_nr_run_thresholds[1], &user_nr_run_thresholds[2], &user_nr_run_thresholds[3]);
+
+	if (ret != 4)
+		return -EINVAL;
+
+	nr_run_thresholds[0] = user_nr_run_thresholds[0];
+	nr_run_thresholds[1] = user_nr_run_thresholds[1];
+	nr_run_thresholds[2] = user_nr_run_thresholds[2];
+	nr_run_thresholds[3] = user_nr_run_thresholds[3];
+	
+	return count;
+}
+					
 CPQ_BASIC_ATTRIBUTE(balance_level, 0644, uint);
 CPQ_BASIC_ATTRIBUTE(idle_bottom_freq, 0644, uint);
 CPQ_BASIC_ATTRIBUTE(idle_top_freq, 0644, uint);
 CPQ_BASIC_ATTRIBUTE(load_sample_rate, 0644, uint);
 CPQ_ATTRIBUTE(up_delay, 0644, ulong, delay_callback);
 CPQ_ATTRIBUTE(down_delay, 0644, ulong, delay_callback);
+CPQ_ATTRIBUTE_CUSTOM(nr_run_thresholds, 0644, show_nr_run_thresholds, store_nr_run_thresholds);
+CPQ_BASIC_ATTRIBUTE(nr_run_hysteresis, 0644, uint);
 
 static struct attribute *balanced_attributes[] = {
 	&balance_level_attr.attr,
@@ -352,6 +382,8 @@ static struct attribute *balanced_attributes[] = {
 	&up_delay_attr.attr,
 	&down_delay_attr.attr,
 	&load_sample_rate_attr.attr,
+	&nr_run_thresholds_attr.attr,
+	&nr_run_hysteresis_attr.attr,
 	NULL,
 };
 
