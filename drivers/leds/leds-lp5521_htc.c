@@ -40,7 +40,7 @@
 
 static int led_rw_delay;
 static int current_state, current_blink, current_time;
-static int current_currents, current_lut_coefficient, current_pwm_coefficient;
+static int current_currents = 0, current_lut_coefficient, current_pwm_coefficient;
 static int current_mode, backlight_mode, suspend_mode, offtimer_mode;
 static int amber_mode, button_brightness, slow_blink_brightness;
 static struct regulator *regulator;
@@ -852,7 +852,7 @@ static void led_powerkey_work_func(struct work_struct *work)
 
 	I(" %s +++\n" , __func__);
 	pdata = client->dev.platform_data;
-	if( current_mode == 0  )
+	if (current_mode == 0 && backlight_mode == 0)
 		lp5521_led_enable(client);
 	mutex_lock(&led_mutex);
 	I("%s, backlight_mode: %d\n", __func__, backlight_mode);
@@ -1310,8 +1310,9 @@ static ssize_t lp5521_led_currents_store(struct device *dev,
 
 	sscanf(buf, "%d", &val);
 	I(" %s , val = %d\n" , __func__, val);
-	if (val < 0 || val > 255)
+	if (val < 0 || val > 3)
 		return -EINVAL;
+		
 	current_currents = val;
 	led_cdev = (struct led_classdev *)dev_get_drvdata(dev);
 	ldata = container_of(led_cdev, struct lp5521_led, cdev);
@@ -1326,11 +1327,14 @@ static ssize_t lp5521_led_currents_store(struct device *dev,
 	udelay(500);
 	/* === set pwm to all === */
 	data = (u8)val;
-	if(!strcmp(ldata->cdev.name, "green"))	 {
+	// maxwen TODO disable green and amber currents
+	// interface - writing e.g. 255 to it will create
+	// an extreme bright led
+	/*if(!strcmp(ldata->cdev.name, "green"))	 {
 		ret = i2c_write_block(client, 0x06, &data, 1);
 	} else if (!strcmp(ldata->cdev.name, "amber")) {
 		ret = i2c_write_block(client, 0x05, &data, 1);
-	} else if (!strcmp(ldata->cdev.name, "button-backlight")) {
+	} else*/ if (!strcmp(ldata->cdev.name, "button-backlight")) {
 		ret = i2c_write_block(client, 0x07, &data, 1);
 	}
 	mutex_unlock(&led_mutex);
