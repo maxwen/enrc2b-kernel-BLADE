@@ -783,7 +783,7 @@ static unsigned int get_mv_table_for_name(const char* cpu_name, const int pos)
 
 static unsigned int cpu_mv_init(void) 
 {
-	return get_mv_table_for_name("cpu_g",0);
+	return get_mv_table_for_name("cpu_g", 0);
 }
 
 ssize_t show_cpu_mv_table(char *buf)
@@ -1208,8 +1208,8 @@ const struct attribute *cap_attributes[] = {
 	NULL,
 };
 
-static ssize_t
-cpu_millivolts_show(struct kobject *kobj, struct kobj_attribute *attr,
+#ifdef CONFIG_VOLTAGE_CONTROL
+static ssize_t cpu_millivolts_show(struct kobject *kobj, struct kobj_attribute *attr,
 		    char *buf)
 {
 	char *out = buf;
@@ -1220,11 +1220,9 @@ cpu_millivolts_show(struct kobject *kobj, struct kobj_attribute *attr,
 	return out - buf;
 }
 
-static ssize_t
-cpu_millivolts_store(struct kobject *kobj, struct kobj_attribute *attr,
+static ssize_t cpu_millivolts_store(struct kobject *kobj, struct kobj_attribute *attr,
 		     const char *buf, size_t count)
 {
-#ifdef CONFIG_VOLTAGE_CONTROL
 	int mv_change = 0;
 	int ret = 0;
 	
@@ -1242,7 +1240,7 @@ cpu_millivolts_store(struct kobject *kobj, struct kobj_attribute *attr,
 				
 	pr_info("cpu_millivolts_store: mv_change %d\n", mv_change);
 	tegra_adjust_cpu_mvs(mv_change);
-#endif
+
 	return count;
 }
 
@@ -1262,10 +1260,7 @@ static ssize_t
 cpu_millivolts_new_store(struct kobject *kobj, struct kobj_attribute *attr,
 		     const char *buf, size_t count)
 {
-#ifdef CONFIG_VOLTAGE_CONTROL
 	return store_cpu_mv_table(buf, count);
-#endif
-	return 0;
 }
 
 static struct kobj_attribute cpu_millivolts_new_attribute =
@@ -1276,6 +1271,8 @@ const struct attribute *dvfs_attributes[] = {
 	&cpu_millivolts_new_attribute.attr,
 	NULL,
 };
+#endif
+
 void tegra_dvfs_core_cap_enable(bool enable)
 {
 	mutex_lock(&core_cap_lock);
