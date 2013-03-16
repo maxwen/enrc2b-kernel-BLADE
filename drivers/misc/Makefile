@@ -63,6 +63,5 @@ obj-$(CONFIG_MAX1749_VIBRATOR)	+= max1749.o
 obj-$(CONFIG_TEGRA_VIBRATOR)	+= tegra_vibrator.o
 obj-$(CONFIG_TEGRA_VIBRATOR_ENR)+= tegra_vibrator_enr.o
 obj-$(CONFIG_CABLE_DETECT_ACCESSORY)+= cable_detect.o
-obj-$(CONFIG_HTC_PROJECT)		+= htc/
 obj-$(CONFIG_THERM_EST)		+= therm_est.o
 obj-$(CONFIG_TEGRA_THROUGHPUT)	+= tegra-throughput.o

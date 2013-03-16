@@ -226,7 +226,7 @@ static struct led_i2c_config lp5521_led_config[] = {
 	},
 	{
 		.name = "button-backlight",
-		.led_cur = 95,
+		.led_cur = 2,
 		.led_lux = 55,
 	},
 };
@@ -1683,11 +1683,7 @@ static void tegra_usb_hsic_host_unregister(struct platform_device *pdev)
 
 static struct android_usb_platform_data android_usb_pdata = {
 	.vendor_id	= 0x0BB4,
-#ifdef CONFIG_SENSE_4_PLUS
 	.product_id	= 0x0dfd,
-#else
-	.product_id	= 0x0cfa,
-#endif
 	.version	= 0x0100,
 	.product_name		= "Android Phone",
 	.manufacturer_name	= "HTC",

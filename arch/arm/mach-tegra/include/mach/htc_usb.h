@@ -44,13 +44,11 @@ static char *usb_functions_adb[] = {
 	"adb",
 };
 
-#ifdef CONFIG_SENSE_4_PLUS
 static char *usb_functions_mtp_ums_adb[] = {
 	"mtp",
 	"adb",
 	"mass_storage",
 };
-#endif
 
 static char *usb_functions_mtp_ums[] = {
 	"mtp",
@@ -692,13 +690,11 @@ static char *usb_functions_all[] = {
 };
 
 static struct android_usb_product usb_products[] = {
-#ifdef CONFIG_SENSE_4_PLUS
 	{
 		.product_id = 0x0f90, /* vary by board */
 		.num_functions	= ARRAY_SIZE(usb_functions_mtp_ums_adb),
 		.functions	= usb_functions_mtp_ums_adb,
 	},
-#endif
 	{
 		.product_id = 0x0c02, /* vary by board */
 		.num_functions	= ARRAY_SIZE(usb_functions_adb),

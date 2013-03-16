@@ -211,7 +211,6 @@ config HTC_POWER_OFF
 
 config HTC_PROJECT
        bool "HTC Project"
-       select HTC_DEBUG_FILE_NODE
        select WATCHDOG
        select TEGRA_WATCHDOG
        select TEGRA_WATCHDOG_ENABLE_ON_PROBE
@@ -822,12 +821,6 @@ config RIL_FTRACE_DEBUG_SOCK_IOCTL
 	default n
 	help
 	  Debug for rmnet ioctl no response.
-
-config SENSE_4_PLUS
-	depends on ARCH_TEGRA_3x_SOC
-	bool "SENSE 4 PLUS"
-	help
-	  Support for SENSE 4 PLUS.
 
 config MEMORY_FOOTPRINT_DEBUGGING
 	bool "footprint for debugging"
