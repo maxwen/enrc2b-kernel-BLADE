@@ -2439,22 +2439,18 @@ static void android_usb_init_work(struct work_struct *data)
 	int ret = 0;
 	__u16 product_id;
 
-#ifdef CONFIG_SENSE_4_PLUS
 	/* initial mtp+ums+adb by default */
 	ret = android_enable_function(dev, "mtp");
 	if (ret)
 		pr_err("android_usb: Cannot enable '%s'", "mtp");
-#endif
 
 	ret = android_enable_function(dev, "mass_storage");
 	if (ret)
 		pr_err("android_usb: Cannot enable '%s'", "mass_storage");
 
-#if 0
 	ret = android_enable_function(dev, "adb");
 	if (ret)
 		pr_err("android_usb: Cannot enable '%s'", "adb");
-#endif
 
 	/* initial function depends on radio flag */
 	if (pdata->diag_init) {
