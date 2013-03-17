@@ -111,9 +111,9 @@ static int tegra3_get_core_floor_mv(int cpu_mv)
 	int i;
 	
 	for (i=0; i<ARRAY_SIZE(core_millivolts) && core_millivolts[i] < cpu_mv; ++i);
+	if (i<ARRAY_SIZE(core_millivolts))
 		return core_millivolts[i];
-		
-	BUG();
+	return VDD_CORE_MAX;
 }
 
 /* vdd_core must be >= min_level as a function of vdd_cpu */
