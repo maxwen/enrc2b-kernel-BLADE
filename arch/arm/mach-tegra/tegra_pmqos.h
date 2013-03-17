@@ -50,6 +50,7 @@
 #define TI_A2DP_CPU_FREQ_MIN 102000
 
 // tegra_hsuart_brcm.c - not automatic must be enabled via sysfs
+// sysfs to change available
 #define A2DP_CPU_FREQ_MIN 204000
 #define OPP_CPU_FREQ_MIN 475000
 

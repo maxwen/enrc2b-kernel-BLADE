@@ -64,13 +64,13 @@ static unsigned int audio_min_freq = AUD_CPU_FREQ_MIN;
 
 static int audio_min_freq_set(const char *arg, const struct kernel_param *kp)
 {
-	int tmp;
+	unsigned int tmp;
 
-	if (1 != sscanf(arg, "%d", &tmp))
+	if (1 != sscanf(arg, "%u", &tmp))
 		return -EINVAL;
 		
 	audio_min_freq = tmp;
-    pr_info("audio_min_freq %d\n", audio_min_freq);
+    pr_info("audio_min_freq %u\n", audio_min_freq);
    	return 0;
 }
 

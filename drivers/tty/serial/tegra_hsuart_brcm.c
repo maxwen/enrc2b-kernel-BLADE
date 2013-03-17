@@ -211,11 +211,14 @@ struct tegra_uart_port {
 static struct pm_qos_request_list a2dp_cpu_minfreq_req;
 
 static unsigned char a2dp_tuning_state;
+static unsigned int a2dp_tuning_freq = A2DP_CPU_FREQ_MIN;
 
 static SERIAL_HS_CREATE_DEVICE_ATTR(a2dp_tuning);
+static SERIAL_HS_CREATE_DEVICE_ATTR(a2dp_tuning_freq);
 
 static struct attribute *a2dp_serial_hs_attributes[] = {
 	&dev_attr_a2dp_tuning.attr,
+	&dev_attr_a2dp_tuning_freq.attr,
 	NULL,
 };
 
@@ -231,25 +234,51 @@ static ssize_t show_a2dp_tuning(struct device *dev, struct device_attribute *att
 static ssize_t store_a2dp_tuning(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	char in_char[] = "0";
-
+	unsigned int value;
+	
 	sscanf(buf, "%1s", in_char);
 
 	if (strcmp(in_char, "0") == 0) {
-		a2dp_tuning_state = 0;
+		value = 0;
 	}
 	else if (strcmp(in_char, "1") == 0) {
-		a2dp_tuning_state = 1;
+		value = 1;
 	}
-	if (1 == a2dp_tuning_state) {
-		pm_qos_update_request(&a2dp_cpu_minfreq_req, (s32)A2DP_CPU_FREQ_MIN);
-		pr_info("pm_qos_update_request - A2DP_CPU_FREQ_MIN");
-	}
-	else if (0 == a2dp_tuning_state) {
+	if (value == a2dp_tuning_state)
+		return count;
+		
+	a2dp_tuning_state = value;
+	if (1 == a2dp_tuning_state)
+		pm_qos_update_request(&a2dp_cpu_minfreq_req, (s32)a2dp_tuning_freq);
+	else if (0 == a2dp_tuning_state)
 		pm_qos_update_request(&a2dp_cpu_minfreq_req, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
-		pr_info("pm_qos_update_request - PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE");
-	}
 
-	return 1;
+	return count;
+}
+
+static ssize_t show_a2dp_tuning_freq(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%u\n", a2dp_tuning_freq);
+}
+
+static ssize_t store_a2dp_tuning_freq(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned int tmp;
+	
+	if (1 != sscanf(buf, "%u", &tmp))
+		return -EINVAL;
+		
+	if (a2dp_tuning_freq == tmp)
+		return count;
+		
+	a2dp_tuning_freq = tmp;
+    pr_info("a2dp_tuning_freq %d\n", a2dp_tuning_freq);
+
+	// update QoS
+	if (1 == a2dp_tuning_state)
+		pm_qos_update_request(&a2dp_cpu_minfreq_req, (s32)a2dp_tuning_freq);
+	
+   	return count;
 }
 #endif
 
@@ -1825,6 +1854,7 @@ static int __init tegra_uart_probe(struct platform_device *pdev)
 			printk(KERN_ERR "%s reg attr fail!!", __func__);
 
 		SERIAL_HS_SET_DEVICE_ATTR(a2dp_tuning, 0644, show_a2dp_tuning, store_a2dp_tuning);
+		SERIAL_HS_SET_DEVICE_ATTR(a2dp_tuning_freq, 0644, show_a2dp_tuning_freq, store_a2dp_tuning_freq);
 #endif
 
 #ifdef OPP_TUNING_SUPPORTED
