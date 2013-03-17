@@ -851,3 +851,9 @@ config SMARTDIMMER
     help
       Enable panel smartdimmer support
 
+config TEGRA_UNIFY_VARIANT
+    bool "Use variant 4 voltages for all"
+    default n
+    help
+      Use variant 4 default voltages also for variant 3
+

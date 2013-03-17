@@ -60,8 +60,10 @@ static int cpu_below_core = VDD_CPU_BELOW_VDD_CORE;
 #define VDD_MAX_CHANGE			200
 
 #define VDD_CPU_MIN				700
-#define VDD_CPU_MAX				1250	
+#define VDD_CPU_MAX				1250
+
 #define VDD_CPU_DEFAULT_MVS		-25
+#define VDD_CPU_DEFAULT_MVS_UNIFY		-12
 
 #define VDD_CORE_MIN			950
 #define VDD_CORE_MAX			1350
@@ -93,7 +95,7 @@ static int tegra3_get_core_floor_mv(int cpu_mv)
 {
 #if 0
 	if (cpu_mv < 800)
-		return VDD_CORE_MIN;
+		return  950;
 	if (cpu_mv < 900)
 		return 1000;
 	if (cpu_mv < 1000)
@@ -105,15 +107,21 @@ static int tegra3_get_core_floor_mv(int cpu_mv)
 		return 1200;
 	if (cpu_mv < 1100)
 		return 1200;
-	if (cpu_mv <= VDD_CPU_MAX)
-		return VDD_CORE_MAX;
+	if (cpu_mv <= 1250)
+		return 1300;
 #endif
 	int i;
 	
-	for (i=0; i<ARRAY_SIZE(core_millivolts) && core_millivolts[i] < cpu_mv; ++i);
-	if (i<ARRAY_SIZE(core_millivolts))
+	for (i=0; i<ARRAY_SIZE(core_millivolts) && core_millivolts[i] < cpu_mv; i++);
+	if (i<ARRAY_SIZE(core_millivolts)){
 		return core_millivolts[i];
-	return VDD_CORE_MAX;
+	}
+	
+	/* fail-safe */
+	if (cpu_mv <= VDD_CPU_MAX)
+		return 1300;
+
+	BUG();
 }
 
 /* vdd_core must be >= min_level as a function of vdd_cpu */
@@ -214,11 +222,12 @@ static struct dvfs cpu_dvfs_table[] = {
 	CPU_DVFS("cpu_g", 14, -1, MHZ,  1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,    1,    1,    1,    1,    1,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900),
 	CPU_DVFS("cpu_g", 15, -1, MHZ,  1,   1,   1,   1,   1,   1,   1,   1,   1,   1,   1,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900,  900),
 
-#if 0
+#ifdef CONFIG_TEGRA_UNIFY_VARIANT
+	CPU_DVFS("cpu_g", 12, 3, MHZ,   475, 475, 475, 475, 475, 620, 620, 620, 760, 760, 760, 760, 910,  910,  910, 1000,  1000,  1000, 1000, 1150, 1150, 1150, 1150, 1300, 1300, 1300, 1300, 1400, 1400, 1400, 1400, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1700),
+#else
 	CPU_DVFS("cpu_g", 12, 3, MHZ,   1, 475, 475, 475, 475, 620, 620, 620, 620, 760, 760, 760, 760,  760,  910,  910,  1000,  1000, 1000, 1000, 1150, 1150, 1150, 1150, 1150, 1300, 1300, 1300, 1300, 1400, 1400, 1400, 1400, 1500, 1500, 1500, 1500, 1500, 1500, 1700),
 #endif
 
-	CPU_DVFS("cpu_g", 12, 3, MHZ,   475, 475, 475, 475, 475, 620, 620, 620, 760, 760, 760, 760, 910,  910,  910, 1000,  1000,  1000, 1000, 1150, 1150, 1150, 1150, 1300, 1300, 1300, 1300, 1400, 1400, 1400, 1400, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1700),
 	CPU_DVFS("cpu_g", 12, 4, MHZ,   475, 475, 475, 475, 475, 620, 620, 620, 760, 760, 760, 760, 910,  910,  910, 1000,  1000,  1000, 1000, 1150, 1150, 1150, 1150, 1300, 1300, 1300, 1300, 1400, 1400, 1400, 1400, 1500, 1500, 1500, 1500, 1500, 1500, 1500, 1700),
 
 	CPU_DVFS("cpu_g", 13, 3, MHZ,   1,   1,   1,   1, 550, 550, 550, 770, 770, 770, 770,  910,  910,  910,  910,  910,  910,  910, 1150, 1150, 1230, 1230, 1230, 1280, 1280, 1330, 1330, 1370, 1370, 1400, 1400, 1470, 1470, 1500, 1500, 1500, 1500, 1540, 1540, 1700),
@@ -739,9 +748,23 @@ static void tegra_reset_cpu_mvs(void)
 	mutex_unlock(&dvfs_lock);
 }
 
+static bool tegra_is_variant_4(void)
+{
+	return tegra_cpu_process_id()==4;
+}
+
 void tegra_cpu_mvs_init()
 {
-	tegra_adjust_cpu_mvs(VDD_CPU_DEFAULT_MVS);
+	int default_uv = VDD_CPU_DEFAULT_MVS;
+
+#ifdef CONFIG_TEGRA_UNIFY_VARIANT
+	/* dont use full default if we are treating
+	 a variant 3 as 4 */
+	if (!tegra_is_variant_4())
+		default_uv = VDD_CPU_DEFAULT_MVS_UNIFY;
+#endif
+		
+	tegra_adjust_cpu_mvs(default_uv);
 }
 
 struct mv_struct {
