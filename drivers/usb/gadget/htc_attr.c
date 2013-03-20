@@ -31,7 +31,8 @@ enum {
 	USB_FUNCTION_DIAG_MDM, /* 11 */
 	USB_FUNCTION_RMNET,
 	USB_FUNCTION_ACCESSORY,
-	USB_FUNCTION_MODEM_MDM, /* 14 */
+	USB_FUNCTION_AUDIO_SOURCE,
+	USB_FUNCTION_MODEM_MDM, /* 15 */
 	USB_FUNCTION_MTP36,
 	USB_FUNCTION_AUTOBOT = 30,
 	USB_FUNCTION_RNDIS_IPT = 31,
@@ -90,6 +91,10 @@ static struct usb_string_node usb_string_array[] = {
 	{
 		.usb_function_flag = 1 << USB_FUNCTION_ACCESSORY,
 		.name = "accessory",
+	},
+	{
+		.usb_function_flag = 1 << USB_FUNCTION_AUDIO_SOURCE,
+		.name = "audio_source",
 	},
 	{
 		.usb_function_flag = 1 << USB_FUNCTION_MODEM_MDM,
@@ -353,6 +358,9 @@ int android_switch_function(unsigned func)
 			list_add_tail(&f->enabled_list, &dev->enabled_functions);
 		else if ((func & (1 << USB_FUNCTION_ACCESSORY)) &&
 				!strcmp(f->name, "accessory"))
+			list_add_tail(&f->enabled_list, &dev->enabled_functions);
+		else if ((func & (1 << USB_FUNCTION_AUDIO_SOURCE)) &&
+				!strcmp(f->name, "audio_source"))
 			list_add_tail(&f->enabled_list, &dev->enabled_functions);
 		else if ((func & (1 << USB_FUNCTION_PROJECTOR)) &&
 				!strcmp(f->name, "projector"))
