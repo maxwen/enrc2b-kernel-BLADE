@@ -141,7 +141,7 @@ struct smartmax_info_s {
 static DEFINE_PER_CPU(struct smartmax_info_s, smartmax_info);
 
 #define dprintk(flag,msg...) do { \
-	if (debug_mask & flag) printk(KERN_DEBUG msg); \
+	if (debug_mask & flag) printk(KERN_DEBUG "[smartmax]" ":" msg); \
 	} while (0)
 
 enum {
@@ -321,8 +321,7 @@ inline static void target_freq(struct cpufreq_policy *policy,
 			// We should not get here:
 			// If we got here we tried to change to a validated new_freq which is different
 			// from old_freq, so there is no reason for us to remain at same frequency.
-			printk(
-					KERN_WARNING "Smartass: frequency change failed: %d to %d => %d\n",
+			dprintk(SMARTMAX_DEBUG_ALG, "frequency change failed: %d to %d => %d\n",
 					old_freq, new_freq, target);
 			return;
 		}
@@ -344,14 +343,14 @@ inline static void target_freq(struct cpufreq_policy *policy,
 			if (j_this_smartmax->enable) {
 				struct cpufreq_policy *j_policy = j_this_smartmax->cur_policy;
 				dprintk(SMARTMAX_DEBUG_JUMPS,
-						"SmartassQ: jumping from %d to %d => %d (%d) cpu %d\n", old_freq, new_freq, target, policy->cur, j_this_smartmax->cpu);
+						"jumping from %d to %d => %d (%d) cpu %d\n", old_freq, new_freq, target, policy->cur, j_this_smartmax->cpu);
 				__cpufreq_driver_target(j_policy, target, prefered_relation);
 			}
 		}
 	} else {
 		// one time is enough - larget will define the speed for all 
 		dprintk(SMARTMAX_DEBUG_JUMPS,
-				"SmartassQ: jumping from %d to %d => %d (%d) cpu %d\n", old_freq, new_freq, target, policy->cur, cpu);
+				"jumping from %d to %d => %d (%d) cpu %d\n", old_freq, new_freq, target, policy->cur, cpu);
 
 		__cpufreq_driver_target(policy, target, prefered_relation);
 	}
@@ -380,8 +379,7 @@ static void cpufreq_smartmax_freq_change(struct smartmax_info_s *this_smartmax) 
 
 	if (old_freq != policy->cur) {
 		// frequency was changed by someone else?
-		printk(
-				KERN_WARNING "Smartass: frequency changed by 3rd party: %d to %d\n",
+		dprintk(SMARTMAX_DEBUG_ALG, "frequency changed by 3rd party: %d to %d\n",
 				old_freq, policy->cur);
 		new_freq = old_freq;
 	} else if (ramp_dir > 0 && nr_running() > 1) {
@@ -396,7 +394,7 @@ static void cpufreq_smartmax_freq_change(struct smartmax_info_s *this_smartmax) 
 			relation = CPUFREQ_RELATION_H;
 		}
 		dprintk(SMARTMAX_DEBUG_ALG,
-				"smartmaxQ @ %d ramp up: ramp_dir=%d ideal=%d\n", old_freq, ramp_dir, this_smartmax->ideal_speed);
+				"%d ramp up: ramp_dir=%d ideal=%d\n", old_freq, ramp_dir, this_smartmax->ideal_speed);
 	} else if (ramp_dir < 0) {
 		// ramp down logic:
 		if (old_freq > this_smartmax->ideal_speed) {
@@ -413,7 +411,7 @@ static void cpufreq_smartmax_freq_change(struct smartmax_info_s *this_smartmax) 
 				new_freq = old_freq - 1;
 		}
 		dprintk(SMARTMAX_DEBUG_ALG,
-				"smartmaxQ @ %d ramp down: ramp_dir=%d ideal=%d\n", old_freq, ramp_dir, this_smartmax->ideal_speed);
+				"%d ramp down: ramp_dir=%d ideal=%d\n", old_freq, ramp_dir, this_smartmax->ideal_speed);
 	}
 
 	if (new_freq!=0){
@@ -510,7 +508,7 @@ static void cpufreq_smartmax_timer(struct smartmax_info_s *this_smartmax) {
 		}
 	}
 
-	dprintk(SMARTMAX_DEBUG_LOAD, "smartmaxT @ %d: load %d\n", cur, debug_load);
+	dprintk(SMARTMAX_DEBUG_LOAD, "%d: load %d\n", cur, debug_load);
 
 	this_smartmax->cur_cpu_load = debug_load;
 	this_smartmax->old_freq = cur;
@@ -531,7 +529,7 @@ static void cpufreq_smartmax_timer(struct smartmax_info_s *this_smartmax) {
 					|| cputime64_sub(now, this_smartmax->freq_change_time)
 							>= up_rate_us)) {
 		dprintk(SMARTMAX_DEBUG_ALG,
-				"smartmaxT @ %d ramp up: load %d\n", cur, debug_load);
+				"%d ramp up: load %d\n", cur, debug_load);
 		this_smartmax->ramp_dir = 1;
 		cpufreq_smartmax_freq_change(this_smartmax);
 	}
@@ -542,7 +540,7 @@ static void cpufreq_smartmax_timer(struct smartmax_info_s *this_smartmax) {
 					|| cputime64_sub(now, this_smartmax->freq_change_time)
 							>= down_rate_us)) {
 		dprintk(SMARTMAX_DEBUG_ALG,
-				"smartmaxT @ %d ramp down: load %d\n", cur, debug_load);
+				"%d ramp down: load %d\n", cur, debug_load);
 		this_smartmax->ramp_dir = -1;
 		cpufreq_smartmax_freq_change(this_smartmax);
 	}
@@ -929,7 +927,7 @@ static struct attribute_group smartmax_attr_group = { .attrs =
 
 static int cpufreq_smartmax_boost_task(void *data) {
 	struct cpufreq_policy *policy;
-	struct smartmax_info_s *this_smartass;
+	struct smartmax_info_s *this_smartmax;
 
 	dprintk(SMARTMAX_DEBUG_BOOST, "%s\n", __func__);
 
@@ -958,13 +956,13 @@ static int cpufreq_smartmax_boost_task(void *data) {
 		if (lock_policy_rwsem_write(0) < 0)
 			continue;
 
-		this_smartass = &per_cpu(smartmax_info, 0);
-		if (this_smartass) {
-			policy = this_smartass->cur_policy;
+		this_smartmax = &per_cpu(smartmax_info, 0);
+		if (this_smartmax) {
+			policy = this_smartmax->cur_policy;
 
 			if (policy) {
-				this_smartass->prev_cpu_idle = get_cpu_idle_time(0,
-						&this_smartass->prev_cpu_wall);
+				this_smartmax->prev_cpu_idle = get_cpu_idle_time(0,
+						&this_smartmax->prev_cpu_wall);
 			}
 		}
 		unlock_policy_rwsem_write(0);
@@ -1082,8 +1080,6 @@ static int cpufreq_governor_smartmax(struct cpufreq_policy *new_policy,
 		smartmax_update_min_max(this_smartmax,new_policy);
 
 		this_smartmax->freq_table = cpufreq_frequency_get_table(cpu);
-		if (!this_smartmax->freq_table)
-		printk(KERN_WARNING "Smartass: no frequency table for cpu %d?!\n",cpu);
 
 		dbs_enable++;
 
@@ -1113,12 +1109,12 @@ static int cpufreq_governor_smartmax(struct cpufreq_policy *new_policy,
 		smartmax_update_min_max(this_smartmax,new_policy);
 
 		if (this_smartmax->cur_policy->cur > new_policy->max) {
-			dprintk(SMARTMAX_DEBUG_JUMPS,"SmartassI: jumping to new max freq: %d\n",new_policy->max);
+			dprintk(SMARTMAX_DEBUG_JUMPS,"jumping to new max freq: %d\n",new_policy->max);
 			__cpufreq_driver_target(this_smartmax->cur_policy,
 					new_policy->max, CPUFREQ_RELATION_H);
 		}
 		else if (this_smartmax->cur_policy->cur < new_policy->min) {
-			dprintk(SMARTMAX_DEBUG_JUMPS,"SmartassI: jumping to new min freq: %d\n",new_policy->min);
+			dprintk(SMARTMAX_DEBUG_JUMPS,"jumping to new min freq: %d\n",new_policy->min);
 			__cpufreq_driver_target(this_smartmax->cur_policy,
 					new_policy->min, CPUFREQ_RELATION_L);
 		}
