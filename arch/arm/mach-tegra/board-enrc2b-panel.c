@@ -186,7 +186,7 @@ static p_tegra_dc_bl_output bl_output;
 #define BACKLIGHT_MAX 255
 
 #define ORIG_PWM_MAX 255
-#define ORIG_PWM_DEF 142
+#define ORIG_PWM_DEF 78
 #define ORIG_PWM_MIN 30
 
 #define MAP_PWM_MAX     255
@@ -241,7 +241,7 @@ static struct platform_tegra_pwm_backlight_data enrc2b_disp1_backlight_data = {
 	.gpio_conf_to_sfio	= TEGRA_GPIO_PW1,
 	.switch_to_sfio		= &tegra_gpio_disable,
 	.max_brightness		= 255,
-	.dft_brightness		= 100,
+	.dft_brightness		= 78,
 	.notify		= enrc2b_backlight_notify,
 	.period			= 0xFF,
 	.clk_div		= 20,
