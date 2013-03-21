@@ -56,6 +56,7 @@
 #endif
 #include <linux/tps80032_charger.h>
 #include <linux/tps80032_gauge.h>
+#include "tegra_pmqos.h"
 
 #define PMC_CTRL		0x0
 #define PMC_CTRL_INTR_LOW	(1 << 17)
@@ -695,12 +696,12 @@ static struct tegra_suspend_platform_data enrc2b_suspend_data = {
 	.cpu_off_timer	= 200,
 	.suspend_mode	= TEGRA_SUSPEND_LP0,
 	.core_timer	= 0x0b21,
-	.core_off_timer = 0,
+	.core_off_timer = 0x80,
 	.corereq_high	= true,
 	.sysclkreq_high	= true,
 	.board_suspend = enrc2b_board_suspend,
 	.board_resume = enrc2b_board_resume,
-	.cpu_resume_boost	= 1700000,
+	.cpu_resume_boost	= BOOST_CPU_FREQ_MIN,
 	.boost_resume_reason	= 0x80,
 };
 
