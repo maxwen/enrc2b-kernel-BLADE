@@ -29,7 +29,7 @@ void power_config(const char *name, int pin, int method)
 			return;
 		}
 
-		AUD_INFO("[PWR] ***** regulator %s %d enable *****\n", name, pin);
+		AUD_DBG("[PWR] ***** regulator %s %d enable *****\n", name, pin);
 		break;
 	case GPIO_OUTPUT:
 		ret = gpio_direction_output(pin, 1);
@@ -41,7 +41,7 @@ void power_config(const char *name, int pin, int method)
 		tegra_gpio_enable(pin);
 		gpio_set_value(pin, 1);
 
-		AUD_INFO("[PWR] ***** gpio %s %d output enable *****\n", name, pin);
+		AUD_DBG("[PWR] ***** gpio %s %d output enable *****\n", name, pin);
 		break;
 	case GPIO_INPUT:
 		ret = gpio_direction_input(pin);
@@ -52,7 +52,7 @@ void power_config(const char *name, int pin, int method)
 
 		tegra_gpio_enable(pin);
 
-		AUD_INFO("[PWR] ***** gpio %s %d input enable *****\n", name, pin);
+		AUD_DBG("[PWR] ***** gpio %s %d input enable *****\n", name, pin);
 		break;
 	case INIT_OUTPUT_LOW:
 		ret = gpio_request(pin, name);
@@ -126,11 +126,11 @@ void power_deconfig(const char *name, int pin, int method)
 			AUD_ERR("[PWR] couldn't enable regulator %s %d, ret = %d.\n", name, pin, ret);
 		}
 
-		AUD_INFO("[PWR] ***** regulator %s %d disable *****\n", name, pin);
+		AUD_DBG("[PWR] ***** regulator %s %d disable *****\n", name, pin);
 		break;
 	case GPIO_OUTPUT:
 		gpio_set_value(pin, 0);
-		AUD_INFO("[PWR] ***** gpio %s %d disable *****\n", name, pin);
+		AUD_DBG("[PWR] ***** gpio %s %d disable *****\n", name, pin);
 		break;
 	default:
 		AUD_ERR("[PWR] ***** power_deconfig nothing *****\n");
@@ -164,7 +164,7 @@ void dock_config(const char *name, int pin, bool output, bool out_val)
 			return;
 		}
 		tegra_gpio_enable(pin);
-		AUD_INFO("[PWR] ***** gpio %s %d enable *****\n", name, pin);
+		AUD_DBG("[PWR] ***** gpio %s %d enable *****\n", name, pin);
 	} else {
 		ret = gpio_direction_input(pin);
 		if (ret < 0) {
@@ -172,7 +172,7 @@ void dock_config(const char *name, int pin, bool output, bool out_val)
 			return;
 		}
 		tegra_gpio_enable(pin);
-		AUD_INFO("[PWR] ***** gpio %s %d disable *****\n", name, pin);
+		AUD_DBG("[PWR] ***** gpio %s %d disable *****\n", name, pin);
 	}
 	return;
 }
