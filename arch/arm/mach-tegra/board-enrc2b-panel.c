@@ -4452,6 +4452,7 @@ int __init enrc2b_panel_init(void)
 	/*switch initial command by panel_id*/
 	switch (PANEL_MASK(g_panel_id)) {
 		case PANEL_ID_SHARP_HX_C3:
+            DISP_INFO_LN("panel_id = PANEL_ID_SHARP_HX_C3\n");
 			enrc2b_dsi.n_init_cmd = ARRAY_SIZE(dsi_init_sharp_hx_c3_cmd);
 			enrc2b_dsi.dsi_init_cmd = dsi_init_sharp_hx_c3_cmd;
 			enrc2b_dsi.n_cabc_cmd = ARRAY_SIZE(hx_moving_mode_cmd);
@@ -4460,6 +4461,7 @@ int __init enrc2b_panel_init(void)
 			enrc2b_disp1_backlight_data.dimming_enable = false;
 		break;
 		case PANEL_ID_SHARP_HX_C4:
+            DISP_INFO_LN("panel_id = PANEL_ID_SHARP_HX_C4\n");
 			enrc2b_dsi.n_init_cmd = ARRAY_SIZE(dsi_init_sharp_hx_c4_cmd);
 			enrc2b_dsi.dsi_init_cmd = dsi_init_sharp_hx_c4_cmd;
 			enrc2b_dsi.n_cabc_cmd = ARRAY_SIZE(hx_moving_mode_cmd);
@@ -4469,6 +4471,7 @@ int __init enrc2b_panel_init(void)
 		break;
 		case PANEL_ID_SHARP_HX_C5:
 		case PANEL_ID_SHARP_HX:
+            DISP_INFO_LN("panel_id = PANEL_ID_SHARP_HX_C5\n");
 			enrc2b_dsi.n_init_cmd = ARRAY_SIZE(dsi_init_sharp_hx_c5_cmd);
 			enrc2b_dsi.dsi_init_cmd = dsi_init_sharp_hx_c5_cmd;
 			enrc2b_dsi.n_cabc_cmd = ARRAY_SIZE(hx_moving_mode_cmd);
@@ -4477,6 +4480,7 @@ int __init enrc2b_panel_init(void)
 			enrc2b_disp1_backlight_data.dimming_enable = false;
 		break;
 		case PANEL_ID_SONY_NT_C1:
+            DISP_INFO_LN("panel_id = PANEL_ID_SONY_NT_C1\n");
 			enrc2b_dsi.n_init_cmd = ARRAY_SIZE(dsi_init_sony_nt_c1_cmd);
 			enrc2b_dsi.dsi_init_cmd = dsi_init_sony_nt_c1_cmd;
 
@@ -4490,6 +4494,7 @@ int __init enrc2b_panel_init(void)
 		break;
 		case PANEL_ID_SONY_NT_C2:
 		case PANEL_ID_SONY:
+            DISP_INFO_LN("panel_id = PANEL_ID_SONY_NT_C2\n");
 			enrc2b_dsi.n_init_cmd = ARRAY_SIZE(dsi_init_sony_nt_c2_cmd);
 			enrc2b_dsi.dsi_init_cmd = dsi_init_sony_nt_c2_cmd;
 
@@ -4502,6 +4507,7 @@ int __init enrc2b_panel_init(void)
 			enrc2b_dsi.dsi_cabc_still_mode = nt_still_mode_cmd;
 		break;
 		case PANEL_ID_SHARP_NT_C1:
+            DISP_INFO_LN("panel_id = PANEL_ID_SHARP_NT_C1\n");
 			enrc2b_dsi.n_init_cmd = ARRAY_SIZE(dsi_init_sharp_nt_c1_cmd);
 			enrc2b_dsi.dsi_init_cmd = dsi_init_sharp_nt_c1_cmd;
 			enrc2b_dsi.refresh_rate = 60;
@@ -4516,6 +4522,7 @@ int __init enrc2b_panel_init(void)
 			enrc2b_dsi.dsi_cabc_still_mode = nt_still_mode_cmd;
 		break;
 		case PANEL_ID_SHARP_NT_C2:
+            DISP_INFO_LN("panel_id = PANEL_ID_SHARP_NT_C2\n");
 			enrc2b_dsi.n_init_cmd = ARRAY_SIZE(dsi_init_sharp_nt_c2_cmd);
 			enrc2b_dsi.dsi_init_cmd = dsi_init_sharp_nt_c2_cmd;
 
@@ -4528,6 +4535,7 @@ int __init enrc2b_panel_init(void)
 			enrc2b_dsi.dsi_cabc_still_mode = nt_still_mode_cmd;
 		break;
 		case PANEL_ID_SHARP_NT_C2_9A:
+            DISP_INFO_LN("panel_id = PANEL_ID_SHARP_NT_C2_9A\n");
 			enrc2b_dsi.n_init_cmd = ARRAY_SIZE(dsi_init_sharp_nt_c2_9a_cmd);
 			enrc2b_dsi.dsi_init_cmd = dsi_init_sharp_nt_c2_9a_cmd;
 
@@ -4540,10 +4548,12 @@ int __init enrc2b_panel_init(void)
 			enrc2b_dsi.dsi_cabc_still_mode = nt_still_mode_cmd;
 		break;
 		case PANEL_ID_SHARP:
+            DISP_INFO_LN("panel_id = PANEL_ID_SHARP\n");
 			enrc2b_dsi.n_init_cmd = ARRAY_SIZE(dsi_init_sharp_unknow_cmd);
 			enrc2b_dsi.dsi_init_cmd = dsi_init_sharp_unknow_cmd;
 		break;
 		case PANEL_ID_AUO_NT_C2:
+            DISP_INFO_LN("panel_id = PANEL_ID_AUO_NT_C2\n");
 			enrc2b_dsi.n_init_cmd = ARRAY_SIZE(dsi_init_auo_nt_c2_cmd);
 			enrc2b_dsi.dsi_init_cmd = dsi_init_auo_nt_c2_cmd;
 
@@ -4554,6 +4564,7 @@ int __init enrc2b_panel_init(void)
 		break;
 		case PANEL_ID_AUO_NT_X7:
 		case PANEL_ID_AUO:
+            DISP_INFO_LN("panel_id = PANEL_ID_AUO_NT_X7\n");
 			enrc2b_dsi.n_init_cmd = ARRAY_SIZE(dsi_init_auo_nt_x7_cmd);
 			enrc2b_dsi.dsi_init_cmd = dsi_init_auo_nt_x7_cmd;
 
@@ -4563,6 +4574,7 @@ int __init enrc2b_panel_init(void)
 			enrc2b_dsi.osc_on_cmd = osc_on_cmd;
 		break;
 		default:
+            DISP_INFO_LN("panel_id = PANEL_ID_SHARP_NT_C2_9A\n");
 			enrc2b_dsi.n_init_cmd = ARRAY_SIZE(dsi_init_sharp_nt_c2_9a_cmd);
 			enrc2b_dsi.dsi_init_cmd = dsi_init_sharp_nt_c2_9a_cmd;
 
