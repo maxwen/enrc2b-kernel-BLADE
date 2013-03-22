@@ -26,7 +26,11 @@
  */
 
 /* in kHz */
-#define BOOST_CPU_FREQ_MIN	1700000
+#define CPU_FREQ_MAX_0		1700000
+#define CPU_FREQ_MAX		1600000
+#define CPU_FREQ_MAX_OC		1700000
+#define CPU_FREQ_BOOST		1600000
+
 // sysfs to change available
 #define SUSPEND_CPU_FREQ_MAX	475000
 #define T3_CPU_MIN_FREQ     51000
@@ -62,5 +66,6 @@
 #define USBNET_CPU_FREQ_MIN 475000
 #define USBNET_ONLINE_CPUS_MIN 2
 
-extern unsigned int tegra_pmqos_boost_freq;
 extern unsigned int tegra_pmqos_cpu_freq_limits[];
+extern unsigned int tegra_cpu_freq_max(unsigned int cpu);
+

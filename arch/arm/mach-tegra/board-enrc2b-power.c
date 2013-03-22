@@ -701,7 +701,7 @@ static struct tegra_suspend_platform_data enrc2b_suspend_data = {
 	.sysclkreq_high	= true,
 	.board_suspend = enrc2b_board_suspend,
 	.board_resume = enrc2b_board_resume,
-	.cpu_resume_boost	= BOOST_CPU_FREQ_MIN,
+	.cpu_resume_boost	= CPU_FREQ_BOOST,
 	.boost_resume_reason	= 0x80,
 };
 

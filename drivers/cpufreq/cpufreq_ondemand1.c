@@ -1175,15 +1175,14 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 static void cpufreq_governor_suspend(struct early_suspend *h)
 {
 	cpufreq_governor_screen = false;
-        saved_powersave_bias = dbs_tuners_ins.powersave_bias;
-        dbs_tuners_ins.powersave_bias = 200;
+    saved_powersave_bias = dbs_tuners_ins.powersave_bias;
+    dbs_tuners_ins.powersave_bias = 200;
 }
 
 static void cpufreq_governor_resume(struct early_suspend *h)
 {
 	cpufreq_governor_screen = true;
-        Touch_poke_attr[0] = tegra_pmqos_boost_freq;
-        dbs_tuners_ins.powersave_bias = saved_powersave_bias;
+    dbs_tuners_ins.powersave_bias = saved_powersave_bias;
 }
 #endif
 
@@ -1193,10 +1192,9 @@ static int __init cpufreq_gov_dbs_init(void)
 	u64 idle_time;
 	int cpu = get_cpu();
 
-        cpu_lp_clk = clk_get_sys(NULL, "cpu_lp");
-        idle_top_freq = clk_get_max_rate(cpu_lp_clk) / 1000;
+    cpu_lp_clk = clk_get_sys(NULL, "cpu_lp");
+    idle_top_freq = clk_get_max_rate(cpu_lp_clk) / 1000;
 
-        Touch_poke_attr[0] = tegra_pmqos_boost_freq;
 	idle_time = get_cpu_idle_time_us(cpu, &wall);
 	put_cpu();
 	if (idle_time != -1ULL) {

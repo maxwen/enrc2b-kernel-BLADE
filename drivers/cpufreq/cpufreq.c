@@ -674,7 +674,7 @@ static ssize_t store_scaling_max_freq_limit(struct cpufreq_policy *policy,
 		max = tegra_pmqos_cpu_freq_limits[cpu];
 		if (max == 0)
 			// valus = 0 means reset to default
-			max = tegra_pmqos_boost_freq;						
+			max = tegra_cpu_freq_max(cpu);						
 		
 		new_policy.max = max;
 		ret = __cpufreq_set_policy(policy, &new_policy);
@@ -729,7 +729,7 @@ static ssize_t store_scaling_max_freq(struct cpufreq_policy *policy,
 		max = tegra_pmqos_cpu_freq_limits[cpu];
 		if (max == 0)
 			// valus = 0 means reset to default
-			max = tegra_pmqos_boost_freq;						
+			max = tegra_cpu_freq_max(cpu);					
 
 		new_policy.max = max;
 		ret = __cpufreq_set_policy(policy, &new_policy);
