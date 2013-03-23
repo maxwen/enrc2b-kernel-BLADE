@@ -579,11 +579,13 @@ static void lp5521_dual_color_blink(struct i2c_client *client)
 
 static inline int button_brightness_adjust(struct i2c_client *client) {
 	uint8_t data = 0x00;
-	int ret, brightness;
+	int ret = 0, brightness;
 	I("%s, current_mode: %d, backlight_mode: %d", __func__, current_mode, backlight_mode);
 
+	// if buttons are not on do nothing
 	if (current_mode == 0 && backlight_mode == 0)
-		lp5521_led_enable(client);
+		return ret;
+		
 	brightness = button_brightness;
 	backlight_mode = 1;
 	mutex_lock(&led_mutex);
