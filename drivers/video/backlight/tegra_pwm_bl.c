@@ -206,8 +206,7 @@ static int tegra_pwm_backlight_probe(struct platform_device *pdev)
 		goto err_bl;
 	}
 
-	if (board_mfg_mode() == BOARD_MFG_MODE_FACTORY2)
-		ret = device_create_file(&pdev->dev, &dev_attr_enhance);
+	ret = device_create_file(&pdev->dev, &dev_attr_enhance);
 
 	bl->props.bkl_on = 1;
 	bl->props.brightness = data->dft_brightness;
