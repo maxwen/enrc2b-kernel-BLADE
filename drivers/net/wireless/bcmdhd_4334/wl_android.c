@@ -1491,6 +1491,9 @@ int wl_android_get_active_period(void)
 
 void wl_android_set_screen_off(int off)
 {
+	if (screen_off == off)
+		return;
+		
 	screen_off = off;
 	printf("wl_android_set_screen_off %d\n", screen_off);
 	if (screen_off)
