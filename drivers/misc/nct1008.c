@@ -32,6 +32,17 @@
 #include <linux/delay.h>
 #include <linux/regulator/consumer.h>
 
+#define TMS_DEBUG 0
+
+#if TMS_DEBUG
+	#define D(x...) pr_info("[TMS]" x)
+#else
+	#define D(x...)
+#endif
+
+#define I(x...) pr_info("[TMS]" x)
+#define E(x...) pr_err("[TMS]" x)
+
 /* Register Addresses */
 #define LOCAL_TEMP_RD			0x00
 #define EXT_TEMP_RD_HI			0x01
@@ -144,7 +155,7 @@ static int nct1008_get_temp(struct device *dev, long *etemp, long *itemp)
 
 	return 0;
 error:
-	dev_err(&client->dev, "\n error in file=: %s %s() line=%d: "
+	E("error in file=: %s %s() line=%d: "
 		"error=%d ", __FILE__, __func__, __LINE__, value);
 	return value;
 }
@@ -207,7 +218,7 @@ static ssize_t nct1008_show_temp_overheat(struct device *dev,
 
 	return snprintf(buf, MAX_STR_PRINT, "%d %d\n", temp, temp2);
 error:
-	dev_err(dev, "%s: failed to read temperature-overheat "
+	E("%s: failed to read temperature-overheat "
 		"\n", __func__);
 	return snprintf(buf, MAX_STR_PRINT, " Rd overheat Error\n");
 }
@@ -227,12 +238,12 @@ static ssize_t nct1008_set_temp_overheat(struct device *dev,
 	unsigned int ret;
 
 	if (strict_strtol(buf, 0, &num)) {
-		dev_err(dev, "\n file: %s, line=%d return %s() ", __FILE__,
+		E("file: %s, line=%d return %s() ", __FILE__,
 			__LINE__, __func__);
 		return -EINVAL;
 	}
 	if (((int)num < NCT1008_MIN_TEMP) || ((int)num >= NCT1008_MAX_TEMP)) {
-		dev_err(dev, "\n file: %s, line=%d return %s() ", __FILE__,
+		E("file: %s, line=%d return %s() ", __FILE__,
 			__LINE__, __func__);
 		return -EINVAL;
 	}
@@ -246,9 +257,9 @@ static ssize_t nct1008_set_temp_overheat(struct device *dev,
 	if (currTemp >= (int)num) {
 		ret = nct1008_show_temp(dev, attr, bufTemp);
 		ret = nct1008_show_temp_overheat(dev, attr, bufOverheat);
-		dev_err(dev, "\nCurrent temp: %s ", bufTemp);
-		dev_err(dev, "\nOld overheat limit: %s ", bufOverheat);
-		dev_err(dev, "\nReset from overheat: curr temp=%ld, "
+		E("Current temp: %s ", bufTemp);
+		E("Old overheat limit: %s ", bufOverheat);
+		E("Reset from overheat: curr temp=%ld, "
 			"new overheat temp=%d\n\n", currTemp, (int)num);
 	}
 
@@ -265,7 +276,7 @@ static ssize_t nct1008_set_temp_overheat(struct device *dev,
 		goto error;
 	return count;
 error:
-	dev_err(dev, " %s: failed to set temperature-overheat\n", __func__);
+	E("%s: failed to set temperature-overheat\n", __func__);
 	return err;
 }
 
@@ -291,7 +302,7 @@ static ssize_t nct1008_show_temp_alert(struct device *dev,
 
 	return snprintf(buf, MAX_STR_PRINT, "lo:%d hi:%d\n", temp_lo, temp_hi);
 error:
-	dev_err(dev, "%s: failed to read temperature-alert\n", __func__);
+	E("%s: failed to read temperature-alert\n", __func__);
 	return snprintf(buf, MAX_STR_PRINT, " Rd alert Error\n");
 }
 
@@ -306,12 +317,12 @@ static ssize_t nct1008_set_temp_alert(struct device *dev,
 	struct nct1008_platform_data *pdata = client->dev.platform_data;
 
 	if (strict_strtol(buf, 0, &num)) {
-		dev_err(dev, "\n file: %s, line=%d return %s() ", __FILE__,
+		E("file: %s, line=%d return %s() ", __FILE__,
 			__LINE__, __func__);
 		return -EINVAL;
 	}
 	if (((int)num < NCT1008_MIN_TEMP) || ((int)num >= NCT1008_MAX_TEMP)) {
-		dev_err(dev, "\n file: %s, line=%d return %s() ", __FILE__,
+		E("file: %s, line=%d return %s() ", __FILE__,
 			__LINE__, __func__);
 		return -EINVAL;
 	}
@@ -331,7 +342,7 @@ static ssize_t nct1008_set_temp_alert(struct device *dev,
 
 	return count;
 error:
-	dev_err(dev, "%s: failed to set temperature-alert "
+	E("%s: failed to set temperature-alert "
 		"\n", __func__);
 	return err;
 }
@@ -353,14 +364,14 @@ static ssize_t nct1008_show_ext_temp(struct device *dev,
 	 * ADC does not write to it) until it is read */
 	data_lo = i2c_smbus_read_byte_data(client, EXT_TEMP_RD_LO);
 	if (data_lo < 0) {
-		dev_err(&client->dev, "%s: failed to read "
+		E("%s: failed to read "
 			"ext_temperature, i2c error=%d\n", __func__, data_lo);
 		goto error;
 	}
 
 	data = i2c_smbus_read_byte_data(client, EXT_TEMP_RD_HI);
 	if (data < 0) {
-		dev_err(&client->dev, "%s: failed to read "
+		E("%s: failed to read "
 			"ext_temperature, i2c error=%d\n", __func__, data);
 		goto error;
 	}
@@ -461,13 +472,13 @@ static int __init nct1008_debuginit(struct nct1008_data *nct)
 		d = debugfs_create_file("nct1008", S_IRUGO, NULL,
 				(void *)nct, &debug_fops);
 	if ((!d) || IS_ERR(d)) {
-		dev_err(&nct->client->dev, "Error: %s debugfs_create_file"
+		E("Error: %s debugfs_create_file"
 			" returned an error\n", __func__);
 		err = -ENOENT;
 		goto end;
 	}
 	if (d == ERR_PTR(-ENODEV)) {
-		dev_err(&nct->client->dev, "Error: %s debugfs not supported "
+		E("Error: %s debugfs not supported "
 			"error=-ENODEV\n", __func__);
 		err = -ENODEV;
 	} else {
@@ -491,7 +502,7 @@ static int nct1008_enable(struct i2c_client *client)
 	err = i2c_smbus_write_byte_data(client, CONFIG_WR,
 				  data->config & ~STANDBY_BIT);
 	if (err < 0)
-		dev_err(&client->dev, "%s, line=%d, i2c write error=%d\n",
+		E("%s, line=%d, i2c write error=%d\n",
 		__func__, __LINE__, err);
 	return err;
 }
@@ -504,7 +515,7 @@ static int nct1008_disable(struct i2c_client *client)
 	err = i2c_smbus_write_byte_data(client, CONFIG_WR,
 				  data->config | STANDBY_BIT);
 	if (err < 0)
-		dev_err(&client->dev, "%s, line=%d, i2c write error=%d\n",
+		E("%s, line=%d, i2c write error=%d\n",
 		__func__, __LINE__, err);
 	return err;
 }
@@ -576,7 +587,7 @@ static void nct1008_polling_func(struct work_struct *work)
 		goto error;
 	temp_local = value_to_temperature(pdata->ext_range, value);
 
-	printk(KERN_INFO "[TMS] cpu temp = %d.%d, local temp = %d\n", temp_ext_hi,
+	D("cpu temp = %d.%d, local temp = %d\n", temp_ext_hi,
 			temp_ext_lo * 25, temp_local);
 
 	if (temp_ext_hi >= 70)
@@ -622,11 +633,11 @@ static void nct1008_read_temp_func(struct work_struct *work)
 	if (intr_status < 0)
 		goto error;
 
-	printk(KERN_INFO "[TMS] cpu temp = %d.%d, local temp = %d, status = %d\n",
+	D("cpu temp = %d.%d, local temp = %d, status = %d\n",
 			temp_ext_hi, temp_ext_lo * 25, temp_local, intr_status);
 
 	if (intr_status & (BIT(0) | BIT(1)))
-		printk(KERN_INFO "[TMS] overheat, prepare to reboot...\n");
+		I("overheat, prepare to reboot...\n");
 
 	schedule_delayed_work(&data->read_temp_work, msecs_to_jiffies(1000));
 
@@ -664,11 +675,10 @@ static void nct1008_power_control(struct nct1008_data *data, bool is_enable)
 		data->nct_reg = regulator_get(NULL, data->plat_data.reg_name);
 		if (IS_ERR_OR_NULL(data->nct_reg)) {
 			if (PTR_ERR(data->nct_reg) == -ENODEV)
-				dev_info(&data->client->dev,
-					"no regulator found for vdd."
+				I("no regulator found for vdd."
 					" Assuming vdd is always powered");
 			else
-				dev_warn(&data->client->dev, "Error [%ld] in "
+				E("Error [%ld] in "
 					"getting the regulator handle for"
 					" vdd\n", PTR_ERR(data->nct_reg));
 			data->nct_reg = NULL;
@@ -681,12 +691,12 @@ static void nct1008_power_control(struct nct1008_data *data, bool is_enable)
 		ret = regulator_disable(data->nct_reg);
 
 	if (ret < 0)
-		dev_err(&data->client->dev, "Error in %s rail vdd_nct%s, "
+		E("Error in %s rail vdd_nct%s, "
 			"error %d\n", (is_enable) ? "enabling" : "disabling",
 			(data->chip == NCT72) ? "72" : "1008",
 			ret);
 	else
-		dev_info(&data->client->dev, "success in %s rail vdd_nct%s\n",
+		I("success in %s rail vdd_nct%s\n",
 			(is_enable) ? "enabling" : "disabling",
 			(data->chip == NCT72) ? "72" : "1008");
 }
@@ -701,13 +711,14 @@ static int __devinit nct1008_configure_sensor(struct nct1008_data* data)
 	int err;
 	int config;
 
+	I("%s\n", __func__);
 	if (!pdata || !pdata->supported_hwrev)
 		return -ENODEV;
 
 	/* Read config */
 	value = i2c_smbus_read_byte_data(data->client, CONFIG_RD);
 	if (value < 0)
-		printk(KERN_INFO "[TMS] read config fail\n");
+		E("read config fail\n");
 	config = value & 4;
 
 	/* Place in Standby */
@@ -772,9 +783,8 @@ static int __devinit nct1008_configure_sensor(struct nct1008_data* data)
 		goto error;
 	}
 	temp = value_to_temperature(config, value);
-	dev_dbg(&client->dev, "\n initial local temp = %d ", temp);
 
-	printk(KERN_INFO "[TMS] local temp = %d\n", temp);
+	D("local temp = %d\n", temp);
 
 	value = i2c_smbus_read_byte_data(client, EXT_TEMP_RD_LO);
 	if (value < 0) {
@@ -790,14 +800,11 @@ static int __devinit nct1008_configure_sensor(struct nct1008_data* data)
 	temp = value_to_temperature(config, value);
 
 	if (temp2 > 0) {
-		dev_dbg(&client->dev, "\n initial ext temp = %d.%d deg",
-				temp, temp2 * 25);
-		printk(KERN_INFO "[TMS] remote temp = %d.%d\n",
+		D("remote temp = %d.%d\n",
 				temp, temp2 * 25);
 	}
 	else {
-		dev_dbg(&client->dev, "\n initial ext temp = %d.0 deg", temp);
-		printk(KERN_INFO "[TMS] remote temp = %d.0\n", temp);
+		D("remote temp = %d.0\n", temp);
 	}
 
 	/* Remote channel offset */
@@ -820,13 +827,14 @@ static int __devinit nct1008_configure_sensor(struct nct1008_data* data)
 	/* register sysfs hooks */
 	err = sysfs_create_group(&client->dev.kobj, &nct1008_attr_group);
 	if (err < 0) {
-		dev_err(&client->dev, "\n sysfs create err=%d ", err);
+		E("sysfs create err=%d ", err);
 		goto error;
 	}
 
+	I("%s success!\n", __func__);
 	return 0;
 error:
-	dev_err(&client->dev, "\n exit %s, err=%d ", __func__, err);
+	E("exit %s, err=%d ", __func__, err);
 	return err;
 }
 
@@ -877,7 +885,7 @@ int nct1008_thermal_set_limits(struct nct1008_data *data,
 
 	if (data->current_lo_limit != lo_limit) {
 		value = temperature_to_value(extended_range, lo_limit);
-		pr_debug("%s: set lo_limit %ld\n", __func__, lo_limit);
+		D("%s: set lo_limit %ld\n", __func__, lo_limit);
 		err = i2c_smbus_write_byte_data(data->client,
 				EXT_TEMP_LO_LIMIT_HI_BYTE_WR, value);
 		if (err)
@@ -888,7 +896,7 @@ int nct1008_thermal_set_limits(struct nct1008_data *data,
 
 	if (data->current_hi_limit != hi_limit) {
 		value = temperature_to_value(extended_range, hi_limit);
-		pr_debug("%s: set hi_limit %ld\n", __func__, hi_limit);
+		D("%s: set hi_limit %ld\n", __func__, hi_limit);
 		err = i2c_smbus_write_byte_data(data->client,
 				EXT_TEMP_HI_LIMIT_HI_BYTE_WR, value);
 		if (err)
@@ -962,6 +970,8 @@ static int __devinit nct1008_probe(struct i2c_client *client,
 	if (!data)
 		return -ENOMEM;
 
+	I("%s: probe start: client->irq = %d\n", __func__, client->irq);
+	
 	data->client = client;
 	data->chip = id->driver_data;
 	memcpy(&data->plat_data, client->dev.platform_data,
@@ -973,23 +983,22 @@ static int __devinit nct1008_probe(struct i2c_client *client,
 	 * in nct1008_configure_sensor function */
 	err = nct1008_configure_sensor(data);	/* sensor is in standby */
 	if (err < 0) {
-		dev_err(&client->dev, "\n error file: %s : %s(), line=%d ",
+		E("error file: %s : %s(), line=%d ",
 			__FILE__, __func__, __LINE__);
 		goto error;
 	}
 
 	err = nct1008_configure_irq(data);
 	if (err < 0) {
-		dev_err(&client->dev, "\n error file: %s : %s(), line=%d ",
+		E("error file: %s : %s(), line=%d ",
 			__FILE__, __func__, __LINE__);
 		goto error;
 	}
-	dev_info(&client->dev, "%s: initialized\n", __func__);
 
 	/* extended range recommended step 5 is in nct1008_enable function */
 	err = nct1008_enable(client);		/* sensor is running */
 	if (err < 0) {
-		dev_err(&client->dev, "Error: %s, line=%d, error=%d\n",
+		E("Error: %s, line=%d, error=%d\n",
 			__func__, __LINE__, err);
 		goto error;
 	}
@@ -1008,10 +1017,11 @@ static int __devinit nct1008_probe(struct i2c_client *client,
 	schedule_delayed_work(&data->polling_work, msecs_to_jiffies(10000));
 	nct1008_ready = 1;
 
+	I("%s: probe success!\n", __func__);
 	return 0;
 
 error:
-	dev_err(&client->dev, "\n exit %s, err=%d ", __func__, err);
+	E("exit %s, err=%d ", __func__, err);
 	nct1008_power_control(data, false);
 	if (data->nct_reg)
 		regulator_put(data->nct_reg);
@@ -1023,14 +1033,12 @@ static int __devexit nct1008_remove(struct i2c_client *client)
 {
 	struct nct1008_data *data = i2c_get_clientdata(client);
 
-	printk(KERN_INFO "[TMS] nct1008_remove\n");
-
 	if (data->dent)
 		debugfs_remove(data->dent);
 
 	free_irq(data->client->irq, data);
 
-	printk(KERN_INFO "[TMS] free irq(%d)\n", client->irq);
+	I("%s free irq(%d)\n", __func__, client->irq);
 
 	cancel_work_sync(&data->work);
 	sysfs_remove_group(&client->dev.kobj, &nct1008_attr_group);
@@ -1049,7 +1057,7 @@ static int nct1008_suspend(struct i2c_client *client, pm_message_t state)
 	int err;
 	struct nct1008_data *data = i2c_get_clientdata(client);
 
-	printk(KERN_INFO "[TMS] disable irq(%d)\n", client->irq);
+	I("%s disable irq(%d)\n", __func__, client->irq);
 
 	polling = 0;
 	cancel_delayed_work(&data->polling_work);
@@ -1066,12 +1074,12 @@ static int nct1008_resume(struct i2c_client *client)
 
 	err = nct1008_enable(client);
 	if (err < 0) {
-		dev_err(&client->dev, "Error: %s, error=%d\n",
+		E("Error: %s, error=%d\n",
 			__func__, err);
 		return err;
 	}
 
-	printk(KERN_INFO "[TMS] enable irq(%d)\n", client->irq);
+	I("%s enable irq(%d)\n", __func__, client->irq);
 
 	enable_irq(client->irq);
 
