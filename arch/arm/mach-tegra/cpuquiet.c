@@ -69,7 +69,7 @@ static struct clk *cpu_lp_clk;
 static struct cpumask cr_online_requests;
 static cputime64_t lp_on_time;
 static unsigned int min_cpus = 1;
-static unsigned int max_cpus = 4;
+static unsigned int max_cpus = CONFIG_NR_CPUS;
 
 #define CPUQUIET_TAG                       "[CPUQUIET]: "
 /*
@@ -261,14 +261,20 @@ static void min_max_constraints_workfunc(struct work_struct *work)
 	}
 }
 
-static void min_cpus_change(unsigned long n)
+static int min_cpus_change(unsigned long n)
 {
 	bool g_cluster = false;
     cputime64_t on_time = 0;
 
-	if (n<1 || n>4)
-		return;
+	if (n == PM_QOS_MIN_ONLINE_CPUS_DEFAULT_VALUE)
+		n = 1;
+
+	if (n < 1 || n > CONFIG_NR_CPUS)
+		return -EINVAL;
 	
+	if (n == min_cpus)
+		return 0;
+		
 	min_cpus = n;
 	
 	mutex_lock(tegra3_cpu_lock);
@@ -293,6 +299,8 @@ static void min_cpus_change(unsigned long n)
 
 	if (g_cluster)
 		cpuquiet_device_free();
+	
+	return 0;
 }
 
 static int min_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
@@ -304,15 +312,23 @@ static int min_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
 	return NOTIFY_OK;
 }
 
-static void max_cpus_change(unsigned long n)
+static int max_cpus_change(unsigned long n)
 {
-	if (n<1 || n>4)
-		return;
+	if (n == PM_QOS_MAX_ONLINE_CPUS_DEFAULT_VALUE)
+		n = CONFIG_NR_CPUS;
+
+	if (n < 1 || n > CONFIG_NR_CPUS)
+		return -EINVAL;
+			
+	if (n == max_cpus)
+		return 0;
 		
 	max_cpus = n;
 	
 	if (n < num_online_cpus())
 		schedule_work(&minmax_work);
+	
+	return 0;
 }
 
 static int max_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
@@ -478,10 +494,13 @@ ssize_t store_min_cpus(struct cpuquiet_attribute *cattr,
 	
 	ret = sscanf(buf, "%d", &n);
 
-	if (ret != 1)
+	if ((ret != 1) || n < 1 || n > CONFIG_NR_CPUS)
 		return -EINVAL;
 	
-	min_cpus_change(n);
+	ret = min_cpus_change(n);
+	if (ret)
+		return ret;
+
 	return count;
 }
 
@@ -502,10 +521,13 @@ ssize_t store_max_cpus(struct cpuquiet_attribute *cattr,
 	
 	ret = sscanf(buf, "%d", &n);
 
-	if (ret != 1)
+	if ((ret != 1) || n < 1 || n > CONFIG_NR_CPUS)
 		return -EINVAL;
 	
-	max_cpus_change(n);
+	ret = max_cpus_change(n);
+	if (ret)
+		return ret;
+		
 	return count;
 }
 
