@@ -120,12 +120,12 @@ static void psensor_init(void)
 	if(ps_type) {
 		i2c_register_board_info(0,
 				i2c_CM3629_devices, ARRAY_SIZE(i2c_CM3629_devices));
-		pr_info("[PS][cm3629]%s ps_type = %d\n", __func__, ps_type);
+		pr_info("[PS][LS][CM3629]%s ps_type = %d\n", __func__, ps_type);
 	}
 	else {
 		i2c_register_board_info(0,
 				i2c_CM3628_devices, ARRAY_SIZE(i2c_CM3628_devices));
-		pr_info("[PS][cm3628]%s ps_type = %d\n", __func__, ps_type);
+		pr_info("[PS][LS][CM3628]%s ps_type = %d\n", __func__, ps_type);
 	}
 }
 
