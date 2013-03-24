@@ -2043,10 +2043,8 @@ field ## _store(struct device *dev, struct device_attribute *attr,	\
 }									\
 static DEVICE_ATTR(field, S_IRUGO | S_IWUSR, field ## _show, field ## _store);
 
-/*
 DESCRIPTOR_ATTR(idVendor, "%04x\n")
 DESCRIPTOR_ATTR(idProduct, "%04x\n")
-*/
 DESCRIPTOR_ATTR(bcdDevice, "%04x\n")
 DESCRIPTOR_ATTR(bDeviceClass, "%d\n")
 DESCRIPTOR_ATTR(bDeviceSubClass, "%d\n")
@@ -2144,8 +2142,8 @@ static ssize_t enable_diag_mdm_rmnet_store(struct device *pdev, struct device_at
 static DEVICE_ATTR(enable_diag_mdm_rmnet, S_IRUGO | S_IWUSR, NULL, enable_diag_mdm_rmnet_store);
 
 static struct device_attribute *android_usb_attributes[] = {
-/*	&dev_attr_idVendor,*/
-/*	&dev_attr_idProduct,*/
+	&dev_attr_idVendor,
+	&dev_attr_idProduct,
 	&dev_attr_bcdDevice,
 	&dev_attr_bDeviceClass,
 	&dev_attr_bDeviceSubClass,
