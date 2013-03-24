@@ -37,7 +37,7 @@
 #include "cpu-tegra.h"
 #include "clock.h"
 
-#undef CPUQUIET_DEBUG
+#define CPUQUIET_DEBUG 0
 
 extern unsigned int best_core_to_turn_up (void);
 
@@ -90,7 +90,7 @@ enum {
 
 static inline void show_status(const char* extra, cputime64_t on_time, int cpu)
 {
-#ifdef CPUQUIET_DEBUG
+#if CPUQUIET_DEBUG
 	if(on_time)
 		pr_info(CPUQUIET_TAG "%s Mask=[%d.%d%d%d%d]|lp_on_time=%llu\n",
     		extra, is_lp_cluster(), ((is_lp_cluster() == 1) ? 0 : cpu_online(0)),
