@@ -83,7 +83,7 @@ static unsigned int min_cpu_load;
  * The minimum amount of time to spend at a frequency before we can ramp up.
  * Notice we ignore this when we are below the ideal frequency.
  */
-#define DEFAULT_UP_RATE_US 100000
+#define DEFAULT_UP_RATE_US 50000
 static unsigned int up_rate_us;
 
 /*
