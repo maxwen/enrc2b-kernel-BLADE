@@ -587,7 +587,6 @@ static inline int button_brightness_adjust(struct i2c_client *client) {
 		return ret;
 		
 	brightness = button_brightness;
-	backlight_mode = 1;
 	mutex_lock(&led_mutex);
 	I("locked %s", __func__);
 
