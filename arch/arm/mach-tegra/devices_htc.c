@@ -439,6 +439,7 @@ int __init board_mfg_mode_init(char *s)
 	else if (!strcmp(s, "modem_calibration"))
 		mfg_mode = BOARD_MFG_MODE_MODEM_CALIBRATION;
 
+	printk(KERN_INFO "mfg_mode %d\n", mfg_mode);
 	return 1;
 }
 
