@@ -227,7 +227,7 @@ static struct led_i2c_config lp5521_led_config[] = {
 	{
 		.name = "button-backlight",
 		.led_cur = 2,
-		.led_lux = 55,
+		.led_lux = 50,
 	},
 };
 static struct led_i2c_platform_data led_data = {
