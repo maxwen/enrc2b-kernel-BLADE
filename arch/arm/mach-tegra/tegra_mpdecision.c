@@ -755,7 +755,7 @@ static ssize_t store_max_cpus(struct kobject *a, struct attribute *b,
 	unsigned int input;
 	int ret;
 	ret = sscanf(buf, "%u", &input);
-	if ((ret != 1) || input > CONFIG_NR_CPUS)
+	if ((ret != 1) || input < 1 || input > CONFIG_NR_CPUS)
 		return -EINVAL;
 
 	tegra_mpdec_tuners_ins.max_cpus = input;
@@ -769,7 +769,7 @@ static ssize_t store_min_cpus(struct kobject *a, struct attribute *b,
 	unsigned int input;
 	int ret;
 	ret = sscanf(buf, "%u", &input);
-	if ((ret != 1) || input < 1)
+	if ((ret != 1) || input < 1 || input > CONFIG_NR_CPUS)
 		return -EINVAL;
 
 	tegra_mpdec_tuners_ins.min_cpus = input;
@@ -942,6 +942,13 @@ static struct attribute_group tegra_mpdec_attr_group = {
 static int max_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
 {
 	pr_info("PM QoS PM_QOS_MAX_ONLINE_CPUS %lu\n", n);
+
+	if (n == PM_QOS_MAX_ONLINE_CPUS_DEFAULT_VALUE)
+		n = CONFIG_NR_CPUS;
+
+	if (n < 1 || n > CONFIG_NR_CPUS)
+		return NOTIFY_OK;
+
 	tegra_mpdec_tuners_ins.max_cpus = n;
 	return NOTIFY_OK;
 }
@@ -949,6 +956,13 @@ static int max_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
 static int min_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
 {
 	pr_info("PM QoS PM_QOS_MIN_ONLINE_CPUS %lu\n", n);
+
+	if (n == PM_QOS_MIN_ONLINE_CPUS_DEFAULT_VALUE)
+		n = 1;
+
+	if (n < 1 || n > CONFIG_NR_CPUS)
+		return NOTIFY_OK;
+
 	tegra_mpdec_tuners_ins.min_cpus = n;
 	return NOTIFY_OK;
 }
