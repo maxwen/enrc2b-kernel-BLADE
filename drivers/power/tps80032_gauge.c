@@ -11,10 +11,6 @@
  * GNU General Public License for more details.
  */
 
-/* for pr_xxx log */
-#define PR_TAG "[PMU_GAU]"
-#define pr_fmt(fmt) PR_TAG fmt
-
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -30,11 +26,22 @@
 #include <linux/workqueue.h>
 #include <asm/div64.h>
 
-#define FUNC_CALL_CHECK 0
 #define GAUGE_DEBUG 0
 
+#if GAUGE_DEBUG
+	#define D(x...) pr_info("[BATT][GAUGE]" x)
+#else
+	#define D(x...)
+#endif
+
+#define I(x...) pr_info("[BATT][GAUGE]" x)
+#define E(x...) pr_err("[BATT][GAUGE]" x)
+
+/* used for debug if function called */
+#define FUNC_CALL_CHECK 0
+
 #if FUNC_CALL_CHECK
-#define CHECK_LOG() pr_info("%s\n", __func__)
+#define CHECK_LOG() D("[BATT][GAUGE] %s\n", __func__)
 #else
 #define CHECK_LOG() (void)0
 #endif
@@ -118,7 +125,7 @@ static int do_gauge_calibration(void)
 	ret = tps80031_read(gauge_data->parent_dev, SLAVE_ID2,
 			TPS80032_FG_REG_00, &value);
 	if (ret < 0) {
-		pr_err("%s:read register TPS80032_FG_REG_00 fail\n"
+		E("%s:read register TPS80032_FG_REG_00 fail\n"
 			, __func__);
 		goto gauge_fail;
 	}
@@ -126,7 +133,7 @@ static int do_gauge_calibration(void)
 	ret = tps80031_write(gauge_data->parent_dev, SLAVE_ID2,
 			TPS80032_FG_REG_00, value | CC_CAL_EN);
 	if (ret < 0) {
-		pr_err("%s:write register TPS80032_FG_REG_00"
+		E("%s:write register TPS80032_FG_REG_00"
 				" fail value %lu\n"
 				, __func__, value | CC_CAL_EN);
 		goto gauge_fail;
@@ -148,7 +155,7 @@ static void cc_autocal_done_func(struct work_struct *work)
 	ret = tps80031_read(gauge_data->parent_dev, SLAVE_ID2,
 					TPS80032_FG_REG_08, value);
 	if (ret < 0) {
-		pr_err("%s:read register TPS80032_FG_REG_08 fail\n"
+		E("%s:read register TPS80032_FG_REG_08 fail\n"
 			, __func__);
 		goto read_gauge_fail;
 	}
@@ -156,7 +163,7 @@ static void cc_autocal_done_func(struct work_struct *work)
 	ret = tps80031_read(gauge_data->parent_dev, SLAVE_ID2,
 					TPS80032_FG_REG_09, value + 1);
 	if (ret < 0) {
-		pr_err("%s:read register TPS80032_FG_REG_09 fail\n"
+		E("%s:read register TPS80032_FG_REG_09 fail\n"
 			, __func__);
 		goto read_gauge_fail;
 	}
@@ -203,7 +210,7 @@ static int reset_gauge(enum update_rate ur_select)
 	CHECK_LOG();
 
 	if (ur_select > URSTOP) {
-		pr_err("%s: No such gauge update selections"
+		E("%s: No such gauge update selections"
 				" value=%d\n"
 				, __func__, ur_select);
 		ret = -EINVAL;
@@ -220,7 +227,7 @@ static int reset_gauge(enum update_rate ur_select)
 		ret = tps80031_write(gauge_data->parent_dev, SLAVE_ID2,
 				TPS80032_TOGGLE1, value);
 		if (ret < 0) {
-			pr_err("%s:write register TPS80032_TOGGLE1"
+			E("%s:write register TPS80032_TOGGLE1"
 					" fail value %d\n"
 					, __func__, value);
 			goto gauge_fail;
@@ -233,7 +240,7 @@ static int reset_gauge(enum update_rate ur_select)
 	ret = tps80031_write(gauge_data->parent_dev, SLAVE_ID2,
 			TPS80032_FG_REG_00, value);
 	if (ret < 0) {
-		pr_err("%s:write register TPS80032_FG_REG_00"
+		E("%s:write register TPS80032_FG_REG_00"
 			" fail value %u\n"
 			, __func__, value);
 		goto gauge_fail;
@@ -244,7 +251,7 @@ static int reset_gauge(enum update_rate ur_select)
 	ret = tps80031_write(gauge_data->parent_dev, SLAVE_ID2,
 			TPS80032_FG_REG_00, value);
 	if (ret < 0) {
-		pr_err("%s:write register TPS80032_FG_REG_00"
+		E("%s:write register TPS80032_FG_REG_00"
 			" fail value %u\n"
 			, __func__, value);
 		goto gauge_fail;
@@ -289,7 +296,7 @@ static int set_gauge_counter(struct tps80032_gauge_counter *gauge_counter)
 	CHECK_LOG();
 
 	if (gauge_counter->pass_time > 0 && !!(gauge_counter->pass_time && 0x7F000000)) {
-		pr_err("%s: SET_COUNTER paramter pass_timer might cause overflow reject\n", __func__);
+		E("%s: SET_COUNTER paramter pass_timer might cause overflow reject\n", __func__);
 		ret = -EFAULT;
 		goto value_overflow;
 	}
@@ -297,9 +304,7 @@ static int set_gauge_counter(struct tps80032_gauge_counter *gauge_counter)
 	temp = gauge_counter->accum_current < 0 ?
 			-1 * gauge_counter->accum_current : gauge_counter->accum_current;
 
-#if GAUGE_DEBUG
-	pr_info("accum_current = %d => temp(unsigned) = %lld\n", gauge_counter->accum_current, temp);
-#endif
+	D("accum_current = %d => temp(unsigned) = %lld\n", gauge_counter->accum_current, temp);
 
 	if (gauge_data->rate_select == URSTOP)
 		goto gauge_fail;
@@ -312,14 +317,13 @@ static int set_gauge_counter(struct tps80032_gauge_counter *gauge_counter)
 	do_div(temp, ((V_FS * 1000) * AMPLIFIER / R_S));
 
 	cc_accum = gauge_counter->accum_current < 0 ? -1 * ((int) temp) : (int) temp;
-#if GAUGE_DEBUG
-	pr_info("temp(unsigned) = %lld => cc_accum=%d\n", temp, cc_accum);
-#endif
+
+	D("temp(unsigned) = %lld => cc_accum=%d\n", temp, cc_accum);
 
 	ret = tps80031_read(gauge_data->parent_dev, SLAVE_ID2,
 			TPS80032_FG_REG_00, &value);
 	if (ret < 0) {
-		pr_err("%s:read register TPS80032_FG_REG_00 fail\n"
+		E("%s:read register TPS80032_FG_REG_00 fail\n"
 			, __func__);
 		goto i2c_fail;
 	}
@@ -327,7 +331,7 @@ static int set_gauge_counter(struct tps80032_gauge_counter *gauge_counter)
 	ret = tps80031_write(gauge_data->parent_dev, SLAVE_ID2,
 			TPS80032_FG_REG_00, value | CC_PAUSE);
 	if (ret < 0) {
-		pr_err("%s:write register TPSS80032_FG_REG_00"
+		E("%s:write register TPSS80032_FG_REG_00"
 			" faild value %lu\n"
 			, __func__, value | CC_PAUSE);
 		goto i2c_fail;
@@ -339,7 +343,7 @@ static int set_gauge_counter(struct tps80032_gauge_counter *gauge_counter)
 			ret = tps80031_write(gauge_data->parent_dev, SLAVE_ID2,
 					TPS80032_FG_REG_01 + i, cc_sample_cntr & 0xFF);
 			if (ret < 0) {
-				pr_err("%s:write register TPS80032_FG_REG_0%d"
+				E("%s:write register TPS80032_FG_REG_0%d"
 						" fail\n"
 						, __func__, i + 1);
 				goto i2c_fail;
@@ -353,7 +357,7 @@ static int set_gauge_counter(struct tps80032_gauge_counter *gauge_counter)
 		ret = tps80031_write(gauge_data->parent_dev, SLAVE_ID2,
 				TPS80032_FG_REG_04 + i, cc_accum & 0xFF);
 		if (ret < 0) {
-			pr_err("%s:read register TPS80032_FG_REG_0%d"
+			E("%s:read register TPS80032_FG_REG_0%d"
 				" fail\n"
 				, __func__, i + 4);
 			goto i2c_fail;
@@ -361,41 +365,35 @@ static int set_gauge_counter(struct tps80032_gauge_counter *gauge_counter)
 		cc_accum >>= 8;
 	}
 
-#if GAUGE_DEBUG
-	pr_info("cc_sample_cntr=0x%x, cc_accum=0x%x\n",gauge_data->cc_sample_cntr[0], gauge_data->cc_accum[0]);
-#endif
+	D("cc_sample_cntr=0x%x, cc_accum=0x%x\n",gauge_data->cc_sample_cntr[0], gauge_data->cc_accum[0]);
 	for (i = 0; i < 3; i++) {
 		ret = tps80031_read(gauge_data->parent_dev, SLAVE_ID2,
 				TPS80032_FG_REG_01 + i, &value2);
 		if (ret < 0) {
-			pr_err("%s:read register TPS80032_FG_REG_0%d"
+			E("%s:read register TPS80032_FG_REG_0%d"
 				" fail\n"
 				, __func__, i + 1);
 			goto i2c_fail;
 		}
-#if GAUGE_DEBUG
-		pr_info("RE_0%d=0x%x\n", i + 1, value2);
-#endif
+		D("RE_0%d=0x%x\n", i + 1, value2);
 	}
 
 	for (i = 0; i < 4; i++) {
 		ret = tps80031_read(gauge_data->parent_dev, SLAVE_ID2,
 				TPS80032_FG_REG_04 + i, &value2);
 		if (ret < 0) {
-			pr_err("%s:read register TPS80032_FG_REG_0%d"
+			E("%s:read register TPS80032_FG_REG_0%d"
 				" fail\n"
 				, __func__, i + 4);
 			goto i2c_fail;
 		}
-#if GAUGE_DEBUG
-		pr_info("RE_0%d=0x%x\n", i + 4, value2);
-#endif
+		D("RE_0%d=0x%x\n", i + 4, value2);
 	}
 
 	ret = tps80031_write(gauge_data->parent_dev, SLAVE_ID2,
 			TPS80032_FG_REG_00, value);
 	if (ret < 0) {
-		pr_err("%s:write register TPSS80032_FG_REG_00"
+		E("%s:write register TPSS80032_FG_REG_00"
 			" fail value %d\n"
 			, __func__, value);
 	}
@@ -423,7 +421,7 @@ static int read_gauge_all(int which)
 	ret = tps80031_read(gauge_data->parent_dev, SLAVE_ID2,
 			TPS80032_FG_REG_00, &value1);
 	if (ret < 0) {
-		pr_err("%s:read register TPS80032_FG_REG_00"
+		E("%s:read register TPS80032_FG_REG_00"
 				" fail\n"
 				, __func__);
 		goto i2c_fail;
@@ -435,7 +433,7 @@ static int read_gauge_all(int which)
 	ret = tps80031_write(gauge_data->parent_dev, SLAVE_ID2,
 			TPS80032_FG_REG_00, value2);
 	if (ret < 0) {
-		pr_err("%s:write register TPSS80032_FG_REG_00"
+		E("%s:write register TPSS80032_FG_REG_00"
 			" faild value %u\n"
 			, __func__, value2);
 		goto i2c_fail;
@@ -446,7 +444,7 @@ static int read_gauge_all(int which)
 		ret = tps80031_read(gauge_data->parent_dev, SLAVE_ID2,
 				TPS80032_FG_REG_03 - i, &value2);
 		if (ret < 0) {
-			pr_err("%s:read register TPS80032_FG_REG_0%d"
+			E("%s:read register TPS80032_FG_REG_0%d"
 				" fail\n"
 				, __func__, 3 - i);
 			goto i2c_fail;
@@ -460,7 +458,7 @@ static int read_gauge_all(int which)
 		ret = tps80031_read(gauge_data->parent_dev, SLAVE_ID2,
 				TPS80032_FG_REG_07 - i, &value2);
 		if (ret < 0) {
-			pr_err("%s:read register TPS80032_FG_REG_0%d"
+			E("%s:read register TPS80032_FG_REG_0%d"
 				" fail\n"
 				, __func__, 7 - i);
 			goto i2c_fail;
@@ -472,7 +470,7 @@ static int read_gauge_all(int which)
 	ret = tps80031_write(gauge_data->parent_dev, SLAVE_ID2,
 			TPS80032_FG_REG_00, value1);
 	if (ret < 0) {
-		pr_err("%s:write register TPSS80032_FG_REG_00"
+		E("%s:write register TPSS80032_FG_REG_00"
 			" fail value %d\n"
 			, __func__, value1);
 		goto i2c_fail;
@@ -514,19 +512,19 @@ static void calculate_time_and_iacc(
 			* (V_FS * 1000 * AMPLIFIER / R_S))
 			>> F_S_BIT;
 	}
-#if GAUGE_DEBUG
-	pr_info("active_mode=%d, rate_select=%d\n",gauge_data->cc_active_mode, gauge_data->rate_select);
-	pr_info("offset=%d shift=%d\n",gauge_data->cc_offset, gauge_data->offset_shift);
-	pr_info("cntr=0:%x 1:%x\n"
+
+	D("active_mode=%d, rate_select=%d\n",gauge_data->cc_active_mode, gauge_data->rate_select);
+	D("offset=%d shift=%d\n",gauge_data->cc_offset, gauge_data->offset_shift);
+	D("cntr=0:%x 1:%x\n"
 			, gauge_data->cc_sample_cntr[0]
 			, gauge_data->cc_sample_cntr[1]);
-	pr_info("accum=0:%x 1:%x\n"
+	D("accum=0:%x 1:%x\n"
 			, gauge_data->cc_accum[0]
 			, gauge_data->cc_accum[1]);
-	pr_info("pass_time = %u, accum_current = %d\n"
+	D("pass_time = %u, accum_current = %d\n"
 			, gauge_reply->pass_time
 			, gauge_reply->accum_current);
-#endif
+
 	gauge_data->cc_sample_cntr[0] = gauge_data->cc_sample_cntr[1];
 	gauge_data->cc_accum[0] = gauge_data->cc_accum[1];
 }
@@ -552,7 +550,7 @@ static int get_adc_volt(struct tps80032_gauge_reply *gauge_reply)
 			&adc_value,
 			gauge_data->adc_volt_channel);
 	if (ret) {
-		pr_err("%s:adc volt value get fail!!\n", __func__);
+		E("%s:adc volt value get fail!!\n", __func__);
 		gauge_reply->batt_volt = 0;
 		return ret;
 	}
@@ -567,7 +565,7 @@ static int get_adc_temp(unsigned int *adc_temp)
 	int ret = 0;
 
 	if (!adc_temp) {
-		pr_err("%s: parameter adc_temp is NULL!!\n", __func__);
+		E("%s: parameter adc_temp is NULL!!\n", __func__);
 		return -EFAULT;
 	}
 
@@ -588,7 +586,7 @@ static int get_adc_temp(unsigned int *adc_temp)
 			&adc_value,
 			gauge_data->adc_temp_channel);
 	if (ret) {
-		pr_err("%s:adc temp value get fail!!\n", __func__);
+		E("%s:adc temp value get fail!!\n", __func__);
 		*adc_temp = 0;
 		return ret;
 	}
@@ -747,7 +745,7 @@ static long tps80032_gauge_ioctl(struct file *filp,
 		if (copy_from_user(&ur_select, (void *)arg
 				   , sizeof(enum update_rate))) {
 			ret = -EFAULT;
-			pr_err("%s: RESET copy_from_user failed!\n"
+			E("%s: RESET copy_from_user failed!\n"
 				, __func__);
 			break;
 		}
@@ -769,7 +767,7 @@ static long tps80032_gauge_ioctl(struct file *filp,
 		if (copy_from_user(&clb_time_ms, (void *)arg
 				   , sizeof(unsigned int))) {
 			ret = -EFAULT;
-			pr_err("%s: SET_CLB copy_from_user failed!\n"
+			E("%s: SET_CLB copy_from_user failed!\n"
 				, __func__);
 			break;
 		}
@@ -794,7 +792,7 @@ static long tps80032_gauge_ioctl(struct file *filp,
 		if (copy_to_user((void __user *)arg
 				, &gauge_reply
 				, sizeof(struct tps80032_gauge_reply))) {
-			pr_err("%s: GET_ALL copy_to_user failed!\n", __func__);
+			E("%s: GET_ALL copy_to_user failed!\n", __func__);
 			ret = -EFAULT;
 		}
 
@@ -805,12 +803,12 @@ static long tps80032_gauge_ioctl(struct file *filp,
 		if (copy_from_user(&gauge_counter, (void *)arg
 				   , sizeof(struct tps80032_gauge_counter))) {
 			ret = -EFAULT;
-			pr_err("%s: SET_COUNTER copy_from_user failed!\n"
+			E("%s: SET_COUNTER copy_from_user failed!\n"
 				, __func__);
 			break;
 		}
 
-		pr_info("Set tps80032 gauge updated capacity = %d0uAs total time = %dms\n", gauge_counter.accum_current, gauge_counter.pass_time);
+		D("Set tps80032 gauge updated capacity = %d0uAs total time = %dms\n", gauge_counter.accum_current, gauge_counter.pass_time);
 		mutex_lock(&gauge_data->data_lock);
 		ret = set_gauge_counter(&gauge_counter);
 		mutex_unlock(&gauge_data->data_lock);
@@ -832,10 +830,10 @@ static long tps80032_gauge_ioctl(struct file *filp,
 		gauge_counter.pass_time = gauge_reply.pass_time;
 		mutex_unlock(&gauge_data->data_lock);
 
-		pr_info("Get tps80032 gauge updated capacity = %d0uAs total time = %dms\n", gauge_counter.accum_current, gauge_counter.pass_time);
+		D("Get tps80032 gauge updated capacity = %d0uAs total time = %dms\n", gauge_counter.accum_current, gauge_counter.pass_time);
 
 		if (copy_to_user((void __user *)arg, &gauge_counter, sizeof(struct tps80032_gauge_counter))) {
-			pr_err("%s: GET_COUNTER copy_to_user failed!\n", __func__);
+			E("%s: GET_COUNTER copy_to_user failed!\n", __func__);
 			ret = -EFAULT;
 		}
 
@@ -845,12 +843,12 @@ static long tps80032_gauge_ioctl(struct file *filp,
 
 		if (copy_from_user(&capacity, (void *)arg, sizeof(unsigned int))) {
 			ret = -EFAULT;
-			pr_err("%s: SET_CAPACITY copy_from_user failed!\n"
+			E("%s: SET_CAPACITY copy_from_user failed!\n"
 				, __func__);
 			break;
 		}
 
-		pr_info("Set tps80032 gauge capacity = %d0uAh\n", capacity);
+		D("Set tps80032 gauge capacity = %d0uAh\n", capacity);
 		gauge_counter.accum_current = capacity * 3600;
 		gauge_counter.pass_time = 0;
 
@@ -867,7 +865,7 @@ static long tps80032_gauge_ioctl(struct file *filp,
 		gauge_debug.v_fs = V_FS;
 
 		if (copy_to_user((void __user *)arg, &gauge_debug, sizeof(struct tps80032_gauge_debug))) {
-			pr_err("%s: GET_DEBUG copy_to_user failed!\n", __func__);
+			E("%s: GET_DEBUG copy_to_user failed!\n", __func__);
 			ret = -EFAULT;
 		}
 		break;
@@ -876,12 +874,12 @@ static long tps80032_gauge_ioctl(struct file *filp,
 
 		if (copy_from_user(&offset_shift, (void *)arg, sizeof(int))) {
 			ret = -EFAULT;
-			pr_err("%s: SET_OFFSET_SHIFT copy_from_user failed!\n"
+			E("%s: SET_OFFSET_SHIFT copy_from_user failed!\n"
 				, __func__);
 			break;
 		}
 
-		pr_info("Set tps80032 gauge offset shift = %d\n", offset_shift);
+		D("Set tps80032 gauge offset shift = %d\n", offset_shift);
 
 		mutex_lock(&gauge_data->data_lock);
 		gauge_data->offset_shift = offset_shift;
@@ -890,7 +888,7 @@ static long tps80032_gauge_ioctl(struct file *filp,
 		break;
 	}
 	default:
-		pr_err("%s: no matched ioctl cmd\n", __func__);
+		E("%s: no matched ioctl cmd\n", __func__);
 		break;
 	}
 
@@ -947,13 +945,15 @@ static int __devinit tps80032_gauge_probe(struct platform_device *pdev)
 
 	CHECK_LOG();
 
+	I("%s: probe start\n", __func__);
+	
 	wake_lock_init(&gauge_clb_lock, WAKE_LOCK_SUSPEND,
 			"gauge_clb_lock");
 
 	gauge_data = kzalloc(sizeof(struct tps80032_gauge_data)
 			, GFP_KERNEL);
 	if (!gauge_data) {
-		pr_err("%s:Unable to allocat memory!!\n", __func__);
+		E("%s:Unable to allocat memory!!\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -970,20 +970,22 @@ static int __devinit tps80032_gauge_probe(struct platform_device *pdev)
 				IRQF_ONESHOT, "tps80031_cc_autocal"
 				, gauge_data);
 	if (ret < 0) {
-		pr_err("%s:request gauge IRQ %d fail\n"
+		E("%s:request gauge IRQ %d fail\n"
 			, __func__, gauge_data->irq);
 		goto request_irq_fail;
 	}
 
 	ret = misc_register(&tps80032_gauge_device_node);
 	if (ret) {
-		pr_err("%s:Unable to register misc device %d\n"
+		E("%s:Unable to register misc device %d\n"
 			, __func__, MISC_DYNAMIC_MINOR);
 		goto misc_register_fail;
 	}
 
 	gauge_create_attrs(&pdev->dev);
 
+	I("%s: probe success!\n", __func__);
+	
 	return 0;
 misc_register_fail:
 	free_irq(gauge_data->irq, gauge_data);

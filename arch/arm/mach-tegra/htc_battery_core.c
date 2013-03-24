@@ -51,6 +51,9 @@ static ssize_t htc_battery_charger_ctrl_timer(struct device *dev,
 	.store = NULL,                                \
 }
 
+#define BATTERY_DEBUG 0
+
+#if BATTERY_DEBUG
 #define BATT_LOG(fmt, ...) do { \
 	struct timespec ts; \
 	struct rtc_time tm; \
@@ -61,6 +64,9 @@ static ssize_t htc_battery_charger_ctrl_timer(struct device *dev,
 	ktime_to_ns(ktime_get()), tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday, \
 	tm.tm_hour, tm.tm_min, tm.tm_sec, ts.tv_nsec); \
 } while (0)
+#else
+#define BATT_LOG(fmt, ...)
+#endif
 
 #define BATT_ERR(fmt, ...) do { \
 	struct timespec ts; \

@@ -13,9 +13,6 @@
  *
  */
 
-#define PR_TAG "[BATT][chg]"
-#define pr_fmt(fmt) PR_TAG fmt
-
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
@@ -29,11 +26,22 @@
 #include <linux/tps80032_charger.h>
 #include <linux/delay.h>
 
+#define CHARGER_DEBUG 0
+
+#if CHARGER_DEBUG
+	#define D(x...) pr_info("[BATT][CHG]" x)
+#else
+	#define D(x...)
+#endif
+
+#define I(x...) pr_info("[BATT][CHG]" x)
+#define E(x...) pr_err("[BATT][CHG]" x)
+
 /* used for debug if function called */
 #define FUNC_CALL_CHECK 0
 
 #if FUNC_CALL_CHECK
-#define CHECK_LOG() pr_info("%s\n", __func__)
+#define CHECK_LOG() D("[BATT][CHG] %s\n", __func__)
 #else
 #define CHECK_LOG() (void)0
 #endif
@@ -118,7 +126,7 @@ static int tps80032_charger_regulation_voltage_set(int regh)
 	ret = tps80031_update(charger_data->parent_dev, SLAVE_ID2,
 			CHARGERUSB_VOREG, regh, 0x3F);
 	if (ret < 0) {
-		pr_err("%s(): Failed in updating register 0x%02x\n",
+		E("%s(): Failed in updating register 0x%02x\n",
 				__func__, regh);
 	}
 	mutex_unlock(&charger_data->data_lock);
@@ -154,7 +162,7 @@ void tps80032_charger_dump_status(int cond)
 			ANTICOLLAPSE_CTRL1, &regh[9]);
 	tps80031_read(charger_data->parent_dev, SLAVE_ID2,
 			CHARGERUSB_CTRL1, &regh[10]);
-	pr_info("Check %d: "
+	D("Check %d: "
 			"STS=0x%X, STAT1=0x%X, INT1=0x%X, "
 			"INT2=0x%X, CINL=0x%X, VO=0x%X, "
 			"VI=0x%X, VOL=0x%X, VIL=0x%X, "
@@ -171,7 +179,7 @@ EXPORT_SYMBOL_GPL(tps80032_charger_dump_status);
 		ret = tps80031_write(charger_data->parent_dev, SLAVE_ID2,	\
 				(offset), (value));				\
 		if (ret < 0) {							\
-			pr_err("%s(): Failed in writing register 0x%02x\n",	\
+			E("%s(): Failed in writing register 0x%02x\n",	\
 					__func__, offset);			\
 			goto tps80032_i2c_err;					\
 		}								\
@@ -181,7 +189,7 @@ EXPORT_SYMBOL_GPL(tps80032_charger_dump_status);
 		ret = tps80031_update(charger_data->parent_dev, SLAVE_ID2,	\
 				(offset), (value), (mask));			\
 		if (ret < 0) {							\
-			pr_err("%s(): Failed in updating register 0x%02x\n",	\
+			E("%s(): Failed in updating register 0x%02x\n",	\
 					__func__, (offset));			\
 			goto tps80032_i2c_err;					\
 		}								\
@@ -191,7 +199,7 @@ EXPORT_SYMBOL_GPL(tps80032_charger_dump_status);
 		ret = tps80031_read(charger_data->parent_dev, SLAVE_ID2,	\
 				(offset), (value));				\
 		if (ret < 0) {							\
-			pr_err("%s(): Failed in readinging register 0x%02x\n",	\
+			E("%s(): Failed in readinging register 0x%02x\n",	\
 					__func__, (offset));			\
 			goto tps80032_i2c_err;					\
 		}								\
@@ -205,13 +213,13 @@ int tps80032_charger_set_ctrl(u32 ctl)
 	CHECK_LOG();
 
 	if (tps80032_charger_initial < 0) {
-		pr_info("tps80032 charger not ready, state = %d!!\n", tps80032_charger_initial);
+		D("tps80032 charger not ready, state = %d!!\n", tps80032_charger_initial);
 		return 0;
 	}
 
 	switch (ctl) {
 	case POWER_SUPPLY_DISABLE_CHARGE:
-		pr_info("Switch charger OFF\n");
+		D("Switch charger OFF\n");
 
 		tps80032_charger_dump_status(0);
 
@@ -223,7 +231,7 @@ int tps80032_charger_set_ctrl(u32 ctl)
 
 		break;
 	case POWER_SUPPLY_ENABLE_SLOW_CHARGE:
-		pr_info("Switch charger ON: SLOW\n");
+		D("Switch charger ON: SLOW\n");
 
 		tps80032_charger_dump_status(0);
 
@@ -245,7 +253,7 @@ int tps80032_charger_set_ctrl(u32 ctl)
 
 		break;
 	case POWER_SUPPLY_ENABLE_FAST_CHARGE:
-		pr_info("Switch charger ON: FAST\n");
+		D("Switch charger ON: FAST\n");
 
 		tps80032_charger_dump_status(0);
 
@@ -270,7 +278,7 @@ int tps80032_charger_set_ctrl(u32 ctl)
 
 		break;
 	case POWER_SUPPLY_ENABLE_INTERNAL:
-		pr_info("Switch charger BOOST\n");
+		D("Switch charger BOOST\n");
 
 		tps80032_charger_dump_status(0);
 		TPS80032_ID2_I2C_WRITE(CHARGERUSB_CTRL1, 0x40);
@@ -281,46 +289,46 @@ int tps80032_charger_set_ctrl(u32 ctl)
 	case POWER_SUPPLY_ENABLE_WIRELESS_CHARGE:
 	case POWER_SUPPLY_ENABLE_SLOW_HV_CHARGE:
 	case POWER_SUPPLY_ENABLE_FAST_HV_CHARGE:
-		pr_err("charger control %d is not supportted now!!\n", ctl);
+		E("charger control %d is not supportted now!!\n", ctl);
 		ret = -EINVAL;
 		break;
 	case OVERTEMP_VREG:
 		regh = 0x19;
 		tps80032_charger_regulation_voltage_set(regh);
 		TPS80032_ID2_I2C_READ(CHARGERUSB_VOREG, &regh);
-		pr_info("Switch charger OVERTEMP_VREG: regh 0x%X=%x\n", CHARGERUSB_VOREG, regh);
+		D("Switch charger OVERTEMP_VREG: regh 0x%X=%x\n", CHARGERUSB_VOREG, regh);
 
 		break;
 	case UNDERTEMP_VREG:
 		regh = 0x1E;
 		tps80032_charger_regulation_voltage_set(regh);
 		TPS80032_ID2_I2C_READ(CHARGERUSB_VOREG, &regh);
-		pr_info("Switch charger UNDERTEMP_VREG: regh 0x%X=%x\n", CHARGERUSB_VOREG, regh);
+		D("Switch charger UNDERTEMP_VREG: regh 0x%X=%x\n", CHARGERUSB_VOREG, regh);
 
 		break;
 	case NORMALTEMP_VREG:
 		regh = 0x23;
 		tps80032_charger_regulation_voltage_set(regh);
 		TPS80032_ID2_I2C_READ(CHARGERUSB_VOREG, &regh);
-		pr_info("Switch charger NORMALTEMP_VREG: regh 0x%X=%x\n", CHARGERUSB_VOREG, regh);
+		D("Switch charger NORMALTEMP_VREG: regh 0x%X=%x\n", CHARGERUSB_VOREG, regh);
 
 		break;
 	case NORMALTEMP_VREG_HV:
 		regh = 0x28;
 		tps80032_charger_regulation_voltage_set(regh);
 		TPS80032_ID2_I2C_READ(CHARGERUSB_VOREG, &regh);
-		pr_info("Switch charger NORMALTEMP_VREG_HV: regh 0x%X=%x\n", CHARGERUSB_VOREG, regh);
+		D("Switch charger NORMALTEMP_VREG_HV: regh 0x%X=%x\n", CHARGERUSB_VOREG, regh);
 
 		break;
 	case NORMALTEMP_VREG_HV4340:
 		regh = 0x2A;
 		tps80032_charger_regulation_voltage_set(regh);
 		TPS80032_ID2_I2C_READ(CHARGERUSB_VOREG, &regh);
-		pr_info("Switch charger NORMALTEMP_VREG_HV4340: regh 0x%X=%x\n", CHARGERUSB_VOREG, regh);
+		D("Switch charger NORMALTEMP_VREG_HV4340: regh 0x%X=%x\n", CHARGERUSB_VOREG, regh);
 
 		break;
 	case ENABLE_HIZ_CHG:
-		pr_info("Switch charger HIZ\n");
+		D("Switch charger HIZ\n");
 
 		tps80032_charger_dump_status(0);
 
@@ -333,102 +341,102 @@ int tps80032_charger_set_ctrl(u32 ctl)
 		regh = 0x29;
 		tps80032_charger_regulation_voltage_set(regh);
 		TPS80032_ID2_I2C_READ(CHARGERUSB_VOREG, &regh);
-		pr_info("Switch charger NORMALTEMP_VREG_HV4320: regh 0x%X=%x\n", CHARGERUSB_VOREG, regh);
+		D("Switch charger NORMALTEMP_VREG_HV4320: regh 0x%X=%x\n", CHARGERUSB_VOREG, regh);
 
 		break;
 	case ALLTEMP_VSYS_DISABLE:
 		regh = 0x02;
 		TPS80032_ID2_I2C_WRITE(CHARGERUSB_VSYSREG, regh);
 		TPS80032_ID2_I2C_READ(CHARGERUSB_VSYSREG, &regh);
-		pr_info("Switch charger ALLTEMP_VSYS_DISABLE: regh 0x%X=%x\n", CHARGERUSB_VSYSREG, regh);
+		D("Switch charger ALLTEMP_VSYS_DISABLE: regh 0x%X=%x\n", CHARGERUSB_VSYSREG, regh);
 
 		break;
 	case NORMALTEMP_VSYS_4400:
 		regh = 0x2D | 0x80;
 		TPS80032_ID2_I2C_WRITE(CHARGERUSB_VSYSREG, regh);
 		TPS80032_ID2_I2C_READ(CHARGERUSB_VSYSREG, &regh);
-		pr_info("Switch charger NORMALTEMP_VSYS_4400: regh 0x%X=%x\n", CHARGERUSB_VSYSREG, regh);
+		D("Switch charger NORMALTEMP_VSYS_4400: regh 0x%X=%x\n", CHARGERUSB_VSYSREG, regh);
 
 		break;
 	case NORMALTEMP_VSYS_4440:
 		regh = 0x2F | 0x80;
 		TPS80032_ID2_I2C_WRITE(CHARGERUSB_VSYSREG, regh);
 		TPS80032_ID2_I2C_READ(CHARGERUSB_VSYSREG, &regh);
-		pr_info("Switch charger NORMALTEMP_VSYS_4440: regh 0x%X=%x\n", CHARGERUSB_VSYSREG, regh);
+		D("Switch charger NORMALTEMP_VSYS_4440: regh 0x%X=%x\n", CHARGERUSB_VSYSREG, regh);
 
 		break;
 	case OVERTEMP_VSYS_4300:
 		regh = 0x28 | 0x80;
 		TPS80032_ID2_I2C_WRITE(CHARGERUSB_VSYSREG, regh);
 		TPS80032_ID2_I2C_READ(CHARGERUSB_VSYSREG, &regh);
-		pr_info("Switch charger OVERTEMP_VSYS_4300: regh 0x%X=%x\n", CHARGERUSB_VSYSREG, regh);
+		D("Switch charger OVERTEMP_VSYS_4300: regh 0x%X=%x\n", CHARGERUSB_VSYSREG, regh);
 
 		break;
 	case OVERTEMP_VSYS_4340:
 		regh = 0x2A | 0x80;
 		TPS80032_ID2_I2C_WRITE(CHARGERUSB_VSYSREG, regh);
 		TPS80032_ID2_I2C_READ(CHARGERUSB_VSYSREG, &regh);
-		pr_info("Switch charger OVERTEMP_VSYS_4340: regh 0x%X=%x\n", CHARGERUSB_VSYSREG, regh);
+		D("Switch charger OVERTEMP_VSYS_4340: regh 0x%X=%x\n", CHARGERUSB_VSYSREG, regh);
 
 		break;
 	case OVERTEMP_VSYS_4140:
 		regh = 0x20 | 0x80;
 		TPS80032_ID2_I2C_WRITE(CHARGERUSB_VSYSREG, regh);
 		TPS80032_ID2_I2C_READ(CHARGERUSB_VSYSREG, &regh);
-		pr_info("Switch charger OVERTEMP_VSYS_4140: regh 0x%X=%x\n", CHARGERUSB_VSYSREG, regh);
+		D("Switch charger OVERTEMP_VSYS_4140: regh 0x%X=%x\n", CHARGERUSB_VSYSREG, regh);
 
 		break;
 	case UNDERTEMP_VSYS_4200:
 		regh = 0x23 | 0x80;
 		TPS80032_ID2_I2C_WRITE(CHARGERUSB_VSYSREG, regh);
 		TPS80032_ID2_I2C_READ(CHARGERUSB_VSYSREG, &regh);
-		pr_info("Switch charger UNDERTEMP_VSYS_4200: regh 0x%X=%x\n", CHARGERUSB_VSYSREG, regh);
+		D("Switch charger UNDERTEMP_VSYS_4200: regh 0x%X=%x\n", CHARGERUSB_VSYSREG, regh);
 
 		break;
 	case CHECK_INT1:
 		TPS80032_ID2_I2C_READ(CHARGERUSB_STATUS_INT1, &regh);
-		pr_info("Switch charger CHECK_INT1: regh 0x%xh=%x\n", CHARGERUSB_STATUS_INT1, regh);
+		D("Switch charger CHECK_INT1: regh 0x%xh=%x\n", CHARGERUSB_STATUS_INT1, regh);
 		ret = (int)regh;
 		break;
 	case CHECK_INT2:
 		TPS80032_ID2_I2C_READ(CHARGERUSB_STATUS_INT2, &regh);
-		pr_info("Switch charger CHECK_INT2: regh 0x%xh=%x\n", CHARGERUSB_STATUS_INT2, regh);
+		D("Switch charger CHECK_INT2: regh 0x%xh=%x\n", CHARGERUSB_STATUS_INT2, regh);
 		ret = (int)regh;
 		break;
 	case ENABLE_LIMITED_CHG:
 		tps80032_low_chg = 1;
 		TPS80032_ID2_I2C_WRITE(CHARGERUSB_VICHRG, 0x00);
 		TPS80032_ID2_I2C_READ(CHARGERUSB_VICHRG, &regh);
-		pr_info("Switch charger ON (LIMITED): regh 0x%x=%x low_chg=%u\n", CHARGERUSB_VICHRG, regh, tps80032_low_chg);
+		D("Switch charger ON (LIMITED): regh 0x%x=%x low_chg=%u\n", CHARGERUSB_VICHRG, regh, tps80032_low_chg);
 		break;
 	case CLEAR_LIMITED_CHG:
 		tps80032_low_chg = 0;
 		TPS80032_ID2_I2C_WRITE(CHARGERUSB_VICHRG, 0x0A);
 		TPS80032_ID2_I2C_READ(CHARGERUSB_VICHRG, &regh);
-		pr_info("Switch charger OFF (LIMITED): regh 0x%x=%x low_chg=%u\n", CHARGERUSB_VICHRG, regh, tps80032_low_chg);
+		D("Switch charger OFF (LIMITED): regh 0x%x=%x low_chg=%u\n", CHARGERUSB_VICHRG, regh, tps80032_low_chg);
 		break;
 	case SET_ICL_NORMAL:
 		tps80032_icl_750 = 0;
 		if (tps80032_charger_state == 2) {
 			TPS80032_ID2_I2C_UPDATE(CHARGERUSB_CINLIMIT, 0x2A, 0x3F);
 			TPS80032_ID2_I2C_READ(CHARGERUSB_CINLIMIT, &regh);
-			pr_info("Switch charger SET_ICL_NORMAL: regh 0x%x=0x%x\n", CHARGERUSB_CINLIMIT, regh);
+			D("Switch charger SET_ICL_NORMAL: regh 0x%x=0x%x\n", CHARGERUSB_CINLIMIT, regh);
 		} else
-			pr_info("Switch charger SET_ICL_NORMAL \n");
+			D("Switch charger SET_ICL_NORMAL \n");
 		break;
 	case SET_ICL750:
 		tps80032_icl_750 = 1;
 		if (tps80032_charger_state == 2) {
 			TPS80032_ID2_I2C_UPDATE(CHARGERUSB_CINLIMIT, 0x0E, 0x3F);
 			TPS80032_ID2_I2C_READ(CHARGERUSB_CINLIMIT, &regh);
-			pr_info("Switch charger SET_ICL750: regh 0x%x=0x%x\n", CHARGERUSB_CINLIMIT, regh);
+			D("Switch charger SET_ICL750: regh 0x%x=0x%x\n", CHARGERUSB_CINLIMIT, regh);
 		} else
-			pr_info("Switch charger SET_ICL750 \n");
+			D("Switch charger SET_ICL750 \n");
 		break;
 	case CHECK_CHG:
 	case CHECK_CONTROL:
 	default:
-		pr_err("charger control %d is not supportted now!!\n", ctl);
+		E("charger control %d is not supportted now!!\n", ctl);
 		ret = -EINVAL;
 	}
 
@@ -504,10 +512,10 @@ static irqreturn_t int_chg_isr(int irq, void *dev_id)
 	ret = tps80031_read(charger_data->parent_dev, SLAVE_ID2,
 			CHARGERUSB_INT_STATUS, &chg_status);
 	if (ret < 0) {
-		pr_err("%s(): Failed in reading register 0x%02x\n",
+		E("%s(): Failed in reading register 0x%02x\n",
 				__func__, CHARGERUSB_INT_STATUS);
 	} else {
-		pr_info("%s():The status of CHARGERUSB_INT_STATUS is 0x%02x\n",
+		D("%s():The status of CHARGERUSB_INT_STATUS is 0x%02x\n",
 				__func__, chg_status);
 		chg_int_chg_work_func(NULL);
 	}
@@ -525,12 +533,12 @@ static void chg_linch_work_func(struct work_struct *work)
 	ret = tps80031_read(charger_data->parent_dev, SLAVE_ID2,
 			LINEAR_CHRG_STS, &linch_status);
 	if (ret < 0) {
-		pr_err("%s(): Failed in reading register 0x%02x\n",
+		E("%s(): Failed in reading register 0x%02x\n",
 				__func__, LINEAR_CHRG_STS);
 		return;
 	}
 
-	pr_info("%s():The status of LINEAR_CHRG_STS is 0x%02x\n",
+	D("%s():The status of LINEAR_CHRG_STS is 0x%02x\n",
 			__func__, linch_status);
 	if (!!(linch_status && END_OF_CHARGE)) {
 		send_tps_chg_int_notify(CHG_CHARGE_DONE, 1);
@@ -572,7 +580,7 @@ static ssize_t tps80032_charger_charge_done_show(struct device *dev,
 	ret = tps80031_read(charger_data->parent_dev, SLAVE_ID2,
 			LINEAR_CHRG_STS, &linch_status);
 	if (ret < 0) {
-		pr_err("%s(): Failed in reading register 0x%02x\n",
+		E("%s(): Failed in reading register 0x%02x\n",
 				__func__, LINEAR_CHRG_STS);
 		return scnprintf(buf, PAGE_SIZE, "0\n");
 	}
@@ -590,7 +598,7 @@ static ssize_t tps80032_charger_charge_enabled_show(struct device *dev,
 	ret = tps80031_read(charger_data->parent_dev, SLAVE_ID2,
 			CONTROLLER_STAT1, &status);
 	if (ret < 0) {
-		pr_err("%s(): Failed in reading register 0x%02x\n",
+		E("%s(): Failed in reading register 0x%02x\n",
 				__func__, CONTROLLER_STAT1);
 		return scnprintf(buf, PAGE_SIZE, "0\n");
 	}
@@ -608,7 +616,7 @@ static ssize_t tps80032_charger_vsys_reg_show(struct device *dev,
 	ret = tps80031_read(charger_data->parent_dev, SLAVE_ID2,
 			CHARGERUSB_VSYSREG, &status);
 	if (ret < 0) {
-		pr_err("%s(): Failed in reading register 0x%02x\n",
+		E("%s(): Failed in reading register 0x%02x\n",
 				__func__, CHARGERUSB_VSYSREG);
 		return scnprintf(buf, PAGE_SIZE, "0\n");
 	}
@@ -648,11 +656,11 @@ static int __devinit tps80032_charger_probe(struct platform_device *pdev)
 	int ret = 0;
 	u8 regh;
 
-	CHECK_LOG();
+	I("%s: probe start\n", __func__);
 
 	charger_data = kzalloc(sizeof(struct tps80032_charger_data), GFP_KERNEL);
 	if (!charger_data) {
-		pr_err("%s:Unable to allocat memory!!\n", __func__);
+		E("%s:Unable to allocat memory!!\n", __func__);
 		return -ENOMEM;
 	}
 
@@ -663,7 +671,7 @@ static int __devinit tps80032_charger_probe(struct platform_device *pdev)
 
 	tps80032_wq = create_singlethread_workqueue("tps80032");
 	if (!tps80032_wq) {
-		pr_err("Failed to create tps80032 workqueue.\n");
+		E("Failed to create tps80032 workqueue.\n");
 		kfree(charger_data);
 		ret = -ENOMEM;
 		goto wq_create_fail;
@@ -672,7 +680,7 @@ static int __devinit tps80032_charger_probe(struct platform_device *pdev)
 	ret = request_threaded_irq(pdata->int_chg_irq, NULL,
 			int_chg_isr, 0, "tps80032-chg", charger_data);
 	if (ret) {
-		pr_err("Unable to register irq %d; error %d\n",
+		E("Unable to register irq %d; error %d\n",
 			pdata->int_chg_irq, ret);
 		goto irq_chg_fail;
 	}
@@ -682,7 +690,7 @@ static int __devinit tps80032_charger_probe(struct platform_device *pdev)
 	ret = request_threaded_irq(pdata->linch_gated_irq, NULL,
 			linch_status_isr, 0, "tps80032-linch", charger_data);
 	if (ret) {
-		pr_err("Unable to register irq %d; error %d\n",
+		E("Unable to register irq %d; error %d\n",
 			pdata->linch_gated_irq, ret);
 		goto irq_linch_fail;
 	} else {
@@ -694,7 +702,7 @@ static int __devinit tps80032_charger_probe(struct platform_device *pdev)
 	ret = request_threaded_irq(pdata->fault_wdg_irq, NULL,
 			watchdog_expire_isr, 0, "tps80032-wdg", charger_data);
 	if (ret) {
-		pr_err("Unable to register irq %d; error %d\n",
+		E("Unable to register irq %d; error %d\n",
 			pdata->fault_wdg_irq, ret);
 		goto irq_wdg_fail;
 	} else {
@@ -709,7 +717,7 @@ static int __devinit tps80032_charger_probe(struct platform_device *pdev)
 	TPS80032_ID2_I2C_WRITE(CHARGERUSB_CTRL3, regh);
 
 	tps80032_charger_initial = 1;
-	pr_info("Driver registration done\n");
+	I("%s: probe success!\n", __func__);
 
 	return 0;
 tps80032_i2c_err:
