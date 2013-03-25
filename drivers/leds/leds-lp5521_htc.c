@@ -1554,6 +1554,10 @@ static int lp5521_led_probe(struct i2c_client *client
 		gpio_free(pdata->ena_gpio);
 		return ret;
 	}
+	
+	I("led_config default %d %d %d\n", pdata->led_config[0].led_lux, 
+		pdata->led_config[1].led_lux, pdata->led_config[2].led_lux);
+	
    	tegra_gpio_enable(pdata->ena_gpio);
 	button_brightness = pdata->led_config[2].led_lux * 255 / 100;
 	button_brightness_board = button_brightness;
