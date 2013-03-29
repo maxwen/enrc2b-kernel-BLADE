@@ -411,7 +411,6 @@ static void tegra_mpdec_work_thread(struct work_struct *work)
     static int lpdown_req = 0;
 	cputime64_t on_time = 0;
     bool suspended = false;
-	unsigned int core_to_online;
 
 	if (ktime_to_ms(ktime_get()) <= tegra_mpdec_tuners_ins.startdelay)
 		goto out;
