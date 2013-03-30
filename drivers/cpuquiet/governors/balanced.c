@@ -34,6 +34,9 @@ extern unsigned int best_core_to_turn_up (void);
 
 #define CPUNAMELEN 8
 
+#define UP_DELAY_MS			100
+#define DOWN_DELAY_MS		2000
+
 typedef enum {
 	CPU_SPEED_BALANCED,
 	CPU_SPEED_BIASED,
@@ -451,8 +454,8 @@ static int balanced_start(void)
 
 	INIT_DELAYED_WORK(&balanced_work, balanced_work_func);
 	
-	up_delay = msecs_to_jiffies(100);
-	down_delay = msecs_to_jiffies(2000);
+	up_delay = msecs_to_jiffies(UP_DELAY_MS);
+	down_delay = msecs_to_jiffies(DOWN_DELAY_MS);
 
 	table = cpufreq_frequency_get_table(0);
 
