@@ -43,7 +43,7 @@ static int led_rw_delay;
 static int current_state, current_blink, current_time;
 static int current_currents = 0, current_lut_coefficient, current_pwm_coefficient;
 static int current_mode, backlight_mode, suspend_mode, offtimer_mode;
-static int amber_mode, button_brightness, slow_blink_brightness;
+static int amber_mode, button_brightness, slow_blink_brightness, slow_blink_brightness_limit = 1;
 static int button_brightness_board;
 static struct regulator *regulator;
 static struct i2c_client *private_lp5521_client;
@@ -1286,8 +1286,11 @@ static ssize_t lp5521_led_slow_blink_store(struct device *dev,
 	if(val) {
 		if(!strcmp(ldata->cdev.name, "button-backlight")) {
 			if(backlight_mode != 3 || val != slow_blink_brightness) {
-				// always limit it to any button brightness value
-				slow_blink_brightness = button_brightness;
+				// limit it to button brightness value
+				if(slow_blink_brightness_limit)
+					slow_blink_brightness = button_brightness;
+				else
+					slow_blink_brightness = val;				
 				lp5521_led_current_set_for_key(2);
 			}
 		}
@@ -1493,6 +1496,33 @@ static DEVICE_ATTR(button_brightness, 0644, lp5521_led_button_brightness_show,
 					lp5521_led_button_brightness_store);
 
 
+static ssize_t lp5521_slow_blink_brightness_limit_show(struct device *dev,
+				  struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf, "%d\n", slow_blink_brightness_limit);
+}
+
+static ssize_t lp5521_slow_blink_brightness_limit_store(struct device *dev,
+				   struct device_attribute *attr,
+				   const char *buf, size_t count)
+{
+	int ret = 0;
+	unsigned int temp;
+
+	ret = sscanf(buf, "%d", &temp);
+	if (ret!=1 || temp < 0 || temp > 1)
+		return -EINVAL;
+
+	D("%s , val = %d\n" , __func__, temp);
+	
+	slow_blink_brightness_limit = temp;
+
+	return count;
+}
+
+static DEVICE_ATTR(slow_blink_brightness_limit, 0644, lp5521_slow_blink_brightness_limit_show,
+					lp5521_slow_blink_brightness_limit_store);
+
 static void lp5521_led_early_suspend(struct early_suspend *handler)
 {
 	struct i2c_client *client = private_lp5521_client;
@@ -1615,6 +1645,11 @@ static int lp5521_led_probe(struct i2c_client *client
 			E("%s: failed on create attr button_brightness [%d]\n", __func__, i);
 			goto err_register_attr_button_brightness;
 		}
+		ret = device_create_file(cdata->leds[i].cdev.dev, &dev_attr_slow_blink_brightness_limit);
+		if (ret < 0) {
+			E("%s: failed on create attr slow_blink_brightness_limit [%d]\n", __func__, i);
+			goto err_register_attr_slow_blink_brightness_limit;
+		}
 		INIT_WORK(&cdata->leds[i].led_work, led_work_func);
 		alarm_init(&cdata->leds[i].led_alarm,
 				   ANDROID_ALARM_ELAPSED_REALTIME_WAKEUP,
@@ -1654,6 +1689,11 @@ static int lp5521_led_probe(struct i2c_client *client
 err_fun_init:
 	device_remove_file(&client->dev, &dev_attr_behavior);
 	kfree(cdata);
+	
+err_register_attr_slow_blink_brightness_limit:
+	for (i = 0; i < pdata->num_leds; i++) {
+		device_remove_file(cdata->leds[i].cdev.dev,&dev_attr_slow_blink_brightness_limit);
+	}
 err_register_attr_button_brightness:
 	for (i = 0; i < pdata->num_leds; i++) {
 		device_remove_file(cdata->leds[i].cdev.dev,&dev_attr_button_brightness);
@@ -1715,6 +1755,7 @@ static int __devexit lp5521_led_remove(struct i2c_client *client)
 		device_remove_file(cdata->leds[i].cdev.dev,&dev_attr_pwm_coefficient);
 		device_remove_file(cdata->leds[i].cdev.dev,&dev_attr_lut_coefficient);
 		device_remove_file(cdata->leds[i].cdev.dev,&dev_attr_button_brightness);
+		device_remove_file(cdata->leds[i].cdev.dev,&dev_attr_slow_blink_brightness_limit);
 		led_classdev_unregister(&cdata->leds[i].cdev);
 	}
 	destroy_workqueue(g_led_work_queue);
