@@ -98,6 +98,7 @@ static struct delayed_work suspend_work;
 #define SUSPEND_DELAY_MS 1000
 static unsigned int suspend_delay;
 static unsigned int use_suspend_delay = 1;
+static void tegra_cancel_delayed_suspend_work(void);
 #endif
 
 #ifdef CONFIG_TEGRA3_VARIANT_CPU_OVERCLOCK
@@ -2112,10 +2113,6 @@ int tegra_cpu_set_speed_cap(unsigned int *speed_cap)
     speed_wocap = new_speed;
 #endif
 
-	// dont allow changes while in early suspend boost mode
-	if (in_earlysuspend)
-		return ret;
-
 	if (is_suspended)
 		return -EBUSY;
 
@@ -2260,10 +2257,6 @@ static int tegra_target(struct cpufreq_policy *policy,
 	unsigned int freq;
 	int ret = 0;
 
-	// dont allow changes while in early suspend boost mode
-	if (in_earlysuspend)
-		return ret;
-
 	mutex_lock(&tegra_cpu_lock);
 
 	ret = cpufreq_frequency_table_target(policy, freq_table, target_freq,
@@ -2288,14 +2281,19 @@ _out:
 static int tegra_pm_notify(struct notifier_block *nb, unsigned long event,
 	void *dummy)
 {
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	// must be outside of mutex!
+	if (event == PM_SUSPEND_PREPARE) {
+		tegra_cancel_delayed_suspend_work();
+	}
+#endif
+	
 	mutex_lock(&tegra_cpu_lock);
 	if (event == PM_SUSPEND_PREPARE) {
 		unsigned int freq;
 		is_suspended = true;
 		freq=freq_table[suspend_index].frequency;
-#if CPU_FREQ_DEBUG
 		pr_info("tegra_pm_notify: suspend: setting frequency to %d kHz\n", freq);
-#endif
 		tegra_update_cpu_speed(freq);
 		tegra_auto_hotplug_governor(freq, true);
 	} else if (event == PM_POST_SUSPEND) {
@@ -2304,9 +2302,7 @@ static int tegra_pm_notify(struct notifier_block *nb, unsigned long event,
 		tegra_cpu_edp_init(true);
 		
 		tegra_cpu_set_speed_cap(&freq);
-#if CPU_FREQ_DEBUG
 		pr_info("tegra_pm_notify: resume: restoring frequency to %d kHz\n", freq);
-#endif
 	}
 	mutex_unlock(&tegra_cpu_lock);
 	return NOTIFY_OK;
@@ -2418,6 +2414,9 @@ static struct cpufreq_driver tegra_cpufreq_driver = {
 
 static void tegra_delayed_suspend_work(struct work_struct *work)
 {
+	if(!in_earlysuspend)
+		return;
+		
 	pr_info("tegra_delayed_suspend_work: clean cpu freq boost\n");
 	in_earlysuspend = false;
 	pm_qos_update_request(&boost_cpu_freq_req, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
@@ -2428,6 +2427,16 @@ static void tegra_delayed_suspend_work(struct work_struct *work)
 	if (suspend_cap_freq > T3_LP_MAX_FREQ) {
 		pr_info("tegra_delayed_suspend_work: cap max cpu to %d\n", suspend_cap_cpu_num);
 		pm_qos_update_request(&cap_cpu_num_req, (s32)suspend_cap_cpu_num);
+	}
+}
+
+static void tegra_cancel_delayed_suspend_work(void)
+{
+	// delayed suspend worker hasnt run so far
+	if(in_earlysuspend){
+		pr_info("tegra_cancel_delayed_suspend_work\n");
+		cancel_delayed_work_sync(&suspend_work);
+		tegra_delayed_suspend_work(NULL);
 	}
 }
 
