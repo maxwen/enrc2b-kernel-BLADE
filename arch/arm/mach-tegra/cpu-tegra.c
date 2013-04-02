@@ -93,7 +93,7 @@ static struct pm_qos_request_list cap_cpu_num_req;
 static struct pm_qos_request_list boost_cpu_freq_req;
 static struct workqueue_struct *suspend_wq;
 static struct delayed_work suspend_work;
-#define SUSPEND_DELAY_MS 1000
+#define SUSPEND_DELAY_MS 500
 static unsigned int suspend_delay;
 static unsigned int use_suspend_delay = 1;
 static void tegra_cancel_delayed_suspend_work(void);
@@ -2209,6 +2209,12 @@ int tegra_input_boost (
     int ret = 0;
     unsigned int curfreq = 0, scaling_max_limit = 0;
 
+#ifdef CONFIG_TEGRA_CPUQUIET
+	// disable LP mode asap
+	// must be outside tegra_cpu_lock mutex!
+	tegra_cpuquiet_force_gmode();
+#endif
+
     mutex_lock(&tegra_cpu_lock);
     curfreq = tegra_getspeed(0);
 
@@ -2230,7 +2236,7 @@ int tegra_input_boost (
     }
 
 #if CPU_FREQ_DEBUG
-	pr_info("tegra_input_boost: cpu=%d target_freq=%d\n", cpu, target_freq);
+	pr_info("tegra_input_boost: cpu=%d curfreq =%d -> target_freq=%d\n", cpu, curfreq, target_freq);
 #endif
 
     target_cpu_speed[cpu] = target_freq;
@@ -2277,7 +2283,7 @@ static int tegra_pm_notify(struct notifier_block *nb, unsigned long event,
 	void *dummy)
 {
 #ifdef CONFIG_HAS_EARLYSUSPEND
-	// must be outside of mutex!
+	// must be outside of tegra_cpu_lock mutex!
 	if (event == PM_SUSPEND_PREPARE) {
 		tegra_cancel_delayed_suspend_work();
 	}
