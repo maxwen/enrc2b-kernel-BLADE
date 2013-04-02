@@ -64,8 +64,6 @@ extern void tegra_cpuquiet_force_gmode(void);
 /* frequency cap used during suspend (screen off)*/
 static unsigned int suspend_cap_freq = SUSPEND_CPU_FREQ_MAX;
 static unsigned int suspend_cap_cpu_num = SUSPEND_CPU_NUM_MAX;
-/* disable speed changes during early suspend and resume handlers */
-static bool in_earlysuspend = false;
 
 // maxwen: assumes 4 cores!
 unsigned int tegra_pmqos_cpu_freq_limits[CONFIG_NR_CPUS] = {0, 0, 0, 0};
@@ -99,6 +97,7 @@ static struct delayed_work suspend_work;
 static unsigned int suspend_delay;
 static unsigned int use_suspend_delay = 1;
 static void tegra_cancel_delayed_suspend_work(void);
+static bool in_earlysuspend = false;
 #endif
 
 #ifdef CONFIG_TEGRA3_VARIANT_CPU_OVERCLOCK
@@ -732,11 +731,7 @@ int tegra_update_cpu_speed(unsigned long rate)
 	unsigned long rate_save = rate;
 	int status = 1;
 #endif
-	
-	// dont allow changes while in early suspend boost mode
-	if (in_earlysuspend)
-		return ret;
-		
+
 	freqs.old = tegra_getspeed(0);
 	freqs.new = rate;
 
@@ -2416,7 +2411,7 @@ static void tegra_delayed_suspend_work(struct work_struct *work)
 {
 	if(!in_earlysuspend)
 		return;
-		
+
 	pr_info("tegra_delayed_suspend_work: clean cpu freq boost\n");
 	in_earlysuspend = false;
 	pm_qos_update_request(&boost_cpu_freq_req, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
