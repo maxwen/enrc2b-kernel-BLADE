@@ -83,7 +83,7 @@ static unsigned int min_cpu_load;
  * The minimum amount of time in nsecs to spend at a frequency before we can ramp up.
  * Notice we ignore this when we are below the ideal frequency.
  */
-#define DEFAULT_UP_RATE 50000
+#define DEFAULT_UP_RATE 100000
 static unsigned int up_rate;
 
 /*
@@ -101,7 +101,7 @@ static unsigned int sampling_rate;
 #define DEFAULT_INPUT_BOOST_DURATION 50000000
 static unsigned int input_boost_duration;
 
-static unsigned int touch_poke_freq = 1150000;
+static unsigned int touch_poke_freq = 910000;
 static bool touch_poke = true;
 
 static bool sync_cpu_downscale = false;
@@ -110,7 +110,7 @@ static bool sync_cpu_downscale = false;
  * external boost interface - boost if duration is written
  * to sysfs for boost_duration
  */
-static unsigned int boost_freq = 760000;
+static unsigned int boost_freq = 910000;
 static bool boost = true;
 
 /* in nsecs */
@@ -437,6 +437,29 @@ static void cpufreq_smartmax_freq_change(struct smartmax_info_s *this_smartmax) 
 	this_smartmax->ramp_dir = 0;
 }
 
+static inline void cpufreq_smartmax_get_ramp_direction(unsigned int debug_load, unsigned int cur, struct smartmax_info_s *this_smartmax, struct cpufreq_policy *policy, cputime64_t now)
+{
+	// Scale up if load is above max or if there where no idle cycles since coming out of idle,
+	// additionally, if we are at or above the ideal_speed, verify we have been at this frequency
+	// for at least up_rate:
+	if (debug_load > max_cpu_load && cur < policy->max
+			&& (cur < this_smartmax->ideal_speed
+				|| cputime64_sub(now, this_smartmax->freq_change_time) >= up_rate)) {
+		dprintk(SMARTMAX_DEBUG_ALG,
+				"load %d ramp up: load %d\n", cur, debug_load);
+		this_smartmax->ramp_dir = 1;
+	}
+	// Similarly for scale down: load should be below min and if we are at or below ideal
+	// frequency we require that we have been at this frequency for at least down_rate:
+	else if (debug_load < min_cpu_load && cur > policy->min
+			&& (cur > this_smartmax->ideal_speed
+				|| cputime64_sub(now, this_smartmax->freq_change_time) >= down_rate)) {
+		dprintk(SMARTMAX_DEBUG_ALG,
+				"load %d ramp down: load %d\n", cur, debug_load);
+		this_smartmax->ramp_dir = -1;
+	}
+}
+
 static void cpufreq_smartmax_timer(struct smartmax_info_s *this_smartmax) {
 	unsigned int cur;
 	struct cpufreq_policy *policy = this_smartmax->cur_policy;
@@ -528,36 +551,27 @@ static void cpufreq_smartmax_timer(struct smartmax_info_s *this_smartmax) {
 
 	this_smartmax->cur_cpu_load = debug_load;
 	this_smartmax->old_freq = cur;
+	this_smartmax->ramp_dir = 0;
 
-	// boost
-	if (time_before64 (now, boost_end_time)) {
-		dprintk(SMARTMAX_DEBUG_BOOST, "boost running %llu %llu\n", now, boost_end_time);
+	cpufreq_smartmax_get_ramp_direction(debug_load, cur, this_smartmax, policy, now);
+
+	// no changes
+	if (this_smartmax->ramp_dir == 0)		
 		return;
-	} else {
-		boost_running = false;
-	}
 
-	// Scale up if load is above max or if there where no idle cycles since coming out of idle,
-	// additionally, if we are at or above the ideal_speed, verify we have been at this frequency
-	// for at least up_rate:
-	if (debug_load > max_cpu_load && cur < policy->max
-			&& (cur < this_smartmax->ideal_speed
-				|| cputime64_sub(now, this_smartmax->freq_change_time) >= up_rate)) {
-		dprintk(SMARTMAX_DEBUG_ALG,
-				"%d ramp up: load %d\n", cur, debug_load);
-		this_smartmax->ramp_dir = 1;
-		cpufreq_smartmax_freq_change(this_smartmax);
-	}
-	// Similarly for scale down: load should be below min and if we are at or below ideal
-	// frequency we require that we have been at this frequency for at least down_rate:
-	else if (debug_load < min_cpu_load && cur > policy->min
-			&& (cur > this_smartmax->ideal_speed
-				|| cputime64_sub(now, this_smartmax->freq_change_time) >= down_rate)) {
-		dprintk(SMARTMAX_DEBUG_ALG,
-				"%d ramp down: load %d\n", cur, debug_load);
-		this_smartmax->ramp_dir = -1;
-		cpufreq_smartmax_freq_change(this_smartmax);
-	}
+	// boost - but not block ramp up steps based on load!
+	if (boost_running && time_before64 (now, boost_end_time)) {
+		dprintk(SMARTMAX_DEBUG_BOOST, "%d: boost running %llu %llu\n", cur, now, boost_end_time);
+		
+		if (this_smartmax->ramp_dir == -1)
+			return;
+		else {
+			dprintk(SMARTMAX_DEBUG_BOOST, "%d: boost running but ramp_up above boost freq requested\n", cur);
+		}
+	} else
+		boost_running = false;
+
+	cpufreq_smartmax_freq_change(this_smartmax);
 }
 
 static void do_dbs_timer(struct work_struct *work) {
@@ -845,6 +859,10 @@ static ssize_t store_boost_duration(struct kobject *a, struct attribute *b,
 	if (res >= 0 && input > 10000){
 		boost_duration = input;
 		if (boost) {
+			// no need to bother if currently a boost is running anyway
+			if (boost_task_alive && boost_running)
+				return count;
+
 			if (boost_task_alive) {
 				cur_boost_freq = boost_freq;
 				cur_boost_duration = boost_duration;
@@ -987,6 +1005,10 @@ static int cpufreq_smartmax_boost_task(void *data) {
 static void dbs_input_event(struct input_handle *handle, unsigned int type,
 		unsigned int code, int value) {
 	if (touch_poke && type == EV_SYN && code == SYN_REPORT) {
+		// no need to bother if currently a boost is running anyway
+		if (boost_task_alive && boost_running)
+			return;
+
 		if (boost_task_alive) {
 			cur_boost_freq = touch_poke_freq;
 			cur_boost_duration = input_boost_duration;
