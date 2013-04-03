@@ -21,7 +21,6 @@
 #include <linux/cpumask.h>
 #include <linux/module.h>
 #include <linux/cpufreq.h>
-#include <linux/pm_qos_params.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
@@ -31,11 +30,14 @@
 
 // from cpu-tegra.c
 extern unsigned int best_core_to_turn_up (void);
+// from cpuquiet.c
+extern unsigned int tegra_cpq_max_cpus(void);
+extern unsigned int tegra_cpq_min_cpus(void);
 
 #define CPUNAMELEN 8
 
-#define UP_DELAY_MS			100
-#define DOWN_DELAY_MS		2000
+#define UP_DELAY_MS			70
+#define DOWN_DELAY_MS		500
 
 typedef enum {
 	CPU_SPEED_BALANCED,
@@ -189,7 +191,7 @@ static CPU_SPEED_BALANCE balanced_speed_balance(void)
 	unsigned long balanced_speed = highest_speed * balance_level / 100;
 	unsigned long skewed_speed = balanced_speed / 2;
 	unsigned int nr_cpus = num_online_cpus();
-	unsigned int max_cpus = pm_qos_request(PM_QOS_MAX_ONLINE_CPUS) ? : 4;
+	unsigned int max_cpus = tegra_cpq_max_cpus();
 	unsigned int avg_nr_run = avg_nr_running();
 	unsigned int nr_run;
 
@@ -221,7 +223,9 @@ static void balanced_work_func(struct work_struct *work)
 	bool up = false;
 	unsigned int cpu = nr_cpu_ids;
 	unsigned long now = jiffies;
-
+	unsigned int nr_cpus = num_online_cpus();
+	unsigned int min_cpus = tegra_cpq_min_cpus();
+	
 	CPU_SPEED_BALANCE balance;
 
 	switch (balanced_state) {
@@ -267,6 +271,10 @@ static void balanced_work_func(struct work_struct *work)
 	}
 
 	if (!up && ((now - last_change_time) < down_delay))
+		cpu = nr_cpu_ids;
+
+	// min_cpu restriction
+	if (!up && nr_cpus == min_cpus)
 		cpu = nr_cpu_ids;
 
 	if (cpu < nr_cpu_ids) {
@@ -341,7 +349,7 @@ static void delay_callback(struct cpuquiet_attribute *attr)
 	}
 }
 
-ssize_t show_nr_run_thresholds(struct cpuquiet_attribute *cattr, char *buf)
+static ssize_t show_nr_run_thresholds(struct cpuquiet_attribute *cattr, char *buf)
 {
 	char *out = buf;
 	
@@ -350,7 +358,7 @@ ssize_t show_nr_run_thresholds(struct cpuquiet_attribute *cattr, char *buf)
 	return out - buf;
 }
 
-ssize_t store_nr_run_thresholds(struct cpuquiet_attribute *cattr,
+static ssize_t store_nr_run_thresholds(struct cpuquiet_attribute *cattr,
 					const char *buf, size_t count)
 {
 	int ret;

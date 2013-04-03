@@ -87,6 +87,16 @@ enum {
 	TEGRA_CPQ_SWITCH_TO_G,
 };
 
+unsigned int tegra_cpq_max_cpus(void)
+{
+	return max_cpus;
+}
+
+unsigned int tegra_cpq_min_cpus(void)
+{
+	return min_cpus;
+}
+
 static inline void show_status(const char* extra, cputime64_t on_time, int cpu)
 {
 #if CPUQUIET_DEBUG

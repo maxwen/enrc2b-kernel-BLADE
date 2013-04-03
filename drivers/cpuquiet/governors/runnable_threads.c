@@ -20,11 +20,16 @@
 #include <linux/cpuquiet.h>
 #include <linux/cpumask.h>
 #include <linux/module.h>
-#include <linux/pm_qos_params.h>
 #include <linux/jiffies.h>
 #include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/sched.h>
+
+// from cpu-tegra.c
+extern unsigned int best_core_to_turn_up (void);
+// from cpuquiet.c
+extern unsigned int tegra_cpq_max_cpus(void);
+extern unsigned int tegra_cpq_min_cpus(void);
 
 typedef enum {
 	DISABLED,
@@ -57,8 +62,8 @@ DEFINE_MUTEX(runnables_work_lock);
 static void update_runnables_state(void)
 {
 	unsigned int nr_cpus = num_online_cpus();
-	int max_cpus = pm_qos_request(PM_QOS_MAX_ONLINE_CPUS) ? : 4;
-	int min_cpus = pm_qos_request(PM_QOS_MIN_ONLINE_CPUS);
+	unsigned int max_cpus = tegra_cpq_max_cpus();
+	unsigned int min_cpus = tegra_cpq_min_cpus();
 	unsigned int avg_nr_run = avg_nr_running();
 	unsigned int nr_run;
 
@@ -118,7 +123,8 @@ static void runnables_work_func(struct work_struct *work)
 		sample = true;
 		break;
 	case UP:
-		cpu = cpumask_next_zero(0, cpu_online_mask);
+		//cpu = cpumask_next_zero(0, cpu_online_mask);
+		cpu = best_core_to_turn_up();
 		up = true;
 		sample = true;
 		break;
