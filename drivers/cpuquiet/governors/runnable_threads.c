@@ -44,15 +44,13 @@ static struct workqueue_struct *runnables_wq;
 
 #define NR_FSHIFT_EXP	3
 #define NR_FSHIFT	(1 << NR_FSHIFT_EXP)
-/* avg run threads * 8 (e.g., 11 = 1.375 threads) */
-static unsigned int default_thresholds[] = {
-	9, 17, 25, UINT_MAX
-};
 
 static unsigned int nr_run_last;
 static unsigned int nr_run_hysteresis = 4;		/* 1 / 4 thread */
-static unsigned int default_threshold_level = 4;	/* 1 / 4 thread */
-static unsigned int nr_run_thresholds[NR_CPUS];
+/* avg run threads * 8 (e.g., 11 = 1.375 threads) */
+static unsigned int nr_run_thresholds[] = {
+	9, 17, 25, UINT_MAX
+};
 
 DEFINE_MUTEX(runnables_work_lock);
 
@@ -148,12 +146,42 @@ static void runnables_work_func(struct work_struct *work)
 	mutex_unlock(&runnables_work_lock);
 }
 
+static ssize_t show_nr_run_thresholds(struct cpuquiet_attribute *cattr, char *buf)
+{
+	char *out = buf;
+	
+	out += sprintf(out, "%d %d %d %d\n", nr_run_thresholds[0], nr_run_thresholds[1], nr_run_thresholds[2], nr_run_thresholds[3]);
+
+	return out - buf;
+}
+
+static ssize_t store_nr_run_thresholds(struct cpuquiet_attribute *cattr,
+					const char *buf, size_t count)
+{
+	int ret;
+	int user_nr_run_thresholds[] = { 9, 17, 25, UINT_MAX };
+	
+	ret = sscanf(buf, "%d %d %d %d", &user_nr_run_thresholds[0], &user_nr_run_thresholds[1], &user_nr_run_thresholds[2], &user_nr_run_thresholds[3]);
+
+	if (ret != 4)
+		return -EINVAL;
+
+	nr_run_thresholds[0] = user_nr_run_thresholds[0];
+	nr_run_thresholds[1] = user_nr_run_thresholds[1];
+	nr_run_thresholds[2] = user_nr_run_thresholds[2];
+	nr_run_thresholds[3] = user_nr_run_thresholds[3];
+	
+	return count;
+}
+
 CPQ_BASIC_ATTRIBUTE(sample_rate, 0644, uint);
 CPQ_BASIC_ATTRIBUTE(nr_run_hysteresis, 0644, uint);
+CPQ_ATTRIBUTE_CUSTOM(nr_run_thresholds, 0644, show_nr_run_thresholds, store_nr_run_thresholds);
 
 static struct attribute *runnables_attributes[] = {
 	&sample_rate_attr.attr,
 	&nr_run_hysteresis_attr.attr,
+	&nr_run_thresholds_attr.attr,
 	NULL,
 };
 
@@ -212,7 +240,7 @@ static void runnables_stop(void)
 
 static int runnables_start(void)
 {
-	int err, i;
+	int err;
 
 	err = runnables_sysfs();
 	if (err)
@@ -224,16 +252,6 @@ static int runnables_start(void)
 		return -ENOMEM;
 
 	INIT_DELAYED_WORK(&runnables_work, runnables_work_func);
-
-	for(i = 0; i < ARRAY_SIZE(nr_run_thresholds); ++i) {
-		if (i < ARRAY_SIZE(default_thresholds))
-			nr_run_thresholds[i] = default_thresholds[i];
-		else if (i == (ARRAY_SIZE(nr_run_thresholds) - 1))
-			nr_run_thresholds[i] = UINT_MAX;
-		else
-			nr_run_thresholds[i] = i + 1 +
-				NR_FSHIFT / default_threshold_level;
-	}
 
 	runnables_state = IDLE;
 	runnables_work_func(NULL);
