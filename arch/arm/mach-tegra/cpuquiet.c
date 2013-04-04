@@ -89,12 +89,14 @@ enum {
 
 unsigned int tegra_cpq_max_cpus(void)
 {
-	return max_cpus;
+	unsigned int max_cpus_qos = pm_qos_request(PM_QOS_MAX_ONLINE_CPUS);	
+	return min(max_cpus_qos, max_cpus);
 }
 
 unsigned int tegra_cpq_min_cpus(void)
 {
-	return min_cpus;
+	unsigned int min_cpus_qos = pm_qos_request(PM_QOS_MIN_ONLINE_CPUS);
+	return max(min_cpus_qos, min_cpus);
 }
 
 static inline void show_status(const char* extra, cputime64_t on_time, int cpu)
@@ -123,7 +125,9 @@ static int update_core_config(unsigned int cpunumber, bool up)
 {
 	int ret = -EINVAL;
 	unsigned int nr_cpus = num_online_cpus();
-	
+	int max_cpus = tegra_cpq_max_cpus();
+	int min_cpus = tegra_cpq_min_cpus();
+
 	if (cpq_state == TEGRA_CPQ_DISABLED || cpunumber >= nr_cpu_ids)
 		return ret;
 
@@ -132,8 +136,6 @@ static int update_core_config(unsigned int cpunumber, bool up)
 			cpumask_set_cpu(cpunumber, &cr_online_requests);
 			ret = -EBUSY;
 		} else {
-			/*if (tegra_cpu_edp_favor_up(nr_cpus, mp_overhead) &&
-			    nr_cpus < max_cpus){*/
 			if (nr_cpus < max_cpus){
 				ret = cpu_up(cpunumber);
 				show_status("UP", 0, cpunumber);
@@ -143,7 +145,7 @@ static int update_core_config(unsigned int cpunumber, bool up)
 		if (is_lp_cluster()) {
 			ret = -EBUSY;
 		} else {
-			if (nr_cpus > min_cpus){
+			if (nr_cpus > 1 && nr_cpus > min_cpus){
 				ret = cpu_down(cpunumber);
 				show_status("DOWN", 0, cpunumber);
 			}
@@ -241,7 +243,9 @@ static void min_max_constraints_workfunc(struct work_struct *work)
 	unsigned int cpu;
 
 	int nr_cpus = num_online_cpus();
-
+	int max_cpus = tegra_cpq_max_cpus();
+	int min_cpus = tegra_cpq_min_cpus();
+	
 	if (is_lp_cluster())
 		return;
 
@@ -255,7 +259,6 @@ static void min_max_constraints_workfunc(struct work_struct *work)
 	for (;count > 0; count--) {
 		if (up) {
 			cpu = best_core_to_turn_up();
-			//cpu = cpumask_next_zero(0, cpu_online_mask);
 			if (cpu < nr_cpu_ids)
 				cpu_up(cpu);
 			else
@@ -270,25 +273,14 @@ static void min_max_constraints_workfunc(struct work_struct *work)
 	}
 }
 
-static int min_cpus_change(unsigned long n)
+static void min_cpus_change(void)
 {
 	bool g_cluster = false;
     cputime64_t on_time = 0;
-
-	if (n == PM_QOS_MIN_ONLINE_CPUS_DEFAULT_VALUE)
-		n = 1;
-
-	if (n < 1 || n > CONFIG_NR_CPUS)
-		return -EINVAL;
-	
-	if (n == min_cpus)
-		return 0;
-		
-	min_cpus = n;
 	
 	mutex_lock(tegra3_cpu_lock);
 
-	if ((n >= 1) && is_lp_cluster()) {
+	if ((tegra_cpq_min_cpus() >= 1) && is_lp_cluster()) {
 		/* make sure cpu rate is within g-mode range before switching */
 		unsigned long speed = max((unsigned long)tegra_getspeed(0),
 					clk_get_min_rate(cpu_g_clk) / 1000);
@@ -308,43 +300,34 @@ static int min_cpus_change(unsigned long n)
 
 	if (g_cluster)
 		cpuquiet_device_free();
-	
-	return 0;
 }
 
 static int min_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
 {
 	pr_info("PM QoS PM_QOS_MIN_ONLINE_CPUS %lu\n", n);
+
+	if (n < 1 || n > CONFIG_NR_CPUS)
+		return NOTIFY_OK;
 	
-	min_cpus_change(n);
+	min_cpus_change();
 
 	return NOTIFY_OK;
 }
 
-static int max_cpus_change(unsigned long n)
-{
-	if (n == PM_QOS_MAX_ONLINE_CPUS_DEFAULT_VALUE)
-		n = CONFIG_NR_CPUS;
-
-	if (n < 1 || n > CONFIG_NR_CPUS)
-		return -EINVAL;
-			
-	if (n == max_cpus)
-		return 0;
-		
-	max_cpus = n;
-	
-	if (n < num_online_cpus())
+static void max_cpus_change(void)
+{	
+	if (tegra_cpq_max_cpus() < num_online_cpus())
 		schedule_work(&minmax_work);
-	
-	return 0;
 }
 
 static int max_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
 {
 	pr_info("PM QoS PM_QOS_MAX_ONLINE_CPUS %lu\n", n);
+
+	if (n < 1)
+		return NOTIFY_OK;
 	
-	max_cpus_change(n);
+	max_cpus_change();
 
 	return NOTIFY_OK;
 }
@@ -484,7 +467,7 @@ static void enable_callback(struct cpuquiet_attribute *attr)
 ssize_t show_min_cpus(struct cpuquiet_attribute *cattr, char *buf)
 {
 	char *out = buf;
-	
+		
 	out += sprintf(out, "%d\n", min_cpus);
 
 	return out - buf;
@@ -501,17 +484,16 @@ ssize_t store_min_cpus(struct cpuquiet_attribute *cattr,
 	if ((ret != 1) || n < 1 || n > CONFIG_NR_CPUS)
 		return -EINVAL;
 	
-	ret = min_cpus_change(n);
-	if (ret)
-		return ret;
-
+	min_cpus = n;
+	min_cpus_change();
+	
 	return count;
 }
 
 ssize_t show_max_cpus(struct cpuquiet_attribute *cattr, char *buf)
 {
 	char *out = buf;
-	
+		
 	out += sprintf(out, "%d\n", max_cpus);
 
 	return out - buf;
@@ -527,10 +509,9 @@ ssize_t store_max_cpus(struct cpuquiet_attribute *cattr,
 
 	if ((ret != 1) || n < 1 || n > CONFIG_NR_CPUS)
 		return -EINVAL;
-	
-	ret = max_cpus_change(n);
-	if (ret)
-		return ret;
+
+	max_cpus = n;	
+	max_cpus_change();
 		
 	return count;
 }

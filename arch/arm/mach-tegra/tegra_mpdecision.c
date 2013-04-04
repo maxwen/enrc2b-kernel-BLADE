@@ -139,6 +139,18 @@ bool was_paused = false;
 struct pm_qos_request_list min_cpu_req;
 struct pm_qos_request_list max_cpu_req;
 
+static unsigned int tegra_mpdec_max_cpus(void)
+{
+	unsigned int max_cpus_qos = pm_qos_request(PM_QOS_MAX_ONLINE_CPUS);	
+	return min(max_cpus_qos, tegra_mpdec_tuners_ins.max_cpus);
+}
+
+static unsigned int tegra_mpdec_min_cpus(void)
+{
+	unsigned int min_cpus_qos = pm_qos_request(PM_QOS_MIN_ONLINE_CPUS);
+	return max(min_cpus_qos, tegra_mpdec_tuners_ins.min_cpus);
+}
+
 static inline unsigned long get_rate(int cpu)
 {
 	return tegra_getspeed(cpu);
@@ -200,7 +212,9 @@ static int mp_decision(void)
 	static cputime64_t last_time;
 	cputime64_t current_time;
 	cputime64_t this_time = 0;
-
+	int max_cpus = tegra_mpdec_max_cpus();
+	int min_cpus = tegra_mpdec_min_cpus();
+	
 	if (state == TEGRA_MPDEC_DISABLED)
 		return TEGRA_MPDEC_DISABLED;
 
@@ -222,7 +236,7 @@ static int mp_decision(void)
 		index = (nr_cpu_online - 1) * 2;
 		if ((nr_cpu_online < CONFIG_NR_CPUS) && (rq_depth >= NwNs_Threshold[index])) {
 			if (total_time >= TwTs_Threshold[index]) {
-                                if ((!is_lp_cluster()) && (nr_cpu_online < tegra_mpdec_tuners_ins.max_cpus))
+                                if ((!is_lp_cluster()) && (nr_cpu_online < max_cpus))
                                         new_state = TEGRA_MPDEC_UP;
                                 else if (rq_depth > TEGRA_MPDEC_LPCPU_RQ_DOWN)
                                         new_state = TEGRA_MPDEC_LPCPU_DOWN;
@@ -233,7 +247,7 @@ static int mp_decision(void)
 			}
 		} else if (rq_depth <= NwNs_Threshold[index+1]) {
 			if (total_time >= TwTs_Threshold[index+1] ) {
-                                if ((nr_cpu_online > 1) && (nr_cpu_online > tegra_mpdec_tuners_ins.min_cpus))
+                                if ((nr_cpu_online > 1) && (nr_cpu_online > min_cpus))
                                         new_state = TEGRA_MPDEC_DOWN;
                                 else if ((get_rate(0) <= idle_top_freq) && (!is_lp_cluster()))
                                         new_state = TEGRA_MPDEC_LPCPU_UP;
@@ -942,13 +956,6 @@ static int max_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
 {
 	pr_info("PM QoS PM_QOS_MAX_ONLINE_CPUS %lu\n", n);
 
-	if (n == PM_QOS_MAX_ONLINE_CPUS_DEFAULT_VALUE)
-		n = CONFIG_NR_CPUS;
-
-	if (n < 1 || n > CONFIG_NR_CPUS)
-		return NOTIFY_OK;
-
-	tegra_mpdec_tuners_ins.max_cpus = n;
 	return NOTIFY_OK;
 }
 
@@ -956,13 +963,6 @@ static int min_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
 {
 	pr_info("PM QoS PM_QOS_MIN_ONLINE_CPUS %lu\n", n);
 
-	if (n == PM_QOS_MIN_ONLINE_CPUS_DEFAULT_VALUE)
-		n = 1;
-
-	if (n < 1 || n > CONFIG_NR_CPUS)
-		return NOTIFY_OK;
-
-	tegra_mpdec_tuners_ins.min_cpus = n;
 	return NOTIFY_OK;
 }
 
