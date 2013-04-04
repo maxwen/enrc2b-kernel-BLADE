@@ -48,7 +48,7 @@
  * towards the ideal frequency and slower after it has passed it. Similarly,
  * lowering the frequency towards the ideal frequency is faster than below it.
  */
-#define DEFAULT_IDEAL_FREQ 340000
+#define DEFAULT_IDEAL_FREQ T3_LP_MAX_FREQ
 static unsigned int ideal_freq;
 
 /*
@@ -70,7 +70,7 @@ static unsigned int ramp_down_step;
 /*
  * CPU freq will be increased if measured load > max_cpu_load;
  */
-#define DEFAULT_MAX_CPU_LOAD 90
+#define DEFAULT_MAX_CPU_LOAD 95
 static unsigned int max_cpu_load;
 
 /*
@@ -104,7 +104,17 @@ static unsigned int input_boost_duration;
 static unsigned int touch_poke_freq = 760000;
 static bool touch_poke = true;
 
+/*
+ * downscales all cores at once 
+ * allowing decrease in a single step if multiple
+ * cpus are online
+ */
 static bool sync_cpu_downscale = false;
+
+/*
+ * should ramp_up steps during boost be possible
+ */
+static bool ramp_up_during_boost = true;
 
 /*
  * external boost interface - boost if duration is written
@@ -559,14 +569,17 @@ static void cpufreq_smartmax_timer(struct smartmax_info_s *this_smartmax) {
 	if (this_smartmax->ramp_dir == 0)		
 		return;
 
-	// boost - but not block ramp up steps based on load!
+	// boost - but not block ramp up steps based on load if requested
 	if (boost_running && time_before64 (now, boost_end_time)) {
 		dprintk(SMARTMAX_DEBUG_BOOST, "%d: boost running %llu %llu\n", cur, now, boost_end_time);
 		
 		if (this_smartmax->ramp_dir == -1)
 			return;
 		else {
-			dprintk(SMARTMAX_DEBUG_BOOST, "%d: boost running but ramp_up above boost freq requested\n", cur);
+			if (ramp_up_during_boost)
+				dprintk(SMARTMAX_DEBUG_BOOST, "%d: boost running but ramp_up above boost freq requested\n", cur);
+			else
+				return;
 		}
 	} else
 		boost_running = false;
@@ -803,6 +816,28 @@ static ssize_t store_input_boost_duration(struct kobject *a,
 	return count;
 }
 
+static ssize_t show_ramp_up_during_boost(struct kobject *kobj,
+		struct attribute *attr, char *buf) {
+	return sprintf(buf, "%d\n", ramp_up_during_boost);
+}
+
+static ssize_t store_ramp_up_during_boost(struct kobject *a, struct attribute *b,
+		const char *buf, size_t count) {
+	ssize_t res;
+	unsigned long input;
+	res = strict_strtoul(buf, 0, &input);
+	if (res >= 0) {
+		if (input == 0)
+			ramp_up_during_boost = false;
+		else if (input == 1)
+			ramp_up_during_boost = true;
+		else
+			return -EINVAL;
+	} else
+		return -EINVAL;
+	return count;
+}
+
 static ssize_t show_sync_cpu_downscale(struct kobject *kobj,
 		struct attribute *attr, char *buf) {
 	return sprintf(buf, "%d\n", sync_cpu_downscale);
@@ -942,15 +977,27 @@ define_global_rw_attr(boost_freq);
 define_global_rw_attr(boost_duration);
 define_global_rw_attr(io_is_busy);
 define_global_rw_attr(ignore_nice);
+define_global_rw_attr(ramp_up_during_boost);
 
-static struct attribute * smartmax_attributes[] = { &debug_mask_attr.attr,
-		&up_rate_attr.attr, &down_rate_attr.attr, &ideal_freq_attr.attr,
-		&ramp_up_step_attr.attr, &ramp_down_step_attr.attr,
-		&max_cpu_load_attr.attr, &min_cpu_load_attr.attr,
-		&sampling_rate_attr.attr, &touch_poke_freq_attr.attr,
-		&input_boost_duration_attr.attr, &sync_cpu_downscale_attr.attr,
-		&boost_freq_attr.attr, &boost_duration_attr.attr, &io_is_busy_attr.attr,
-		&ignore_nice_attr.attr, NULL , };
+static struct attribute * smartmax_attributes[] = { 
+	&debug_mask_attr.attr,
+	&up_rate_attr.attr, 
+	&down_rate_attr.attr, 
+	&ideal_freq_attr.attr,
+	&ramp_up_step_attr.attr, 
+	&ramp_down_step_attr.attr,
+	&max_cpu_load_attr.attr, 
+	&min_cpu_load_attr.attr,
+	&sampling_rate_attr.attr, 
+	&touch_poke_freq_attr.attr,
+	&input_boost_duration_attr.attr, 
+	&sync_cpu_downscale_attr.attr,
+	&boost_freq_attr.attr, 
+	&boost_duration_attr.attr, 
+	&io_is_busy_attr.attr,
+	&ignore_nice_attr.attr, 
+	&ramp_up_during_boost_attr.attr, 
+	NULL , };
 
 static struct attribute_group smartmax_attr_group = { .attrs =
 		smartmax_attributes, .name = "smartmax_eps", };
