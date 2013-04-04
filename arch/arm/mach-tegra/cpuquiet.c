@@ -142,6 +142,12 @@ static int update_core_config(unsigned int cpunumber, bool up)
 	if (cpq_state == TEGRA_CPQ_DISABLED || cpunumber >= nr_cpu_ids)
 		return ret;
 
+	// if we are in the state of switching to LP mode
+	// block any up request else we will end up 
+	// in a locked state with > 1 core on and governor inactive
+	if (cpq_state == TEGRA_CPQ_SWITCH_TO_LP && up)
+		return ret;
+		
 	if (up) {
 		if(is_lp_cluster()) {
 			cpumask_set_cpu(cpunumber, &cr_online_requests);
@@ -168,18 +174,18 @@ static int update_core_config(unsigned int cpunumber, bool up)
 
 static int tegra_quiesence_cpu(unsigned int cpunumber)
 {
-        return update_core_config(cpunumber, false);
+	return update_core_config(cpunumber, false);
 }
 
 static int tegra_wake_cpu(unsigned int cpunumber)
 {
-        return update_core_config(cpunumber, true);
+	return update_core_config(cpunumber, true);
 }
 
 static struct cpuquiet_driver tegra_cpuquiet_driver = {
-        .name                   = "tegra",
-        .quiesence_cpu          = tegra_quiesence_cpu,
-        .wake_cpu               = tegra_wake_cpu,
+	.name                   = "tegra",
+	.quiesence_cpu          = tegra_quiesence_cpu,
+	.wake_cpu               = tegra_wake_cpu,
 };
 
 static void apply_core_config(void)
