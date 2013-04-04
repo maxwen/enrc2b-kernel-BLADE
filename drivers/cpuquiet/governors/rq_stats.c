@@ -22,6 +22,9 @@
 #include <linux/sched.h>
 #include <linux/cpufreq.h>
 
+#define DEBUG 0
+#define RQ_STATS_TAG                       "[RQ_STATS]: "
+
 // from cpu-tegra.c
 extern unsigned int best_core_to_turn_up (void);
 
@@ -106,14 +109,22 @@ static void update_rq_stats_state(void)
 		index = (nr_cpu_online - 1) * 2;
 		if ((nr_cpu_online < CONFIG_NR_CPUS) && (rq_depth >= NwNs_Threshold[index])) {
 			if (total_time >= TwTs_Threshold[index]) {
-            	if (nr_cpu_online < max_cpus)
+            	if (nr_cpu_online < max_cpus){
+#if DEBUG
+            		pr_info(RQ_STATS_TAG "UP rq_depth=%d total_time=%lld NwNs_Threshold[index]=%d TwTs_Threshold[index]=%d nr_cpu_online=%d min_cpus=%d max_cpus=%d\n", rq_depth, total_time, NwNs_Threshold[index], TwTs_Threshold[index], nr_cpu_online, min_cpus, max_cpus);
+#endif
                 	rq_stats_state = UP;
+                }
 
 			}
 		} else if (rq_depth <= NwNs_Threshold[index+1]) {
 			if (total_time >= TwTs_Threshold[index+1] ) {
-            	if ((nr_cpu_online > 1) && (nr_cpu_online > min_cpus))
-                	rq_stats_state = DOWN;
+            	if ((nr_cpu_online > 1) && (nr_cpu_online > min_cpus)){
+#if DEBUG
+            		pr_info(RQ_STATS_TAG "DOWN rq_depth=%d total_time=%lld NwNs_Threshold[index+1]=%d TwTs_Threshold[index+1]=%d nr_cpu_online=%d min_cpus=%d max_cpus=%d\n", rq_depth, total_time, NwNs_Threshold[index+1], TwTs_Threshold[index+1], nr_cpu_online, min_cpus, max_cpus);
+#endif
+                   	rq_stats_state = DOWN;
+                }
 			}
 		} else {
 			rq_stats_state = IDLE;
