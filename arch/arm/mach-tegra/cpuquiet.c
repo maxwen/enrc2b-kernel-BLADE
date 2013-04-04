@@ -36,6 +36,7 @@
 #include "pm.h"
 #include "cpu-tegra.h"
 #include "clock.h"
+#include "tegra_pmqos.h"
 
 #define CPUQUIET_DEBUG 1
 
@@ -215,6 +216,8 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 			break;
 		case TEGRA_CPQ_SWITCH_TO_G:
 			if (is_lp_cluster()) {
+				/* make sure cpu rate is within g-mode range before switching */
+				clk_set_rate(cpu_clk, T3_LP_MAX_FREQ * 1000);
 				if(!clk_set_parent(cpu_clk, cpu_g_clk)) {
 					on_time = ktime_to_ms(ktime_get()) - lp_on_time;
 					show_status("LP -> off", on_time, -1);
@@ -299,9 +302,7 @@ static void min_cpus_change(void)
 
 	if ((tegra_cpq_min_cpus() >= 1) && is_lp_cluster()) {
 		/* make sure cpu rate is within g-mode range before switching */
-		unsigned long speed = max((unsigned long)tegra_getspeed(0),
-					clk_get_min_rate(cpu_g_clk) / 1000);
-		tegra_update_cpu_speed(speed);
+		clk_set_rate(cpu_clk, T3_LP_MAX_FREQ * 1000);
 
 		on_time = ktime_to_ms(ktime_get()) - lp_on_time;
 		show_status("LP -> off - min_cpus_notify", on_time, -1);
@@ -352,7 +353,6 @@ static int max_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
 void tegra_cpuquiet_force_gmode(void)
 {
     cputime64_t on_time = 0;
-    unsigned long speed;
 
 	if (!is_g_cluster_present())
 		return;
@@ -364,9 +364,7 @@ void tegra_cpuquiet_force_gmode(void)
 		mutex_lock(tegra3_cpu_lock);
 
 		/* make sure cpu rate is within g-mode range before switching */
-		speed = max((unsigned long)tegra_getspeed(0),
-					clk_get_min_rate(cpu_g_clk) / 1000);
-		tegra_update_cpu_speed(speed);
+		clk_set_rate(cpu_clk, T3_LP_MAX_FREQ * 1000);
 
 		on_time = ktime_to_ms(ktime_get()) - lp_on_time;
 		show_status("LP -> off - force", on_time, -1);
@@ -376,6 +374,7 @@ void tegra_cpuquiet_force_gmode(void)
         lpup_req = 0;
         lpdown_req = 0;
 
+		tegra_cpu_set_speed_cap(NULL);
     	mutex_unlock(tegra3_cpu_lock);
 
 		cpuquiet_device_free();
