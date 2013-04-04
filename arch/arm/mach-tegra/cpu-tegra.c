@@ -2355,6 +2355,7 @@ static int tegra_cpu_init(struct cpufreq_policy *policy)
     /* restore saved cpu frequency */
     if (policy->cpu > 0) {
 		policy->max = get_cpu_freq_limit(policy->cpu);
+		policy->min = T3_CPU_MIN_FREQ;
 		// maxwen: WTF why?
 		//tegra_update_cpu_speed(policy->max);
 #if CPU_FREQ_DEBUG
