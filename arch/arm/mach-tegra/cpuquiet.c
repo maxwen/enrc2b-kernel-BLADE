@@ -79,7 +79,10 @@ static unsigned int max_cpus = CONFIG_NR_CPUS;
  * we need at least 2 requests to come out of lpmode.
  */
 #define TEGRA_CPQ_LPCPU_UP_HYS        4
+static unsigned int tegra_cpq_lpcpu_up_hys = TEGRA_CPQ_LPCPU_UP_HYS;
+
 #define TEGRA_CPQ_LPCPU_DOWN_HYS      2
+static unsigned int tegra_cpq_lpcpu_down_hys = TEGRA_CPQ_LPCPU_DOWN_HYS;
 
 enum {
 	TEGRA_CPQ_DISABLED = 0,
@@ -411,7 +414,7 @@ void tegra_auto_hotplug_governor(unsigned int cpu_freq, bool suspend)
 	if (is_lp_cluster() && (cpu_freq >= idle_top_freq || no_lp)) {
 		lpdown_req++;
 		lpup_req = 0;
-        if (lpdown_req > TEGRA_CPQ_LPCPU_DOWN_HYS) {
+        if (lpdown_req > tegra_cpq_lpcpu_down_hys) {
        		cpq_state = TEGRA_CPQ_SWITCH_TO_G;
        		lpdown_req = 0;
 			queue_delayed_work(cpuquiet_wq, &cpuquiet_work, up_delay);
@@ -420,7 +423,7 @@ void tegra_auto_hotplug_governor(unsigned int cpu_freq, bool suspend)
 		   cpu_freq <= idle_bottom_freq) {
 		lpup_req++;
 		lpdown_req = 0;
-        if (lpup_req > TEGRA_CPQ_LPCPU_UP_HYS) {
+        if (lpup_req > tegra_cpq_lpcpu_up_hys) {
 			cpq_state = TEGRA_CPQ_SWITCH_TO_LP;
 			lpup_req = 0;
 			queue_delayed_work(cpuquiet_wq, &cpuquiet_work, down_delay);
@@ -532,6 +535,56 @@ ssize_t store_max_cpus(struct cpuquiet_attribute *cattr,
 	return count;
 }
 
+ssize_t show_tegra_cpq_lpcpu_up_hys(struct cpuquiet_attribute *cattr, char *buf)
+{
+	char *out = buf;
+		
+	out += sprintf(out, "%d\n", tegra_cpq_lpcpu_up_hys);
+
+	return out - buf;
+}
+
+ssize_t store_tegra_cpq_lpcpu_up_hys(struct cpuquiet_attribute *cattr,
+					const char *buf, size_t count)
+{
+	int ret;
+	unsigned int n;
+	
+	ret = sscanf(buf, "%d", &n);
+
+	if ((ret != 1) || n < 1)
+		return -EINVAL;
+
+	tegra_cpq_lpcpu_up_hys = n;	
+		
+	return count;
+}
+
+ssize_t show_tegra_cpq_lpcpu_down_hys(struct cpuquiet_attribute *cattr, char *buf)
+{
+	char *out = buf;
+		
+	out += sprintf(out, "%d\n", tegra_cpq_lpcpu_down_hys);
+
+	return out - buf;
+}
+
+ssize_t store_tegra_cpq_lpcpu_down_hys(struct cpuquiet_attribute *cattr,
+					const char *buf, size_t count)
+{
+	int ret;
+	unsigned int n;
+	
+	ret = sscanf(buf, "%d", &n);
+
+	if ((ret != 1) || n < 1)
+		return -EINVAL;
+
+	tegra_cpq_lpcpu_down_hys = n;	
+		
+	return count;
+}
+
 CPQ_BASIC_ATTRIBUTE(no_lp, 0644, bool);
 CPQ_BASIC_ATTRIBUTE(idle_top_freq, 0644, uint);
 CPQ_BASIC_ATTRIBUTE(idle_bottom_freq, 0644, uint);
@@ -541,6 +594,8 @@ CPQ_ATTRIBUTE(down_delay, 0644, ulong, delay_callback);
 CPQ_ATTRIBUTE(enable, 0644, bool, enable_callback);
 CPQ_ATTRIBUTE_CUSTOM(min_cpus, 0644, show_min_cpus, store_min_cpus);
 CPQ_ATTRIBUTE_CUSTOM(max_cpus, 0644, show_max_cpus, store_max_cpus);
+CPQ_ATTRIBUTE_CUSTOM(tegra_cpq_lpcpu_up_hys, 0644, show_tegra_cpq_lpcpu_up_hys, store_tegra_cpq_lpcpu_up_hys);
+CPQ_ATTRIBUTE_CUSTOM(tegra_cpq_lpcpu_down_hys, 0644, show_tegra_cpq_lpcpu_down_hys, store_tegra_cpq_lpcpu_down_hys);
 
 static struct attribute *tegra_auto_attributes[] = {
 	&no_lp_attr.attr,
@@ -552,6 +607,8 @@ static struct attribute *tegra_auto_attributes[] = {
 	&enable_attr.attr,
 	&min_cpus_attr.attr,
 	&max_cpus_attr.attr,
+	&tegra_cpq_lpcpu_up_hys_attr.attr,
+	&tegra_cpq_lpcpu_down_hys_attr.attr,
 	NULL,
 };
 
