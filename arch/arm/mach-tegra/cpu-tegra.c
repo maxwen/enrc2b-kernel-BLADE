@@ -61,6 +61,8 @@ extern int mpdecision_gmode_notifier(void);
 extern void tegra_cpuquiet_force_gmode(void);
 #endif
 
+struct work_struct ril_suspend_resume_work;
+
 /* frequency cap used during suspend (screen off)*/
 static unsigned int suspend_cap_freq = SUSPEND_CPU_FREQ_MAX;
 static unsigned int suspend_cap_cpu_num = SUSPEND_CPU_NUM_MAX;
@@ -301,17 +303,20 @@ static unsigned int user_cap_speed(unsigned int requested_speed)
 	return requested_speed;
 }
 
+/* called from ril 
+this fixes the "screen not turning on issue" on incoming calls!
+the problem is that else the device may go into suspend again
+because min freq is 0 */
 static int ril_boost = 0;
 
 static int ril_boost_set(const char *arg, const struct kernel_param *kp)
 {
-	pr_info("ril_boost not supported\n");
-	return 0;
+	return schedule_work(&ril_suspend_resume_work);
 }
 
 static int ril_boost_get(char *buffer, const struct kernel_param *kp)
 {
-	return 0;
+	return param_get_uint(buffer, kp);
 }
 
 static struct kernel_param_ops ril_boost_ops = {
@@ -2472,7 +2477,7 @@ static void tegra_cpufreq_late_resume(struct early_suspend *h)
 	// boost at the beginning of the resume
 	pr_info("tegra_cpufreq_late_resume: boost cpu freq\n");
 	tegra_update_cpu_speed(tegra_get_suspend_boost_freq());
-	// now disable all speed changes until finished
+
 	in_earlysuspend = true;
 	pm_qos_update_request(&boost_cpu_freq_req, (s32)tegra_get_suspend_boost_freq());
 }
@@ -2482,7 +2487,7 @@ static void tegra_cpufreq_performance_early_suspend(struct early_suspend *h)
 	// this is the first suspend handler
 	pr_info("tegra_cpufreq_performance_early_suspend: boost cpu freq\n");
 	tegra_update_cpu_speed(tegra_get_suspend_boost_freq());
-	// now disable all speed changes until finished
+
 	in_earlysuspend = true;
 	pm_qos_update_request(&boost_cpu_freq_req, (s32)tegra_get_suspend_boost_freq());	
 }
@@ -2496,6 +2501,21 @@ static void tegra_cpufreq_performance_late_resume(struct early_suspend *h)
 }
 
 #endif
+
+static void ril_suspend_resume_worker(struct work_struct *w)
+{
+#ifdef CONFIG_TEGRA_CPUQUIET
+	// disable LP mode asap
+	tegra_cpuquiet_force_gmode();
+#endif
+
+	pr_info("ril_suspend_resume_worker: clean cpu cap by RIL\n");
+	pm_qos_update_request(&cap_cpu_freq_req, (s32)PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE);
+
+	pr_info("ril_suspend_resume_worker: boost cpu freq by RIL\n");
+	pm_qos_update_request(&boost_cpu_freq_req, (s32)tegra_get_suspend_boost_freq());
+	tegra_update_cpu_speed(tegra_get_suspend_boost_freq());
+}
 
 static int __init tegra_cpufreq_init(void)
 {
@@ -2519,6 +2539,8 @@ static int __init tegra_cpufreq_init(void)
 	freq_table = table_data->freq_table;
 	tegra_cpu_edp_init(false);
 
+	INIT_WORK(&ril_suspend_resume_work, ril_suspend_resume_worker);
+	
 #ifdef CONFIG_HAS_EARLYSUSPEND
 	pm_qos_add_request(&cap_cpu_freq_req, PM_QOS_CPU_FREQ_MAX, (s32)PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE);
 	pm_qos_add_request(&cap_cpu_num_req, PM_QOS_MAX_ONLINE_CPUS, (s32)PM_QOS_MAX_ONLINE_CPUS_DEFAULT_VALUE);
