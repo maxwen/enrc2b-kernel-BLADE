@@ -165,17 +165,17 @@ int cpuquiet_register_driver(struct cpuquiet_driver *drv)
 		err = 0;
 		cpuquiet_curr_driver = drv;
 #ifdef CONFIG_CPUQUIET_DEFAULT_GOV_BALANCED
-        governor = cpuquiet_find_governor("balanced");
+		governor = cpuquiet_find_governor("balanced");
 #endif
 #ifdef CONFIG_CPUQUIET_DEFAULT_GOV_RQSTATS
-        governor = cpuquiet_find_governor("rq_stats");
+		governor = cpuquiet_find_governor("rq_stats");
 #endif
 #ifdef CONFIG_CPUQUIET_DEFAULT_GOV_RUNNABLE
-        governor = cpuquiet_find_governor("runnable");
+		governor = cpuquiet_find_governor("runnable");
 #endif
-        if (governor == NULL)
-            governor = cpuquiet_get_first_governor();
-		
+		if (governor == NULL)
+			governor = cpuquiet_get_first_governor();
+
 		cpuquiet_switch_governor(governor); 
 	}
 	mutex_unlock(&cpuquiet_lock);
