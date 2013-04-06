@@ -378,5 +378,9 @@ static void __exit exit_rq_stats(void)
 }
 
 MODULE_LICENSE("GPL");
+#ifdef CONFIG_CPUQUIET_DEFAULT_GOV_RQSTATS
+fs_initcall(init_rq_stats);
+#else
 module_init(init_rq_stats);
+#endif
 module_exit(exit_rq_stats);
