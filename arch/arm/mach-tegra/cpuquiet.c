@@ -43,8 +43,8 @@
 extern unsigned int best_core_to_turn_up (void);
 
 #define INITIAL_STATE		TEGRA_CPQ_IDLE
-#define UP_DELAY_MS			70
-#define DOWN_DELAY_MS		500
+#define LP_UP_DELAY_MS_DEF			70
+#define LP_DOWN_DELAY_MS_DEF		2000
 
 static struct mutex *tegra3_cpu_lock;
 static struct workqueue_struct *cpuquiet_wq;
@@ -55,13 +55,11 @@ static struct kobject *tegra_auto_sysfs_kobject;
 
 static bool no_lp;
 static bool enable;
-static unsigned long up_delay;
-static unsigned long down_delay;
-static int mp_overhead = 10;
-static unsigned int idle_top_freq;
-static unsigned int idle_bottom_freq;
-static int lpup_req = 0;
-static int lpdown_req = 0;
+static unsigned long lp_up_delay;
+static unsigned long lp_down_delay;
+static unsigned int idle_top_freq = T3_LP_MAX_FREQ;
+static int lp_up_req = 0;
+static int lp_down_req = 0;
 
 static struct clk *cpu_clk;
 static struct clk *cpu_g_clk;
@@ -376,8 +374,8 @@ void tegra_cpuquiet_force_gmode(void)
 
 		clk_set_parent(cpu_clk, cpu_g_clk);
 
-        lpup_req = 0;
-        lpdown_req = 0;
+        lp_up_req = 0;
+        lp_down_req = 0;
 
 		tegra_cpu_set_speed_cap(NULL);
     	mutex_unlock(tegra3_cpu_lock);
@@ -396,32 +394,32 @@ void tegra_auto_hotplug_governor(unsigned int cpu_freq, bool suspend)
 
 	if (suspend) {
 		cpq_state = TEGRA_CPQ_IDLE;
-        lpup_req = 0;
-        lpdown_req = 0;
+        lp_up_req = 0;
+        lp_down_req = 0;
 		return;
 	}
 
-	if (is_lp_cluster() && (cpu_freq >= idle_top_freq || no_lp)) {
-		lpdown_req++;
-		lpup_req = 0;
-        if (lpdown_req > tegra_cpq_lpcpu_down_hys) {
+	if (is_lp_cluster() && (cpu_freq > idle_top_freq || no_lp)) {
+		lp_down_req++;
+		lp_up_req = 0;
+        if (lp_down_req > tegra_cpq_lpcpu_down_hys) {
        		cpq_state = TEGRA_CPQ_SWITCH_TO_G;
-       		lpdown_req = 0;
-			queue_delayed_work(cpuquiet_wq, &cpuquiet_work, up_delay);
+       		lp_down_req = 0;
+			queue_delayed_work(cpuquiet_wq, &cpuquiet_work, lp_up_delay);
 		}
 	} else if (!is_lp_cluster() && !no_lp &&
-		   cpu_freq <= idle_bottom_freq) {
-		lpup_req++;
-		lpdown_req = 0;
-        if (lpup_req > tegra_cpq_lpcpu_up_hys) {
+		   cpu_freq <= idle_top_freq) {
+		lp_up_req++;
+		lp_down_req = 0;
+        if (lp_up_req > tegra_cpq_lpcpu_up_hys) {
 			cpq_state = TEGRA_CPQ_SWITCH_TO_LP;
-			lpup_req = 0;
-			queue_delayed_work(cpuquiet_wq, &cpuquiet_work, down_delay);
+			lp_up_req = 0;
+			queue_delayed_work(cpuquiet_wq, &cpuquiet_work, lp_down_delay);
 		}
 	} else {
 		cpq_state = TEGRA_CPQ_IDLE;
-        lpup_req = 0;
-        lpdown_req = 0;
+        lp_up_req = 0;
+        lp_down_req = 0;
 	}
 }
 
@@ -577,10 +575,8 @@ ssize_t store_tegra_cpq_lpcpu_down_hys(struct cpuquiet_attribute *cattr,
 
 CPQ_BASIC_ATTRIBUTE(no_lp, 0644, bool);
 CPQ_BASIC_ATTRIBUTE(idle_top_freq, 0644, uint);
-CPQ_BASIC_ATTRIBUTE(idle_bottom_freq, 0644, uint);
-CPQ_BASIC_ATTRIBUTE(mp_overhead, 0644, int);
-CPQ_ATTRIBUTE(up_delay, 0644, ulong, delay_callback);
-CPQ_ATTRIBUTE(down_delay, 0644, ulong, delay_callback);
+CPQ_ATTRIBUTE(lp_up_delay, 0644, ulong, delay_callback);
+CPQ_ATTRIBUTE(lp_down_delay, 0644, ulong, delay_callback);
 CPQ_ATTRIBUTE(enable, 0644, bool, enable_callback);
 CPQ_ATTRIBUTE_CUSTOM(min_cpus, 0644, show_min_cpus, store_min_cpus);
 CPQ_ATTRIBUTE_CUSTOM(max_cpus, 0644, show_max_cpus, store_max_cpus);
@@ -589,11 +585,9 @@ CPQ_ATTRIBUTE_CUSTOM(tegra_cpq_lpcpu_down_hys, 0644, show_tegra_cpq_lpcpu_down_h
 
 static struct attribute *tegra_auto_attributes[] = {
 	&no_lp_attr.attr,
-	&up_delay_attr.attr,
-	&down_delay_attr.attr,
+	&lp_up_delay_attr.attr,
+	&lp_down_delay_attr.attr,
 	&idle_top_freq_attr.attr,
-	&idle_bottom_freq_attr.attr,
-	&mp_overhead_attr.attr,
 	&enable_attr.attr,
 	&min_cpus_attr.attr,
 	&max_cpus_attr.attr,
@@ -655,11 +649,8 @@ int tegra_auto_hotplug_init(struct mutex *cpu_lock)
 	INIT_DELAYED_WORK(&cpuquiet_work, tegra_cpuquiet_work_func);
 	INIT_WORK(&minmax_work, min_max_constraints_workfunc);
 
-	idle_top_freq = clk_get_max_rate(cpu_lp_clk) / 1000;
-	idle_bottom_freq = clk_get_min_rate(cpu_g_clk) / 1000;
-
-	up_delay = msecs_to_jiffies(UP_DELAY_MS);
-	down_delay = msecs_to_jiffies(DOWN_DELAY_MS);
+	lp_up_delay = msecs_to_jiffies(LP_UP_DELAY_MS_DEF);
+	lp_down_delay = msecs_to_jiffies(LP_DOWN_DELAY_MS_DEF);
 	cpumask_clear(&cr_online_requests);
 	tegra3_cpu_lock = cpu_lock;
 
