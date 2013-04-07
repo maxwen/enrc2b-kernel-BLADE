@@ -95,8 +95,8 @@ static struct pm_qos_request_list cap_cpu_num_req;
 static struct pm_qos_request_list boost_cpu_freq_req;
 static struct workqueue_struct *suspend_wq;
 static struct delayed_work suspend_work;
-#define SUSPEND_DELAY_MS 500
-static unsigned int suspend_delay;
+#define SUSPEND_DELAY_MS 800
+static unsigned int suspend_delay = SUSPEND_DELAY_MS;
 static unsigned int use_suspend_delay = 1;
 static void tegra_cancel_delayed_suspend_work(void);
 static bool in_earlysuspend = false;
@@ -241,6 +241,32 @@ static struct kernel_param_ops use_suspend_delay_ops = {
 	.get = use_suspend_delay_get,
 };
 module_param_cb(use_suspend_delay, &use_suspend_delay_ops, &use_suspend_delay, 0644);
+
+static int suspend_delay_set(const char *arg, const struct kernel_param *kp)
+{
+	unsigned int tmp;
+	
+	if (1 != sscanf(arg, "%u", &tmp))
+		return -EINVAL;
+
+	if (tmp < 0 || tmp > 1)
+		return -EINVAL;
+			
+    suspend_delay = tmp;
+    pr_info("suspend_delay %d\n", suspend_delay);
+	return 0;
+}
+
+static int suspend_delay_get(char *buffer, const struct kernel_param *kp)
+{
+	return param_get_uint(buffer, kp);
+}
+
+static struct kernel_param_ops suspend_delay_ops = {
+	.set = suspend_delay_set,
+	.get = suspend_delay_get,
+};
+module_param_cb(suspend_delay, &suspend_delay_ops, &suspend_delay, 0644);
 #endif
 
 static unsigned int cpu_user_cap = 0;
@@ -2454,7 +2480,7 @@ static void tegra_cpufreq_early_suspend(struct early_suspend *h)
 	// hickups e.g. when playing audio
 	if (use_suspend_delay){
 		pr_info("tegra_cpufreq_early_suspend: queue suspend handler\n");
-		queue_delayed_work(suspend_wq, &suspend_work, suspend_delay);
+		queue_delayed_work(suspend_wq, &suspend_work, msecs_to_jiffies(suspend_delay));
 	} else
 		tegra_delayed_suspend_work(NULL);
 }
@@ -2558,7 +2584,6 @@ static int __init tegra_cpufreq_init(void)
 	tegra_cpufreq_performance_early_suspender.level = 0;
 	register_early_suspend(&tegra_cpufreq_performance_early_suspender);
 	
-	suspend_delay = msecs_to_jiffies(SUSPEND_DELAY_MS);
 	suspend_wq = alloc_workqueue(
 		"suspend_wq", WQ_UNBOUND | WQ_RESCUER | WQ_FREEZABLE, 1);
 

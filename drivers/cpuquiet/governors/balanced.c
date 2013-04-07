@@ -68,8 +68,8 @@ static bool load_timer_active;
 static unsigned int  balance_level = 60;
 static unsigned int  idle_bottom_freq;
 static unsigned int  idle_top_freq;
-static unsigned long up_delay;
-static unsigned long down_delay;
+static unsigned int	 up_delay = UP_DELAY_MS;
+static unsigned int	 down_delay = DOWN_DELAY_MS;
 static unsigned long last_change_time;
 static unsigned int  load_sample_rate = 20; /* msec */
 static struct workqueue_struct *balanced_wq;
@@ -236,7 +236,7 @@ static void balanced_work_func(struct work_struct *work)
 		if (cpu < nr_cpu_ids) {
 			up = false;
 			queue_delayed_work(balanced_wq,
-						 &balanced_work, up_delay);
+						 &balanced_work, msecs_to_jiffies(up_delay));
 		} else
 			stop_load_timer();
 		break;
@@ -263,14 +263,14 @@ static void balanced_work_func(struct work_struct *work)
 			break;
 		}
 		queue_delayed_work(
-			balanced_wq, &balanced_work, up_delay);
+			balanced_wq, &balanced_work, msecs_to_jiffies(up_delay));
 		break;
 	default:
 		pr_err("%s: invalid cpuquiet balanced governor state %d\n",
 		       __func__, balanced_state);
 	}
 
-	if (!up && ((now - last_change_time) < down_delay))
+	if (!up && ((now - last_change_time) < msecs_to_jiffies(down_delay)))
 		cpu = nr_cpu_ids;
 
 	// min_cpu restriction
@@ -300,13 +300,13 @@ static int balanced_cpufreq_transition(struct notifier_block *nb,
 			if (cpu_freq >= idle_top_freq) {
 				balanced_state = UP;
 				queue_delayed_work(
-					balanced_wq, &balanced_work, up_delay);
+					balanced_wq, &balanced_work, msecs_to_jiffies(up_delay));
 				start_load_timer();
 			} else if (cpu_freq <= idle_bottom_freq) {
 				balanced_state = DOWN;
 				queue_delayed_work(
 					balanced_wq, &balanced_work,
-					down_delay);
+					msecs_to_jiffies(down_delay));
 				start_load_timer();
 			}
 			break;
@@ -314,7 +314,7 @@ static int balanced_cpufreq_transition(struct notifier_block *nb,
 			if (cpu_freq >= idle_top_freq) {
 				balanced_state = UP;
 				queue_delayed_work(
-					balanced_wq, &balanced_work, up_delay);
+					balanced_wq, &balanced_work, msecs_to_jiffies(up_delay));
 				start_load_timer();
 			}
 			break;
@@ -322,7 +322,7 @@ static int balanced_cpufreq_transition(struct notifier_block *nb,
 			if (cpu_freq <= idle_bottom_freq) {
 				balanced_state = DOWN;
 				queue_delayed_work(balanced_wq,
-					&balanced_work, up_delay);
+					&balanced_work, msecs_to_jiffies(up_delay));
 				start_load_timer();
 			}
 			break;
@@ -338,16 +338,6 @@ static int balanced_cpufreq_transition(struct notifier_block *nb,
 static struct notifier_block balanced_cpufreq_nb = {
 	.notifier_call = balanced_cpufreq_transition,
 };
-
-static void delay_callback(struct cpuquiet_attribute *attr)
-{
-	unsigned long val;
-
-	if (attr) {
-		val = (*((unsigned long *)(attr->param)));
-		(*((unsigned long *)(attr->param))) = msecs_to_jiffies(val);
-	}
-}
 
 static ssize_t show_nr_run_thresholds(struct cpuquiet_attribute *cattr, char *buf)
 {
@@ -381,8 +371,8 @@ CPQ_BASIC_ATTRIBUTE(balance_level, 0644, uint);
 CPQ_BASIC_ATTRIBUTE(idle_bottom_freq, 0644, uint);
 CPQ_BASIC_ATTRIBUTE(idle_top_freq, 0644, uint);
 CPQ_BASIC_ATTRIBUTE(load_sample_rate, 0644, uint);
-CPQ_ATTRIBUTE(up_delay, 0644, ulong, delay_callback);
-CPQ_ATTRIBUTE(down_delay, 0644, ulong, delay_callback);
+CPQ_BASIC_ATTRIBUTE(up_delay, 0644, uint);
+CPQ_BASIC_ATTRIBUTE(down_delay, 0644, uint);
 CPQ_ATTRIBUTE_CUSTOM(nr_run_thresholds, 0644, show_nr_run_thresholds, store_nr_run_thresholds);
 CPQ_BASIC_ATTRIBUTE(nr_run_hysteresis, 0644, uint);
 
@@ -462,9 +452,6 @@ static int balanced_start(void)
 
 	INIT_DELAYED_WORK(&balanced_work, balanced_work_func);
 	
-	up_delay = msecs_to_jiffies(UP_DELAY_MS);
-	down_delay = msecs_to_jiffies(DOWN_DELAY_MS);
-
 	table = cpufreq_frequency_get_table(0);
 
 	for (count = 0; table[count].frequency != CPUFREQ_TABLE_END; count++);
