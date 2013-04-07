@@ -83,7 +83,7 @@ static unsigned int min_cpu_load;
  * The minimum amount of time in nsecs to spend at a frequency before we can ramp up.
  * Notice we ignore this when we are below the ideal frequency.
  */
-#define DEFAULT_UP_RATE 150000
+#define DEFAULT_UP_RATE 100000
 static unsigned int up_rate;
 
 /*
@@ -253,8 +253,6 @@ static inline cputime64_t get_cpu_iowait_time(unsigned int cpu,
 
 inline static void smartmax_update_min_max(
 		struct smartmax_info_s *this_smartmax, struct cpufreq_policy *policy) {
-	dprintk(SMARTMAX_DEBUG_ALG, "%s\n", __func__);
-
 	this_smartmax->ideal_speed = // ideal_freq; but make sure it obeys the policy min/max
 			policy->min < ideal_freq ?
 					(ideal_freq < policy->max ? ideal_freq : policy->max) :
@@ -264,8 +262,6 @@ inline static void smartmax_update_min_max(
 
 inline static void smartmax_update_min_max_allcpus(void) {
 	unsigned int i;
-
-	dprintk(SMARTMAX_DEBUG_ALG, "%s\n", __func__);
 
 	for_each_online_cpu(i)
 	{
@@ -277,8 +273,6 @@ inline static void smartmax_update_min_max_allcpus(void) {
 
 inline static unsigned int validate_freq(struct cpufreq_policy *policy,
 		int freq) {
-	dprintk(SMARTMAX_DEBUG_ALG, "%s\n", __func__);
-
 	if (freq > (int) policy->max)
 		return policy->max;
 	if (freq < (int) policy->min)
@@ -316,7 +310,7 @@ inline static void target_freq(struct cpufreq_policy *policy,
 	unsigned int cpu = this_smartmax->cpu;
 #endif
 
-	dprintk(SMARTMAX_DEBUG_ALG, "%s\n", __func__);
+	dprintk(SMARTMAX_DEBUG_ALG, "%d: %s\n", old_freq, __func__);
 
 	if (new_freq == old_freq)
 		return;
@@ -348,14 +342,14 @@ inline static void target_freq(struct cpufreq_policy *policy,
 			// We should not get here:
 			// If we got here we tried to change to a validated new_freq which is different
 			// from old_freq, so there is no reason for us to remain at same frequency.
-			dprintk(SMARTMAX_DEBUG_ALG, "frequency change failed: %d to %d => %d\n",
+			dprintk(SMARTMAX_DEBUG_ALG, "%d: frequency change failed to %d (%d)\n",
 					old_freq, new_freq, target);
 			return;
 		}
 	} else
 		target = new_freq;
 
-	dprintk(SMARTMAX_DEBUG_ALG, "old_freq %u new_freq %u target %u\n", old_freq, new_freq, target);
+	dprintk(SMARTMAX_DEBUG_ALG, "%d: new_freq %d (%d)\n", old_freq, new_freq, target);
 
 	mutex_lock(&set_speed_lock);
 
@@ -369,14 +363,14 @@ inline static void target_freq(struct cpufreq_policy *policy,
 			if (j_this_smartmax->enable) {
 				struct cpufreq_policy *j_policy = j_this_smartmax->cur_policy;
 				dprintk(SMARTMAX_DEBUG_JUMPS,
-						"jumping from %d to %d => %d (%d) cpu %d\n", old_freq, new_freq, target, policy->cur, j_this_smartmax->cpu);
+						"%d: jumping %d (%d) cpu %d\n", old_freq, new_freq, target, j_this_smartmax->cpu);
 				__cpufreq_driver_target(j_policy, target, prefered_relation);
 			}
 		}
 	} else {
 		// one time is enough - highest will define the speed for all 
 		dprintk(SMARTMAX_DEBUG_JUMPS,
-				"jumping from %d to %d => %d (%d) cpu %d\n", old_freq, new_freq, target, policy->cur, cpu);
+				"%d: jumping to %d (%d) cpu %d\n", old_freq, new_freq, target, cpu);
 
 		__cpufreq_driver_target(policy, target, prefered_relation);
 	}
@@ -396,16 +390,16 @@ static void cpufreq_smartmax_freq_change(struct smartmax_info_s *this_smartmax) 
 	struct cpufreq_policy *policy;
 	unsigned int relation = CPUFREQ_RELATION_L;
 
-	dprintk(SMARTMAX_DEBUG_ALG, "%s\n", __func__);
-
 	ramp_dir = this_smartmax->ramp_dir;
 	old_freq = this_smartmax->old_freq;
 	policy = this_smartmax->cur_policy;
 	cpu = this_smartmax->cpu;
 
+	dprintk(SMARTMAX_DEBUG_ALG, "%d: %s\n", old_freq, __func__);
+	
 	if (old_freq != policy->cur) {
 		// frequency was changed by someone else?
-		dprintk(SMARTMAX_DEBUG_ALG, "frequency changed by 3rd party: %d to %d\n",
+		dprintk(SMARTMAX_DEBUG_ALG, "%d: frequency changed by 3rd party to %d\n",
 				old_freq, policy->cur);
 		new_freq = old_freq;
 	} else if (ramp_dir > 0 && nr_running() > 1) {
@@ -419,8 +413,6 @@ static void cpufreq_smartmax_freq_change(struct smartmax_info_s *this_smartmax) 
 			new_freq = policy->max;
 			relation = CPUFREQ_RELATION_H;
 		}
-		dprintk(SMARTMAX_DEBUG_ALG,
-				"%d ramp up: ramp_dir=%d ideal=%d\n", old_freq, ramp_dir, this_smartmax->ideal_speed);
 	} else if (ramp_dir < 0) {
 		// ramp down logic:
 		if (old_freq > this_smartmax->ideal_speed) {
@@ -436,8 +428,6 @@ static void cpufreq_smartmax_freq_change(struct smartmax_info_s *this_smartmax) 
 			if (new_freq > old_freq) // min_cpu_load > max_cpu_load ?!
 				new_freq = old_freq - 1;
 		}
-		dprintk(SMARTMAX_DEBUG_ALG,
-				"%d ramp down: ramp_dir=%d ideal=%d\n", old_freq, ramp_dir, this_smartmax->ideal_speed);
 	}
 
 	if (new_freq!=0){
@@ -456,7 +446,7 @@ static inline void cpufreq_smartmax_get_ramp_direction(unsigned int debug_load, 
 			&& (cur < this_smartmax->ideal_speed
 				|| cputime64_sub(now, this_smartmax->freq_change_time) >= up_rate)) {
 		dprintk(SMARTMAX_DEBUG_ALG,
-				"load %d ramp up: load %d\n", cur, debug_load);
+				"%d: ramp up: load %d\n", cur, debug_load);
 		this_smartmax->ramp_dir = 1;
 	}
 	// Similarly for scale down: load should be below min and if we are at or below ideal
@@ -465,7 +455,7 @@ static inline void cpufreq_smartmax_get_ramp_direction(unsigned int debug_load, 
 			&& (cur > this_smartmax->ideal_speed
 				|| cputime64_sub(now, this_smartmax->freq_change_time) >= down_rate)) {
 		dprintk(SMARTMAX_DEBUG_ALG,
-				"load %d ramp down: load %d\n", cur, debug_load);
+				"%d: ramp down: load %d\n", cur, debug_load);
 		this_smartmax->ramp_dir = -1;
 	}
 }
@@ -478,10 +468,14 @@ static void cpufreq_smartmax_timer(struct smartmax_info_s *this_smartmax) {
 	unsigned int debug_load = 0;
 	unsigned int debug_iowait = 0;
 	unsigned int j = 0;
-
-	dprintk(SMARTMAX_DEBUG_ALG, "%s\n", __func__);
+#if SMARTMAX_DEBUG
+	unsigned int cpu = this_smartmax->cpu;
+#endif
 
 	cur = policy->cur;
+		
+	dprintk(SMARTMAX_DEBUG_ALG, "%d: %s cpu %d %lld\n", cur, __func__, cpu, now);
+
 
 	/* Get Absolute Load - in terms of freq */
 	max_load_freq = 0;
@@ -592,8 +586,6 @@ static void do_dbs_timer(struct work_struct *work) {
 			container_of(work, struct smartmax_info_s, work.work);
 	unsigned int cpu = this_smartmax->cpu;
 	int delay = get_timer_delay();
-
-	dprintk(SMARTMAX_DEBUG_ALG, "%s %d\n", __func__, cpu);
 
 	mutex_lock(&this_smartmax->timer_mutex);
 
