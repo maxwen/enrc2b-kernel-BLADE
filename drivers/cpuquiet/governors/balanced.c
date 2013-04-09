@@ -491,10 +491,7 @@ static void __exit exit_balanced(void)
 }
 
 MODULE_LICENSE("GPL");
-#ifdef CONFIG_CPUQUIET_DEFAULT_GOV_BALANCED
-fs_initcall(init_balanced);
-#else
+// must not be in fs_initcall else it will crash in balanced_start
 module_init(init_balanced);
-#endif
 module_exit(exit_balanced);
 

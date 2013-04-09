@@ -24,6 +24,30 @@
 
 LIST_HEAD(cpuquiet_governors);
 struct cpuquiet_governor *cpuquiet_curr_governor;
+static struct cpuquiet_governor* default_gov = NULL;
+
+/*
+ * only after register we can check for the kernel
+ * config default governor and set it
+ */
+void cpuquiet_set_default_governor(struct cpuquiet_governor* gov)
+{
+#ifdef CONFIG_CPUQUIET_DEFAULT_GOV_BALANCED
+	if (!strnicmp("balanced", gov->name, CPUQUIET_NAME_LEN))
+		default_gov = gov;
+#endif
+#ifdef CONFIG_CPUQUIET_DEFAULT_GOV_RQSTATS
+	if (!strnicmp("rq_stats", gov->name, CPUQUIET_NAME_LEN))
+		default_gov = gov;
+#endif
+#ifdef CONFIG_CPUQUIET_DEFAULT_GOV_RUNNABLE
+	if (!strnicmp("runnable", gov->name, CPUQUIET_NAME_LEN))
+		default_gov = gov;
+#endif
+
+	if (default_gov != NULL)
+		cpuquiet_switch_governor(default_gov); 
+}
 
 struct cpuquiet_governor *cpuquiet_get_first_governor(void)
 {
@@ -82,7 +106,8 @@ int cpuquiet_register_governor(struct cpuquiet_governor *gov)
 		ret = 0;
 		list_add_tail(&gov->governor_list, &cpuquiet_governors);
 		if (!cpuquiet_curr_governor && cpuquiet_get_driver())
-			cpuquiet_switch_governor(gov);
+			// if this is the default gov switch to it
+			cpuquiet_set_default_governor(gov);
 	}
 	mutex_unlock(&cpuquiet_lock);
 
