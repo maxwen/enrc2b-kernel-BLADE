@@ -69,6 +69,7 @@ static unsigned int suspend_cap_cpu_num = SUSPEND_CPU_NUM_MAX;
 
 // maxwen: assumes 4 cores!
 unsigned int tegra_pmqos_cpu_freq_limits[CONFIG_NR_CPUS] = {0, 0, 0, 0};
+unsigned int tegra_pmqos_cpu_freq_limits_min[CONFIG_NR_CPUS] = {0, 0, 0, 0};
 
 /* tegra throttling and edp governors require frequencies in the table
    to be in ascending order */
@@ -118,9 +119,18 @@ static inline unsigned int get_cpu_freq_limit(unsigned int cpu)
 	return tegra_cpu_freq_max(cpu);
 }
 
+static inline unsigned int get_cpu_freq_limit_min(unsigned int cpu)
+{
+	BUG_ON(cpu > 3);
+	if(tegra_pmqos_cpu_freq_limits_min[cpu]!=0){
+		return tegra_pmqos_cpu_freq_limits_min[cpu];
+	}
+	return T3_CPU_MIN_FREQ;
+}
+
 unsigned int tegra_get_suspend_boost_freq(void)
 {
-	return min((unsigned int)CPU_FREQ_BOOST, get_cpu_freq_limit(0));
+	return min((unsigned int)T3_CPU_FREQ_BOOST, get_cpu_freq_limit(0));
 }
 
 /* maximum cpu freq */
@@ -128,11 +138,11 @@ unsigned int tegra_cpu_freq_max(unsigned int cpu)
 {
 #ifdef CONFIG_TEGRA3_VARIANT_CPU_OVERCLOCK
 	if (enable_oc)
-		return CPU_FREQ_MAX_OC;
+		return T3_CPU_FREQ_MAX_OC;
 #endif	
 	if (cpu==0)
-		return CPU_FREQ_MAX_0;
-	return CPU_FREQ_MAX;
+		return T3_CPU_FREQ_MAX_0;
+	return T3_CPU_FREQ_MAX;
 }
 
 static bool force_policy_max;
@@ -2376,21 +2386,21 @@ static int tegra_cpu_init(struct cpufreq_policy *policy)
 
 	if (policy->cpu == 0) {
 		policy->max = get_cpu_freq_limit(policy->cpu);
-		policy->min = T3_CPU_MIN_FREQ;
+		policy->min = get_cpu_freq_limit_min(policy->cpu);
 		register_pm_notifier(&tegra_cpu_pm_notifier);
 #if CPU_FREQ_DEBUG
-		pr_info("cpu-tegra_cpufreq: restored cpu[%d]'s freq: %u\n", policy->cpu, policy->max);
+		pr_info("tegra_cpu_init: restored cpu[%d]'s freq max=%u min=%u\n", policy->cpu, policy->max, policy->min);
 #endif
 	}
 
     /* restore saved cpu frequency */
     if (policy->cpu > 0) {
 		policy->max = get_cpu_freq_limit(policy->cpu);
-		policy->min = T3_CPU_MIN_FREQ;
+		policy->min = get_cpu_freq_limit_min(policy->cpu);
 		// maxwen: WTF why?
 		//tegra_update_cpu_speed(policy->max);
 #if CPU_FREQ_DEBUG
-		pr_info("cpu-tegra_cpufreq: restored cpu[%d]'s freq: %u\n", policy->cpu, policy->max);
+		pr_info("tegra_cpu_init: restored cpu[%d]'s freq max=%u min=%u\n", policy->cpu, policy->max, policy->min);
 #endif
 	}
 

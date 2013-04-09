@@ -215,7 +215,7 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 			break;
 		case TEGRA_CPQ_SWITCH_TO_G:
 			if (is_lp_cluster()) {
-				/* make sure cpu rate is within g-mode range before switching */
+				/* set rate to max of LP mode */
 				clk_set_rate(cpu_clk, T3_LP_MAX_FREQ * 1000);
 				if(!clk_set_parent(cpu_clk, cpu_g_clk)) {
 					on_time = ktime_to_ms(ktime_get()) - lp_on_time;
@@ -231,6 +231,9 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 			if (!is_lp_cluster() && !no_lp &&
 				!(tegra_cpq_min_cpus() >= 2)
 				&& num_online_cpus() == 1) {
+				// this can fail expected!
+				// dont switch to LP if freq is too high to not force
+				// a slow-down. can change from start of down delay
 				if (!clk_set_parent(cpu_clk, cpu_lp_clk)) {
 					show_status("LP -> on", 0, -1);
 					/*catch-up with governor target speed*/
@@ -304,13 +307,13 @@ static void min_cpus_change(void)
 	mutex_lock(tegra3_cpu_lock);
 
 	if ((tegra_cpq_min_cpus() >= 2) && is_lp_cluster()) {
-		/* make sure cpu rate is within g-mode range before switching */
+		/* set rate to max of LP mode */
 		clk_set_rate(cpu_clk, T3_LP_MAX_FREQ * 1000);
-
+		clk_set_parent(cpu_clk, cpu_g_clk);
+		
 		on_time = ktime_to_ms(ktime_get()) - lp_on_time;
 		show_status("LP -> off - min_cpus_change", on_time, -1);
 
-		clk_set_parent(cpu_clk, cpu_g_clk);
 		g_cluster = true;
 	}
 
@@ -366,13 +369,12 @@ void tegra_cpuquiet_force_gmode(void)
 	if (is_lp_cluster() && cpq_state != TEGRA_CPQ_SWITCH_TO_G) {
 		mutex_lock(tegra3_cpu_lock);
 
-		/* make sure cpu rate is within g-mode range before switching */
+		/* set rate to max of LP mode */
 		clk_set_rate(cpu_clk, T3_LP_MAX_FREQ * 1000);
-
+		clk_set_parent(cpu_clk, cpu_g_clk);
+		
 		on_time = ktime_to_ms(ktime_get()) - lp_on_time;
 		show_status("LP -> off - force", on_time, -1);
-
-		clk_set_parent(cpu_clk, cpu_g_clk);
 
         lp_up_req = 0;
         lp_down_req = 0;

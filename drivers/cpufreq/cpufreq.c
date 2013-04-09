@@ -435,8 +435,8 @@ static ssize_t store_##file_name					\
 	return ret ? ret : count;					\
 }
 
-store_one(scaling_min_freq, min);
 #ifndef CONFIG_HOTPLUG_CPU
+store_one(scaling_min_freq, min);
 store_one(scaling_max_freq, max);
 #endif
 
@@ -637,6 +637,7 @@ static ssize_t show_bios_limit(struct cpufreq_policy *policy, char *buf)
 	return sprintf(buf, "%u\n", policy->cpuinfo.max_freq);
 }
 
+#ifdef CONFIG_HOTPLUG_CPU
 static ssize_t show_scaling_max_freq_limit(struct cpufreq_policy *policy, char *buf)
 {
 	return sprintf(buf, "%u,%u,%u,%u\n", tegra_pmqos_cpu_freq_limits[0], tegra_pmqos_cpu_freq_limits[1],
@@ -650,17 +651,28 @@ static ssize_t store_scaling_max_freq_limit(struct cpufreq_policy *policy,
 	unsigned int cpu;			
 	struct cpufreq_policy new_policy;				
 	int max = 0;
+	int i = 0;
+	unsigned int cpu_freq_limits_user[CONFIG_NR_CPUS] = {0, 0, 0, 0};
 	
-	ret = sscanf(buf, "%u,%u,%u,%u", &tegra_pmqos_cpu_freq_limits[0], &tegra_pmqos_cpu_freq_limits[1],
-		&tegra_pmqos_cpu_freq_limits[2], &tegra_pmqos_cpu_freq_limits[3]);
+	ret = sscanf(buf, "%u,%u,%u,%u", &cpu_freq_limits_user[0], &cpu_freq_limits_user[1],
+		&cpu_freq_limits_user[2], &cpu_freq_limits_user[3]);
 		
 	if (ret < 4)
 		return -EINVAL;
 
+	for (i = 0; i < 3; i++){
+		if (cpu_freq_limits_user[i] != 0 && cpu_freq_limits_user[i] < T3_LP_MAX_FREQ)
+			return -EINVAL;
+	}
+	
+	tegra_pmqos_cpu_freq_limits[0]=cpu_freq_limits_user[0];
+	tegra_pmqos_cpu_freq_limits[1]=cpu_freq_limits_user[1];
+	tegra_pmqos_cpu_freq_limits[2]=cpu_freq_limits_user[2];
+	tegra_pmqos_cpu_freq_limits[3]=cpu_freq_limits_user[3];
+			
 	// maxwen: apply new policy->max to all online cpus
 	// all non-online will get correct policy->max when they become
 	// online again in cpu-tegra.c:tegra_cpu_init
-#ifdef CONFIG_HOTPLUG_CPU
 	for_each_online_cpu(cpu) {
 		policy = cpufreq_cpu_get(cpu);
 		if (!policy)
@@ -684,11 +696,9 @@ static ssize_t store_scaling_max_freq_limit(struct cpufreq_policy *policy,
 		
 		cpufreq_cpu_put(policy);
 	}
-#endif
 	return count;
 }
 
-#ifdef CONFIG_HOTPLUG_CPU
 static ssize_t store_scaling_max_freq(struct cpufreq_policy *policy,
 					const char *buf, size_t count)
 {
@@ -741,6 +751,57 @@ static ssize_t store_scaling_max_freq(struct cpufreq_policy *policy,
 	}
 	return count;
 }
+
+static ssize_t store_scaling_min_freq(struct cpufreq_policy *policy,
+					const char *buf, size_t count)
+{
+	unsigned int ret = -EINVAL;		
+	unsigned int cpu;			
+	struct cpufreq_policy new_policy;				
+	int min = 0;
+	unsigned int min_freq;
+	
+	ret = sscanf(buf, "%u", &min_freq);
+		
+	if (ret != 1)
+		return -EINVAL;
+
+	if (min_freq != 0 && min_freq < T3_CPU_MIN_FREQ)
+		return -EINVAL;
+
+	tegra_pmqos_cpu_freq_limits_min[0]=min_freq;
+	tegra_pmqos_cpu_freq_limits_min[1]=min_freq;
+	tegra_pmqos_cpu_freq_limits_min[2]=min_freq;
+	tegra_pmqos_cpu_freq_limits_min[3]=min_freq;
+				
+	// maxwen: apply new policy->min to all online cpus
+	// all non-online will get correct policy->min when they become
+	// online again in cpu-tegra.c:tegra_cpu_init
+	for_each_online_cpu(cpu) {
+		policy = cpufreq_cpu_get(cpu);
+		if (!policy)
+			continue;
+	
+		ret = cpufreq_get_policy(&new_policy, cpu);
+		if (ret)							
+			continue;					
+		
+		BUG_ON(cpu > 3);
+		min = tegra_pmqos_cpu_freq_limits_min[cpu];
+		if (min == 0)
+			// valus = 0 means reset to default
+			min = T3_CPU_MIN_FREQ;					
+
+		new_policy.min = min;
+		ret = __cpufreq_set_policy(policy, &new_policy);
+		policy->user_policy.min = new_policy.min;
+		if (!ret)
+			pr_debug("store_scaling_min_freq set policy->min of cpu %d to %d - ok\n", cpu, new_policy.min);
+		
+		cpufreq_cpu_put(policy);
+	}
+	return count;
+}
 #endif
 
 #ifdef CONFIG_VOLTAGE_CONTROL
@@ -774,7 +835,9 @@ cpufreq_freq_attr_rw(scaling_governor);
 cpufreq_freq_attr_rw(scaling_setspeed);
 cpufreq_freq_attr_ro(policy_min_freq);
 cpufreq_freq_attr_ro(policy_max_freq);
+#ifdef CONFIG_HOTPLUG_CPU
 cpufreq_freq_attr_rw(scaling_max_freq_limit);
+#endif
 #ifdef CONFIG_VOLTAGE_CONTROL
 cpufreq_freq_attr_rw(UV_mV_table);
 #endif
