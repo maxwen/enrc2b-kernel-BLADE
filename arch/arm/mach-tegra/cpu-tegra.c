@@ -2257,7 +2257,7 @@ int tegra_input_boost (int cpu, unsigned int target_freq)
     scaling_max_limit = get_cpu_freq_limit(cpu);
 
     /* apply any scaling max limits */
-    if (get_cpu_freq_limit(cpu) < target_freq)
+    if (scaling_max_limit < target_freq)
         target_freq = scaling_max_limit;
 
     /* dont need to boost cpu at this moment */
