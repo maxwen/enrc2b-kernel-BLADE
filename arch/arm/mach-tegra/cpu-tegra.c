@@ -2242,21 +2242,11 @@ int tegra_suspended_target(unsigned int target_freq)
 	return tegra_update_cpu_speed(new_speed);
 }
 
-int tegra_input_boost (
-   int cpu,
-   unsigned int target_freq
-   )
+int tegra_input_boost (int cpu, unsigned int target_freq)
 {
     int ret = 0;
     unsigned int curfreq = 0, scaling_max_limit = 0;
 
-#ifdef CONFIG_TEGRA_CPUQUIET
-	// disable LP mode asap
-	// must be outside tegra_cpu_lock mutex!
-	tegra_cpuquiet_force_gmode();
-#endif
-
-    mutex_lock(&tegra_cpu_lock);
     curfreq = tegra_getspeed(0);
 
     /* get global caped limit */
@@ -2267,15 +2257,23 @@ int tegra_input_boost (
     scaling_max_limit = get_cpu_freq_limit(cpu);
 
     /* apply any scaling max limits */
-    if (scaling_max_limit < target_freq)
+    if (get_cpu_freq_limit(cpu) < target_freq)
         target_freq = scaling_max_limit;
 
     /* dont need to boost cpu at this moment */
     if (!curfreq || curfreq >= target_freq) {
-        ret = -EINVAL;
-        goto _no_boost;
+        return -EINVAL;
     }
 
+#ifdef CONFIG_TEGRA_CPUQUIET
+	if (target_freq > T3_LP_MAX_FREQ && is_lp_cluster())
+		// disable LP mode asap
+		// must be outside tegra_cpu_lock mutex!
+		tegra_cpuquiet_force_gmode();
+#endif
+
+    mutex_lock(&tegra_cpu_lock);
+    
 #if CPU_FREQ_DEBUG
 	pr_info("tegra_input_boost: cpu=%d curfreq =%d -> target_freq=%d\n", cpu, curfreq, target_freq);
 #endif
@@ -2284,7 +2282,7 @@ int tegra_input_boost (
 
     /* will auto. round-rate */
     ret = tegra_update_cpu_speed(target_freq);
-_no_boost:
+
     mutex_unlock(&tegra_cpu_lock);
 
     return ret;
@@ -2299,14 +2297,21 @@ static int tegra_target(struct cpufreq_policy *policy,
 	unsigned int freq;
 	int ret = 0;
 
-	mutex_lock(&tegra_cpu_lock);
-
 	ret = cpufreq_frequency_table_target(policy, freq_table, target_freq,
 		relation, &idx);
 	if (ret)
-		goto _out;
+		return ret;
 
 	freq = freq_table[idx].frequency;
+	
+#ifdef CONFIG_TEGRA_CPUQUIET
+	if (target_freq > T3_LP_MAX_FREQ && is_lp_cluster())
+		// disable LP mode asap
+		// must be outside tegra_cpu_lock mutex!
+		tegra_cpuquiet_force_gmode();
+#endif
+
+	mutex_lock(&tegra_cpu_lock);
 
 #if CPU_FREQ_DEBUG
 	pr_info("tegra_target: freq=%d\n", freq);
@@ -2314,7 +2319,7 @@ static int tegra_target(struct cpufreq_policy *policy,
 
 	target_cpu_speed[policy->cpu] = freq;
 	ret = tegra_cpu_set_speed_cap(NULL);
-_out:
+
 	mutex_unlock(&tegra_cpu_lock);
 
 	return ret;
@@ -2471,6 +2476,16 @@ static void tegra_delayed_suspend_work(struct work_struct *work)
 		pr_info("tegra_delayed_suspend_work: cap max cpu to %d\n", suspend_cap_cpu_num);
 		pm_qos_update_request(&cap_cpu_num_req, (s32)suspend_cap_cpu_num);
 	}
+#if 0
+	unsigned int scaling_min_freq;
+	// TODO: if scaling_min_freq != 51000 is set this will 
+	// disable deep sleep now
+	// how can we overrule cpufreq?
+	scaling_min_freq = get_cpu_freq_limit_min(0);
+	if (scaling_min_freq != T3_CPU_MIN_FREQ) {
+		pr_info("tegra_delayed_suspend_work: scaling_min_freq %d\n", scaling_min_freq);
+	}
+#endif
 }
 
 static void tegra_cancel_delayed_suspend_work(void)
