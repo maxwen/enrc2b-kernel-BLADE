@@ -156,12 +156,12 @@ struct smartmax_info_s {
 	cputime64_t prev_cpu_wall;
 	cputime64_t prev_cpu_nice;
 	cputime64_t freq_change_time;
-	int cur_cpu_load;
-	int old_freq;
+	unsigned int cur_cpu_load;
+	unsigned int old_freq;
 	int ramp_dir;
-	unsigned int enable;
-	int ideal_speed;
-	int cpu;
+	bool enable;
+	unsigned int ideal_speed;
+	unsigned int cpu;
 	struct mutex timer_mutex;
 };
 static DEFINE_PER_CPU(struct smartmax_info_s, smartmax_info);
@@ -1159,6 +1159,7 @@ static void smartmax_early_suspend(struct early_suspend *h)
 	dprintk(SMARTMAX_DEBUG_SUSPEND, "%s\n", __func__);
 	ideal_freq = suspend_ideal_freq;
 	is_suspended = true;
+	smartmax_update_min_max_allcpus();
 }
 
 static void smartmax_late_resume(struct early_suspend *h)
@@ -1166,6 +1167,7 @@ static void smartmax_late_resume(struct early_suspend *h)
 	dprintk(SMARTMAX_DEBUG_SUSPEND, "%s\n", __func__);
 	ideal_freq = awake_ideal_freq;
 	is_suspended = false;
+	smartmax_update_min_max_allcpus();
 }
 
 static int cpufreq_governor_smartmax(struct cpufreq_policy *new_policy,
@@ -1183,7 +1185,7 @@ static int cpufreq_governor_smartmax(struct cpufreq_policy *new_policy,
 
 		this_smartmax->cur_policy = new_policy;
 		this_smartmax->cpu = cpu;
-		this_smartmax->enable = 1;
+		this_smartmax->enable = true;
 
 		smartmax_update_min_max(this_smartmax,new_policy);
 
@@ -1251,7 +1253,7 @@ static int cpufreq_governor_smartmax(struct cpufreq_policy *new_policy,
 
 		mutex_lock(&dbs_mutex);
 		mutex_destroy(&this_smartmax->timer_mutex);
-		this_smartmax->enable = 0;
+		this_smartmax->enable = false;
 		dbs_enable--;
 
 		if (!dbs_enable){
@@ -1287,7 +1289,7 @@ static int __init cpufreq_smartmax_init(void) {
 	/* Initalize per-cpu data: */for_each_possible_cpu(i)
 	{
 		this_smartmax = &per_cpu(smartmax_info, i);
-		this_smartmax->enable = 0;
+		this_smartmax->enable = false;
 		this_smartmax->cur_policy = 0;
 		this_smartmax->ramp_dir = 0;
 		this_smartmax->freq_change_time = 0;
