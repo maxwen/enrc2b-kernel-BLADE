@@ -42,7 +42,6 @@ extern int usb_get_connect_type(void);
 #define SHIFT_BITS 10
 #define SYN_WIRELESS_DEBUG
 /* #define SYN_CABLE_CONTROL */
-/* #define SYN_CALIBRATION_CONTROL */
 /* #define SYN_FILTER_CONTROL */
 /* #define SYN_FLASH_PROGRAMMING_LOG */
 /* #define SYN_DISABLE_CONFIG_UPDATE */
@@ -200,6 +199,8 @@ void sweep2wake_pwrtrigger(void) {
 #endif
 
 static bool touchDebug = false;
+
+static bool calibration_control = true;
 
 static void syn_page_select(struct i2c_client *client, uint8_t page)
 {
@@ -1012,7 +1013,7 @@ static ssize_t syn_unlock_store(struct device *dev,
 			}
 		}
 		if (ts->packrat_number < SYNAPTICS_FW_NOCAL_PACKRAT) {
-#ifdef SYN_CALIBRATION_CONTROL
+if (calibration_control){
 			ret = i2c_syn_write_byte_data(ts->client,
 				get_address_base(ts, 0x54, CONTROL_BASE) + 0x10, 0x0);
 			if (ret < 0)
@@ -1054,7 +1055,7 @@ static ssize_t syn_unlock_store(struct device *dev,
 						return i2c_syn_error_handler(ts, ts->i2c_err_handler_en, "w:6", __func__);
 				printk(KERN_INFO "[TP] %s: Touch Calibration Confirmed, rezero\n", __func__);
 			}
-#endif
+}
 			if (ts->large_obj_check) {
 				if (ts->package_id == 2200) {
 					ret = i2c_syn_write_byte_data(ts->client,
@@ -1725,6 +1726,38 @@ static DEVICE_ATTR(sweep2wake, (S_IWUSR|S_IRUGO),
 	synaptics_sweep2wake_show, synaptics_sweep2wake_dump);
 #endif
 
+static ssize_t synaptics_calibration_control_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	size_t count = 0;
+
+	count += sprintf(buf, "%d\n", calibration_control);
+
+	return count;
+}
+
+static ssize_t synaptics_calibration_control_dump(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned long value;
+    int ret = 0;
+
+	ret = strict_strtoul(buf, 10, &value);
+    if (ret < 0 || value < 0 || value > 1) {
+        return -EINVAL;
+    }
+    if (value == 0)
+        calibration_control = false;
+    else if (value == 1)
+        calibration_control = true;
+    
+    printk(KERN_INFO "[TP]: calibration_control - %d", calibration_control);
+    return count;
+}
+
+static DEVICE_ATTR(calibration_control, (S_IWUSR|S_IRUGO),
+	synaptics_calibration_control_show, synaptics_calibration_control_dump);
+	
 static struct kobject *android_touch_kobj;
 
 static int synaptics_touch_sysfs_init(void)
@@ -1751,7 +1784,8 @@ static int synaptics_touch_sysfs_init(void)
 		sysfs_create_file(android_touch_kobj, &dev_attr_pdt.attr) ||
 		sysfs_create_file(android_touch_kobj, &dev_attr_htc_event.attr) ||
 		sysfs_create_file(android_touch_kobj, &dev_attr_reset.attr) ||
-		sysfs_create_file(android_touch_kobj, &dev_attr_sr_en.attr)
+		sysfs_create_file(android_touch_kobj, &dev_attr_sr_en.attr) ||
+		sysfs_create_file(android_touch_kobj, &dev_attr_calibration_control.attr)
 #ifdef FAKE_EVENT
 		|| sysfs_create_file(android_touch_kobj, &dev_attr_fake_event.attr)
 #endif
@@ -1818,6 +1852,7 @@ static void synaptics_touch_sysfs_remove(void)
 	sysfs_remove_file(android_touch_kobj, &dev_attr_pdt.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_htc_event.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_reset.attr);
+	sysfs_remove_file(android_touch_kobj, &dev_attr_calibration_control.attr);
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_SWEEP2WAKE
 	sysfs_remove_file(android_touch_kobj, &dev_attr_sweep2wake.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_allow_stroke.attr);
@@ -1896,7 +1931,7 @@ static int synaptics_init_panel(struct synaptics_ts_data *ts)
 		}
 	}
 
-#ifdef SYN_CALIBRATION_CONTROL
+if (calibration_control){
 	if (ts->packrat_number < SYNAPTICS_FW_NOCAL_PACKRAT) {
 		if (ts->pre_finger_data[0][0] >= 2 || ts->mfg_flag == 1) {
 			ret = i2c_syn_write_byte_data(ts->client,
@@ -1912,7 +1947,7 @@ static int synaptics_init_panel(struct synaptics_ts_data *ts)
 			printk(KERN_INFO "[TP] %s: Touch init: set fast relaxation to 0x0\n", __func__);
 		}
 	}
-#endif
+}
 
 	return ret;
 }
@@ -2382,7 +2417,7 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 								printk(KERN_INFO "[TP] S%d@%d, %d\n", i + 1,
 									finger_data[i][0], finger_data[i][1]);
 								if (ts->packrat_number < SYNAPTICS_FW_NOCAL_PACKRAT) {
-#ifdef SYN_CALIBRATION_CONTROL
+if (calibration_control){
 									if (ts->multitouch_calibration) {
 										if (ts->finger_count == ts->finger_support) {
 											ret = i2c_syn_write_byte_data(ts->client,
@@ -2393,7 +2428,7 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 										} else if (!ts->pre_finger_data[0][0] && ts->finger_count > 1)
 											ts->pre_finger_data[0][0] = 1;
 									}
-#endif
+}
 								}
 							}
 						}
@@ -2416,7 +2451,7 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 								finger_data[i][2], finger_data[i][3]);
 					}
 					if (ts->packrat_number < SYNAPTICS_FW_NOCAL_PACKRAT) {
-#ifdef SYN_CALIBRATION_CONTROL
+if (calibration_control){
 						if (ts->multitouch_calibration) {
 							if ((finger_release_changed & BIT(i)) && ts->pre_finger_data[0][0] == 1) {
 								ret = i2c_syn_write_byte_data(ts->client,
@@ -2426,7 +2461,7 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 								printk(KERN_INFO "[TP] %s: Touch Calibration Confirmed, rezero\n", __func__);
 							}
 						}
-#endif
+}
 					}
 					if (!ts->finger_count)
 						ts->pre_finger_data[0][0] = 0;
@@ -3367,7 +3402,7 @@ static int synaptics_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 		ts->pre_finger_data[0][0] = 0;
 		if (ts->packrat_number < SYNAPTICS_FW_NOCAL_PACKRAT) {
 			ts->first_pressed = 0;
-#ifdef SYN_CALIBRATION_CONTROL
+if (calibration_control){
 			if (ts->mfg_flag != 1) {
 				ret = i2c_syn_write_byte_data(ts->client,
 					get_address_base(ts, 0x54, CONTROL_BASE) + 0x10, ts->relaxation);
@@ -3400,7 +3435,7 @@ static int synaptics_ts_suspend(struct i2c_client *client, pm_message_t mesg)
 					i2c_syn_error_handler(ts, ts->i2c_err_handler_en, "force update", __func__);
 				printk(KERN_INFO "[TP] touch suspend, fast relasxation: %x\n", ts->relaxation);
 			}
-#endif
+}
 			if (ts->large_obj_check) {
 				if (ts->package_id == 2200) {
 					ret = i2c_syn_write_byte_data(ts->client,
