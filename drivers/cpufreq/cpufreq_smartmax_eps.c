@@ -39,6 +39,10 @@
 #include <linux/slab.h>
 #include <linux/kernel_stat.h>
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+#include <linux/earlysuspend.h>
+#endif
+
 #include "../../arch/arm/mach-tegra/tegra_pmqos.h"
 
 /******************** Tunable parameters: ********************/
@@ -48,8 +52,12 @@
  * towards the ideal frequency and slower after it has passed it. Similarly,
  * lowering the frequency towards the ideal frequency is faster than below it.
  */
-#define DEFAULT_IDEAL_FREQ T3_LP_MAX_FREQ
-static unsigned int ideal_freq;
+
+#define DEFAULT_SUSPEND_IDEAL_FREQ T3_LP_MAX_FREQ
+static unsigned int suspend_ideal_freq;
+
+#define DEFAULT_AWAKE_IDEAL_FREQ T3_LP_MAX_FREQ
+static unsigned int awake_ideal_freq;
 
 /*
  * Freqeuncy delta when ramping up above the ideal freqeuncy.
@@ -173,14 +181,15 @@ enum {
 	SMARTMAX_DEBUG_LOAD = 2,
 	SMARTMAX_DEBUG_ALG = 4,
 	SMARTMAX_DEBUG_BOOST = 8,
-	SMARTMAX_DEBUG_INPUT = 16
+	SMARTMAX_DEBUG_INPUT = 16,
+	SMARTMAX_DEBUG_SUSPEND = 32
 };
 
 /*
  * Combination of the above debug flags.
  */
 #if SMARTMAX_DEBUG
-static unsigned long debug_mask = SMARTMAX_DEBUG_LOAD|SMARTMAX_DEBUG_JUMPS|SMARTMAX_DEBUG_ALG|SMARTMAX_DEBUG_BOOST|SMARTMAX_DEBUG_INPUT;
+static unsigned long debug_mask = SMARTMAX_DEBUG_LOAD|SMARTMAX_DEBUG_JUMPS|SMARTMAX_DEBUG_ALG|SMARTMAX_DEBUG_BOOST|SMARTMAX_DEBUG_INPUT|SMARTMAX_DEBUG_SUSPEND;
 #else
 static unsigned long debug_mask;
 #endif
@@ -199,6 +208,12 @@ static cputime64_t boost_end_time = 0ULL;
 static unsigned int cur_boost_freq = 0;
 static unsigned int cur_boost_duration = 0;
 static bool boost_running = false;
+static unsigned int ideal_freq;
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static struct early_suspend smartmax_early_suspend_handler;
+static bool is_suspended = false;
+#endif
 
 static int cpufreq_governor_smartmax_eps(struct cpufreq_policy *policy,
 		unsigned int event);
@@ -666,19 +681,43 @@ static ssize_t store_down_rate(struct kobject *kobj, struct attribute *attr,
 	return count;
 }
 
-static ssize_t show_ideal_freq(struct kobject *kobj, struct attribute *attr,
+static ssize_t show_awake_ideal_freq(struct kobject *kobj, struct attribute *attr,
 		char *buf) {
-	return sprintf(buf, "%u\n", ideal_freq);
+	return sprintf(buf, "%u\n", awake_ideal_freq);
 }
 
-static ssize_t store_ideal_freq(struct kobject *kobj, struct attribute *attr,
+static ssize_t store_awake_ideal_freq(struct kobject *kobj, struct attribute *attr,
 		const char *buf, size_t count) {
 	ssize_t res;
 	unsigned long input;
 	res = strict_strtoul(buf, 0, &input);
 	if (res >= 0 && input >= 0) {
-		ideal_freq = input;
-		smartmax_update_min_max_allcpus();
+		awake_ideal_freq = input;
+		if (!is_suspended){
+			ideal_freq = awake_ideal_freq;
+			smartmax_update_min_max_allcpus();
+		}
+	} else
+		return -EINVAL;
+	return count;
+}
+
+static ssize_t show_suspend_ideal_freq(struct kobject *kobj, struct attribute *attr,
+		char *buf) {
+	return sprintf(buf, "%u\n", suspend_ideal_freq);
+}
+
+static ssize_t store_suspend_ideal_freq(struct kobject *kobj, struct attribute *attr,
+		const char *buf, size_t count) {
+	ssize_t res;
+	unsigned long input;
+	res = strict_strtoul(buf, 0, &input);
+	if (res >= 0 && input >= 0) {
+		suspend_ideal_freq = input;
+		if (is_suspended){
+			ideal_freq = suspend_ideal_freq;
+			smartmax_update_min_max_allcpus();
+		}
 	} else
 		return -EINVAL;
 	return count;
@@ -956,7 +995,6 @@ static struct global_attr _name##_attr =	\
 define_global_rw_attr(debug_mask);
 define_global_rw_attr(up_rate);
 define_global_rw_attr(down_rate);
-define_global_rw_attr(ideal_freq);
 define_global_rw_attr(ramp_up_step);
 define_global_rw_attr(ramp_down_step);
 define_global_rw_attr(max_cpu_load);
@@ -970,12 +1008,13 @@ define_global_rw_attr(boost_duration);
 define_global_rw_attr(io_is_busy);
 define_global_rw_attr(ignore_nice);
 define_global_rw_attr(ramp_up_during_boost);
+define_global_rw_attr(awake_ideal_freq);
+define_global_rw_attr(suspend_ideal_freq);
 
 static struct attribute * smartmax_attributes[] = { 
 	&debug_mask_attr.attr,
 	&up_rate_attr.attr, 
 	&down_rate_attr.attr, 
-	&ideal_freq_attr.attr,
 	&ramp_up_step_attr.attr, 
 	&ramp_down_step_attr.attr,
 	&max_cpu_load_attr.attr, 
@@ -989,6 +1028,8 @@ static struct attribute * smartmax_attributes[] = {
 	&io_is_busy_attr.attr,
 	&ignore_nice_attr.attr, 
 	&ramp_up_during_boost_attr.attr, 
+	&awake_ideal_freq_attr.attr,
+	&suspend_ideal_freq_attr.attr,		
 	NULL , };
 
 static struct attribute_group smartmax_attr_group = { .attrs =
@@ -1113,6 +1154,20 @@ static struct input_handler dbs_input_handler = { .event = dbs_input_event,
 		.connect = dbs_input_connect, .disconnect = dbs_input_disconnect,
 		.name = "cpufreq_smartmax_eps", .id_table = dbs_ids, };
 
+static void smartmax_early_suspend(struct early_suspend *h)
+{
+	dprintk(SMARTMAX_DEBUG_SUSPEND, "%s\n", __func__);
+	ideal_freq = suspend_ideal_freq;
+	is_suspended = true;
+}
+
+static void smartmax_late_resume(struct early_suspend *h)
+{
+	dprintk(SMARTMAX_DEBUG_SUSPEND, "%s\n", __func__);
+	ideal_freq = awake_ideal_freq;
+	is_suspended = false;
+}
+
 static int cpufreq_governor_smartmax_eps(struct cpufreq_policy *new_policy,
 		unsigned int event) {
 	unsigned int cpu = new_policy->cpu;
@@ -1126,7 +1181,19 @@ static int cpufreq_governor_smartmax_eps(struct cpufreq_policy *new_policy,
 
 		mutex_lock(&dbs_mutex);
 
-		if (!cpu) {
+		this_smartmax->cur_policy = new_policy;
+		this_smartmax->cpu = cpu;
+		this_smartmax->enable = 1;
+
+		smartmax_update_min_max(this_smartmax,new_policy);
+
+		this_smartmax->freq_table = cpufreq_frequency_get_table(cpu);
+
+		update_idle_time(false);
+
+		dbs_enable++;
+		
+		if (dbs_enable == 1) {
 			if (!boost_task_alive) {
 				boost_task = kthread_create (
 						cpufreq_smartmax_boost_task,
@@ -1143,33 +1210,19 @@ static int cpufreq_governor_smartmax_eps(struct cpufreq_policy *new_policy,
 				get_task_struct(boost_task);
 				boost_task_alive = true;
 			}
-		}
-
-		this_smartmax->cur_policy = new_policy;
-		this_smartmax->cpu = cpu;
-		this_smartmax->enable = 1;
-
-		smartmax_update_min_max(this_smartmax,new_policy);
-
-		this_smartmax->freq_table = cpufreq_frequency_get_table(cpu);
-
-		dbs_enable++;
-
-		update_idle_time(false);
-
-		// Do not register the idle hook and create sysfs
-		// entries if we have already done so.
-		if (dbs_enable == 1) {
+			rc = input_register_handler(&dbs_input_handler);
+			if (rc) {
+				mutex_unlock(&dbs_mutex);
+				return rc;
+			}
 			rc = sysfs_create_group(cpufreq_global_kobject,
 					&smartmax_attr_group);
 			if (rc) {
 				mutex_unlock(&dbs_mutex);
 				return rc;
 			}
+			register_early_suspend(&smartmax_early_suspend_handler);
 		}
-
-		if (!cpu)
-		rc = input_register_handler(&dbs_input_handler);
 
 		mutex_unlock(&dbs_mutex);
 		mutex_init(&this_smartmax->timer_mutex);
@@ -1201,13 +1254,12 @@ static int cpufreq_governor_smartmax_eps(struct cpufreq_policy *new_policy,
 		this_smartmax->enable = 0;
 		dbs_enable--;
 
-		if (!dbs_enable)
-		sysfs_remove_group(cpufreq_global_kobject,
-				&smartmax_attr_group);
-
-		if (!cpu)
-		input_unregister_handler(&dbs_input_handler);
-
+		if (!dbs_enable){
+			sysfs_remove_group(cpufreq_global_kobject, &smartmax_attr_group);
+			input_unregister_handler(&dbs_input_handler);
+			unregister_early_suspend(&smartmax_early_suspend_handler);
+		}
+		
 		mutex_unlock(&dbs_mutex);
 		break;
 	}
@@ -1220,7 +1272,9 @@ static int __init cpufreq_smartmax_init(void) {
 	struct smartmax_info_s *this_smartmax;
 	up_rate = DEFAULT_UP_RATE;
 	down_rate = DEFAULT_DOWN_RATE;
-	ideal_freq = DEFAULT_IDEAL_FREQ;
+	suspend_ideal_freq = DEFAULT_SUSPEND_IDEAL_FREQ;
+	awake_ideal_freq = DEFAULT_AWAKE_IDEAL_FREQ;
+	ideal_freq = awake_ideal_freq;
 	ramp_up_step = DEFAULT_RAMP_UP_STEP;
 	ramp_down_step = DEFAULT_RAMP_DOWN_STEP;
 	max_cpu_load = DEFAULT_MAX_CPU_LOAD;
@@ -1240,6 +1294,12 @@ static int __init cpufreq_smartmax_init(void) {
 		this_smartmax->cur_cpu_load = 0;
 	}
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	smartmax_early_suspend_handler.suspend = smartmax_early_suspend;
+	smartmax_early_suspend_handler.resume = smartmax_late_resume;
+	smartmax_early_suspend_handler.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 100;
+#endif
+	
 	return cpufreq_register_governor(&cpufreq_gov_smartmax_eps);
 }
 
