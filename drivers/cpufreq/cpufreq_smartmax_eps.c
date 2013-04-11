@@ -113,13 +113,6 @@ static unsigned int touch_poke_freq = 640000;
 static bool touch_poke = true;
 
 /*
- * downscales all cores at once 
- * allowing decrease in a single step if multiple
- * cpus are online
- */
-static bool sync_cpu_downscale = false;
-
-/*
  * should ramp_up steps during boost be possible
  */
 static bool ramp_up_during_boost = true;
@@ -198,7 +191,6 @@ static unsigned long debug_mask;
  * dbs_mutex protects dbs_enable in governor start/stop.
  */
 static DEFINE_MUTEX(dbs_mutex);
-static DEFINE_MUTEX(set_speed_lock);
 
 extern int tegra_input_boost(int cpu, unsigned int target_freq);
 
@@ -318,9 +310,8 @@ static inline void dbs_timer_exit(struct smartmax_info_s *this_smartmax) {
 inline static void target_freq(struct cpufreq_policy *policy,
 		struct smartmax_info_s *this_smartmax, int new_freq, int old_freq,
 		int prefered_relation) {
-	int index, target, j;
+	int index, target;
 	struct cpufreq_frequency_table *table = this_smartmax->freq_table;
-	int ramp_dir = this_smartmax->ramp_dir;
 #if SMARTMAX_DEBUG
 	unsigned int cpu = this_smartmax->cpu;
 #endif
@@ -364,33 +355,9 @@ inline static void target_freq(struct cpufreq_policy *policy,
 	} else
 		target = new_freq;
 
-	dprintk(SMARTMAX_DEBUG_ALG, "%d: new_freq %d (%d)\n", old_freq, new_freq, target);
+	dprintk(SMARTMAX_DEBUG_JUMPS, "%d: jumping to %d (%d) cpu %d\n", old_freq, new_freq, target, cpu);
 
-	mutex_lock(&set_speed_lock);
-
-	if (ramp_dir < 0 && sync_cpu_downscale) {
-		// only if all cpus get the target they will really scale down
-		// cause the highest defines the speed for all
-		for_each_online_cpu(j)
-		{
-			struct smartmax_info_s *j_this_smartmax = &per_cpu(smartmax_info, j);
-
-			if (j_this_smartmax->enable) {
-				struct cpufreq_policy *j_policy = j_this_smartmax->cur_policy;
-				dprintk(SMARTMAX_DEBUG_JUMPS,
-						"%d: jumping %d (%d) cpu %d\n", old_freq, new_freq, target, j_this_smartmax->cpu);
-				__cpufreq_driver_target(j_policy, target, prefered_relation);
-			}
-		}
-	} else {
-		// one time is enough - highest will define the speed for all 
-		dprintk(SMARTMAX_DEBUG_JUMPS,
-				"%d: jumping to %d (%d) cpu %d\n", old_freq, new_freq, target, cpu);
-
-		__cpufreq_driver_target(policy, target, prefered_relation);
-	}
-
-	mutex_unlock(&set_speed_lock);
+	__cpufreq_driver_target(policy, target, prefered_relation);
 
 	// remember last time we changed frequency
 	this_smartmax->freq_change_time = ktime_to_ns(ktime_get());
@@ -869,28 +836,6 @@ static ssize_t store_ramp_up_during_boost(struct kobject *a, struct attribute *b
 	return count;
 }
 
-static ssize_t show_sync_cpu_downscale(struct kobject *kobj,
-		struct attribute *attr, char *buf) {
-	return sprintf(buf, "%d\n", sync_cpu_downscale);
-}
-
-static ssize_t store_sync_cpu_downscale(struct kobject *a, struct attribute *b,
-		const char *buf, size_t count) {
-	ssize_t res;
-	unsigned long input;
-	res = strict_strtoul(buf, 0, &input);
-	if (res >= 0) {
-		if (input == 0)
-			sync_cpu_downscale = false;
-		else if (input == 1)
-			sync_cpu_downscale = true;
-		else
-			return -EINVAL;
-	} else
-		return -EINVAL;
-	return count;
-}
-
 static ssize_t show_boost_freq(struct kobject *kobj, struct attribute *attr,
 		char *buf) {
 	return sprintf(buf, "%u\n", boost_freq);
@@ -1002,7 +947,6 @@ define_global_rw_attr(min_cpu_load);
 define_global_rw_attr(sampling_rate);
 define_global_rw_attr(touch_poke_freq);
 define_global_rw_attr(input_boost_duration);
-define_global_rw_attr(sync_cpu_downscale);
 define_global_rw_attr(boost_freq);
 define_global_rw_attr(boost_duration);
 define_global_rw_attr(io_is_busy);
@@ -1022,7 +966,6 @@ static struct attribute * smartmax_attributes[] = {
 	&sampling_rate_attr.attr, 
 	&touch_poke_freq_attr.attr,
 	&input_boost_duration_attr.attr, 
-	&sync_cpu_downscale_attr.attr,
 	&boost_freq_attr.attr, 
 	&boost_duration_attr.attr, 
 	&io_is_busy_attr.attr,
