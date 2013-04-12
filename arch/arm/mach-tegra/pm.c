@@ -1023,6 +1023,7 @@ static int tegra_suspend_prepare(void)
 static void tegra_suspend_finish(void)
 {
 	pr_info("tegra_suspend_finish: wake reason is 0x%x\n", (u32)wake_reason_resume);
+#if 0
 	if(pdata && (pdata->boost_resume_reason && ((u32)wake_reason_resume) !=
 		pdata->boost_resume_reason)) {
 		goto noboost;
@@ -1035,6 +1036,7 @@ static void tegra_suspend_finish(void)
 	}
 
 noboost:
+#endif
 	if ((current_suspend_mode == TEGRA_SUSPEND_LP0) && tegra_deep_sleep)
 		tegra_deep_sleep(0);
 }
