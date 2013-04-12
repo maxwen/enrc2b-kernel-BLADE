@@ -46,13 +46,16 @@
 #undef PWR_DEVICE_TAG
 #define PWR_DEVICE_TAG LOG_TAG
 
+#undef AUDIO_DEBUG_BEEP
 #undef AUDIO_DEBUG
 #define AUDIO_DEBUG 0
 
 #if AUDIO_DEBUG
+#define AUDIO_DEBUG_BEEP 1
 #undef AUD_DBG
 #define AUD_DBG(fmt, ...) pr_tag_info(LOG_TAG, fmt, ##__VA_ARGS__)
 #else
+#define AUDIO_DEBUG_BEEP 0
 #undef AUD_DBG
 #define AUD_DBG(fmt, ...) do { } while (0)
 #endif
@@ -468,7 +471,14 @@ void aic3008_CodecInit()
 
 	AUD_DBG("Audio Codec Power Up takes %lld ms\n",
 			ktime_to_ms(ktime_get()) - pwr_up_time);
+#if AUDIO_DEBUG_BEEP
+	mdelay(100);
+	spi_write_table_parsepage(GENERATE_BEEP_LEFT_SPK, ARRAY_SIZE(GENERATE_BEEP_LEFT_SPK));
 
+	AUD_DBG("***** SPI CMD: BEEP *****\n");
+	mdelay(300);
+	spi_write_table_parsepage(CODEC_SW_RESET, ARRAY_SIZE(CODEC_SW_RESET));
+#endif
 	pm_qos_add_request(&aud_cpu_minfreq_req, PM_QOS_CPU_FREQ_MIN, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
 	aic3008_rx_mode = DOWNLINK_PATH_OFF;
 	aic3008_tx_mode = UPLINK_PATH_OFF;
@@ -1026,7 +1036,13 @@ static int aic3008_set_config(int config_tbl, int idx, int en)
 		}
 		break;
 	case AIC3008_IO_CONFIG_MEDIA:
-        if(idx == 49)
+        /* required fr BT audio - dont remove it!!!! */
+		if(idx == 20)
+		{
+			mutex_unlock(&lock);
+	    	return rc;
+		}
+		else if(idx == 49)
 		{
 			AUD_DBG("[DSP] idx = %d, Mic Mute!!\n", idx);
 			if (aic3008_tx_mode == UPLINK_BT_AP ||
