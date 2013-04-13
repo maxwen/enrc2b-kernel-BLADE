@@ -91,14 +91,14 @@ static unsigned int min_cpu_load;
  * The minimum amount of time in nsecs to spend at a frequency before we can ramp up.
  * Notice we ignore this when we are below the ideal frequency.
  */
-#define DEFAULT_UP_RATE 100000
+#define DEFAULT_UP_RATE 50000
 static unsigned int up_rate;
 
 /*
  * The minimum amount of time in nsecs to spend at a frequency before we can ramp down.
  * Notice we ignore this when we are above the ideal frequency.
  */
-#define DEFAULT_DOWN_RATE 50000
+#define DEFAULT_DOWN_RATE 100000
 static unsigned int down_rate;
 
 /* in nsecs */
@@ -201,10 +201,10 @@ static unsigned int cur_boost_freq = 0;
 static unsigned int cur_boost_duration = 0;
 static bool boost_running = false;
 static unsigned int ideal_freq;
+static bool is_suspended = false;
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static struct early_suspend smartmax_early_suspend_handler;
-static bool is_suspended = false;
 #endif
 
 static int cpufreq_governor_smartmax(struct cpufreq_policy *policy,
@@ -979,7 +979,7 @@ static struct attribute_group smartmax_attr_group = { .attrs =
 		smartmax_attributes, .name = "smartmax", };
 
 static int cpufreq_smartmax_boost_task(void *data) {
-	struct cpufreq_policy *policy;
+	//struct cpufreq_policy *policy;
 	struct smartmax_info_s *this_smartmax;
 	cputime64_t now;
 
@@ -1007,19 +1007,20 @@ static int cpufreq_smartmax_boost_task(void *data) {
 		boost_end_time = now + cur_boost_duration;
 		dprintk(SMARTMAX_DEBUG_BOOST, "%s %llu %llu\n", __func__, now, boost_end_time);
 	
-		if (lock_policy_rwsem_write(0) < 0)
-			continue;
+		// TODO: needed?
+		//if (lock_policy_rwsem_write(0) < 0)
+		//	continue;
 
 		this_smartmax = &per_cpu(smartmax_info, 0);
 		if (this_smartmax) {
-			policy = this_smartmax->cur_policy;
+			//policy = this_smartmax->cur_policy;
 
-			if (policy) {
+			//if (policy) {
 				this_smartmax->prev_cpu_idle = get_cpu_idle_time(0,
 						&this_smartmax->prev_cpu_wall);
-			}
+			//}
 		}
-		unlock_policy_rwsem_write(0);
+		//unlock_policy_rwsem_write(0);
 	}
 
 	return 0;
@@ -1097,6 +1098,7 @@ static struct input_handler dbs_input_handler = { .event = dbs_input_event,
 		.connect = dbs_input_connect, .disconnect = dbs_input_disconnect,
 		.name = "cpufreq_smartmax", .id_table = dbs_ids, };
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
 static void smartmax_early_suspend(struct early_suspend *h)
 {
 	dprintk(SMARTMAX_DEBUG_SUSPEND, "%s\n", __func__);
@@ -1112,6 +1114,7 @@ static void smartmax_late_resume(struct early_suspend *h)
 	is_suspended = false;
 	smartmax_update_min_max_allcpus();
 }
+#endif
 
 static int cpufreq_governor_smartmax(struct cpufreq_policy *new_policy,
 		unsigned int event) {
@@ -1147,6 +1150,7 @@ static int cpufreq_governor_smartmax(struct cpufreq_policy *new_policy,
 				);
 
 				if (IS_ERR(boost_task)) {
+					dbs_enable--;
 					mutex_unlock(&dbs_mutex);
 					return PTR_ERR(boost_task);
 				}
@@ -1157,16 +1161,20 @@ static int cpufreq_governor_smartmax(struct cpufreq_policy *new_policy,
 			}
 			rc = input_register_handler(&dbs_input_handler);
 			if (rc) {
+				dbs_enable--;
 				mutex_unlock(&dbs_mutex);
 				return rc;
 			}
 			rc = sysfs_create_group(cpufreq_global_kobject,
 					&smartmax_attr_group);
 			if (rc) {
+				dbs_enable--;
 				mutex_unlock(&dbs_mutex);
 				return rc;
 			}
+#ifdef CONFIG_HAS_EARLYSUSPEND
 			register_early_suspend(&smartmax_early_suspend_handler);
+#endif
 		}
 
 		mutex_unlock(&dbs_mutex);
@@ -1202,7 +1210,9 @@ static int cpufreq_governor_smartmax(struct cpufreq_policy *new_policy,
 		if (!dbs_enable){
 			sysfs_remove_group(cpufreq_global_kobject, &smartmax_attr_group);
 			input_unregister_handler(&dbs_input_handler);
+#ifdef CONFIG_HAS_EARLYSUSPEND
 			unregister_early_suspend(&smartmax_early_suspend_handler);
+#endif
 		}
 		
 		mutex_unlock(&dbs_mutex);
