@@ -498,13 +498,21 @@ static ssize_t store_scaling_governor(struct cpufreq_policy *policy,
 #endif
 
 		ret = cpufreq_get_policy(&new_policy, cpu);
-		if (ret)
+		if (ret){
+#ifdef CONFIG_HOTPLUG_CPU
+			cpufreq_cpu_put(policy);
+#endif
 			continue;
+		}
 		
 		if (cpufreq_parse_governor(str_governor, &new_policy.policy,
-						&new_policy.governor))
+						&new_policy.governor)){
 
+#ifdef CONFIG_HOTPLUG_CPU
+			cpufreq_cpu_put(policy);
+#endif
 			continue;
+		}
 
 		/* Do not use cpufreq_set_policy here or the user_policy.max
 	   	will be wrongly overridden */
@@ -679,9 +687,11 @@ static ssize_t store_scaling_max_freq_limit(struct cpufreq_policy *policy,
 			continue;
 		
 		ret = cpufreq_get_policy(&new_policy, cpu);
-		if (ret)							
+		if (ret){
+			cpufreq_cpu_put(policy);					
 			continue;
-
+		}
+		
 		BUG_ON(cpu > 3);
 		max = tegra_pmqos_cpu_freq_limits[cpu];
 		if (max == 0)
@@ -732,8 +742,10 @@ static ssize_t store_scaling_max_freq(struct cpufreq_policy *policy,
 			continue;
 	
 		ret = cpufreq_get_policy(&new_policy, cpu);
-		if (ret)							
-			continue;					
+		if (ret){
+			cpufreq_cpu_put(policy);					
+			continue;
+		}			
 		
 		BUG_ON(cpu > 3);
 		max = tegra_pmqos_cpu_freq_limits[cpu];
@@ -783,8 +795,10 @@ static ssize_t store_scaling_min_freq(struct cpufreq_policy *policy,
 			continue;
 	
 		ret = cpufreq_get_policy(&new_policy, cpu);
-		if (ret)							
+		if (ret){
+			cpufreq_cpu_put(policy);					
 			continue;					
+		}
 		
 		BUG_ON(cpu > 3);
 		min = tegra_pmqos_cpu_freq_limits_min[cpu];
@@ -1977,7 +1991,7 @@ static int __cpufreq_set_policy(struct cpufreq_policy *data,
 			/* save old, working values */
 			struct cpufreq_governor *old_gov = data->governor;
 
-			pr_debug("governor switch\n");
+			pr_info("governor switch %d %s -> %s\n", policy->cpu, old_gov->name, policy->governor->name);
 
 			/* end old governor */
 			if (data->governor)
@@ -1987,8 +2001,8 @@ static int __cpufreq_set_policy(struct cpufreq_policy *data,
 			data->governor = policy->governor;
 			if (__cpufreq_governor(data, CPUFREQ_GOV_START)) {
 				/* new governor failed, so re-start old one */
-				pr_debug("starting governor %s failed\n",
-							data->governor->name);
+				pr_err("starting governor %s failed - revert to %s\n",
+							data->governor->name, old_gov->name);
 				if (old_gov) {
 					data->governor = old_gov;
 					__cpufreq_governor(data,
