@@ -39,7 +39,7 @@
 #include "tegra_pmqos.h"
 
 #define CPUQUIET_DEBUG 1
-#define CPUQUIET_DEBUG_VERBOSE 1
+#define CPUQUIET_DEBUG_VERBOSE 0
 
 extern unsigned int best_core_to_turn_up(void);
 
@@ -54,6 +54,7 @@ static struct work_struct minmax_work;
 
 static struct kobject *tegra_auto_sysfs_kobject;
 
+static bool is_suspended = false;
 static bool no_lp;
 static bool enable;
 static unsigned int lp_up_delay = LP_UP_DELAY_MS_DEF;
@@ -74,7 +75,7 @@ static unsigned int max_cpus = CONFIG_NR_CPUS;
 /*
  * LPCPU hysteresis default values
  */
-#define TEGRA_CPQ_LPCPU_UP_HYS        3
+#define TEGRA_CPQ_LPCPU_UP_HYS        2
 static unsigned int tegra_cpq_lpcpu_up_hys = TEGRA_CPQ_LPCPU_UP_HYS;
 
 enum {
@@ -93,18 +94,23 @@ static inline unsigned int num_cpu_check(unsigned int num)
 	return num;
 }
 
-unsigned int tegra_cpq_max_cpus(void)
+unsigned inline int tegra_cpq_max_cpus(void)
 {
 	unsigned int max_cpus_qos = pm_qos_request(PM_QOS_MAX_ONLINE_CPUS);	
 	unsigned int num = min(max_cpus_qos, max_cpus);
 	return num_cpu_check(num);
 }
 
-unsigned int tegra_cpq_min_cpus(void)
+unsigned inline int tegra_cpq_min_cpus(void)
 {
 	unsigned int min_cpus_qos = pm_qos_request(PM_QOS_MIN_ONLINE_CPUS);
 	unsigned int num = max(min_cpus_qos, min_cpus);
 	return num_cpu_check(num);
+}
+
+static inline bool lp_possible(void)
+{
+	return !is_lp_cluster() && !no_lp && !(tegra_cpq_min_cpus() >= 2) && num_online_cpus() == 1;
 }
 
 static inline void show_status(const char* extra, cputime64_t on_time, int cpu)
@@ -229,10 +235,7 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 #endif
 			break;
 		case TEGRA_CPQ_SWITCH_TO_LP:
-			if (!is_lp_cluster() && 
-				!no_lp &&
-				!(tegra_cpq_min_cpus() >= 2) && 
-				num_online_cpus() == 1) {
+			if (lp_possible()) {
 				// this can fail expected!
 				// dont switch to LP if freq is too high to not force
 				// a slow-down. could be changed from start of down delay
@@ -455,6 +458,7 @@ void tegra_auto_hotplug_governor(unsigned int cpu_freq, bool suspend)
 		return;
 
 	cpq_state = TEGRA_CPQ_IDLE;
+	is_suspended = suspend;
 	
 	if (suspend) {
         lp_up_req = 0;
@@ -465,11 +469,7 @@ void tegra_auto_hotplug_governor(unsigned int cpu_freq, bool suspend)
 			(cpu_freq > idle_top_freq || no_lp)) {
        	cpq_state = TEGRA_CPQ_SWITCH_TO_G;
 		queue_delayed_work(cpuquiet_wq, &cpuquiet_work, msecs_to_jiffies(lp_up_delay));
-	} else if (!is_lp_cluster() && 
-			!no_lp &&
-			cpu_freq <= idle_top_freq &&
-			!(tegra_cpq_min_cpus() >= 2) && 
-			num_online_cpus() == 1) {
+	} else if (cpu_freq <= idle_top_freq && lp_possible()) {
 		lp_up_req++;
         if (lp_up_req > tegra_cpq_lpcpu_up_hys) {
 			cpq_state = TEGRA_CPQ_SWITCH_TO_LP;
