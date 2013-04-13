@@ -148,14 +148,14 @@ static inline unsigned int num_cpu_check(unsigned int num)
 	return num;
 }
 
-static unsigned int tegra_mpdec_max_cpus(void)
+static inline unsigned int tegra_mpdec_max_cpus(void)
 {
 	unsigned int max_cpus_qos = pm_qos_request(PM_QOS_MAX_ONLINE_CPUS);	
 	unsigned int num = min(max_cpus_qos, tegra_mpdec_tuners_ins.max_cpus);
 	return num_cpu_check(num);
 }
 
-static unsigned int tegra_mpdec_min_cpus(void)
+static inline unsigned int tegra_mpdec_min_cpus(void)
 {
 	unsigned int min_cpus_qos = pm_qos_request(PM_QOS_MIN_ONLINE_CPUS);
 	unsigned int num = max(min_cpus_qos, tegra_mpdec_tuners_ins.min_cpus);

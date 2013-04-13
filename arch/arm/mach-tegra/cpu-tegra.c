@@ -2279,7 +2279,9 @@ int tegra_input_boost (int cpu, unsigned int target_freq)
 {
     int ret = 0;
     unsigned int curfreq = 0, scaling_max_limit = 0;
+#ifdef CONFIG_TEGRA_CPUQUIET
     bool free_device = false;
+#endif
 
 	if (is_suspended){
 		return -EBUSY;
@@ -2342,7 +2344,9 @@ static int tegra_target(struct cpufreq_policy *policy,
 	int idx;
 	unsigned int freq;
 	int ret = 0;
+#ifdef CONFIG_TEGRA_CPUQUIET
 	bool free_device = false;
+#endif
 	
 	if (is_suspended){
 		return -EBUSY;
