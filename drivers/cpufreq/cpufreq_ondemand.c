@@ -1103,6 +1103,7 @@ static int should_io_be_busy(void)
 	return DEF_IO_IS_BUSY;
 }
 
+#if 0
 #define	AID_SYSTEM	(1000)
 static void dbs_chown(void)
 {
@@ -1176,6 +1177,7 @@ static void dbs_chown(void)
 	if (ret)
 		pr_err("sys_chown ux_boost_threshold error: %d", ret);
 }
+#endif
 
 static void dbs_refresh_callback_ondemand(struct work_struct *unused)
 {
@@ -1440,7 +1442,9 @@ static int cpufreq_governor_dbs(struct cpufreq_policy *policy,
 				return rc;
 			}
 
+#if 0
 			dbs_chown();
+#endif
 
 			/* policy latency is in nS. Convert it to uS first */
 			latency = policy->cpuinfo.transition_latency / 1000;
