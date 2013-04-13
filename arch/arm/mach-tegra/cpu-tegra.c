@@ -100,7 +100,7 @@ static struct workqueue_struct *suspend_wq;
 static struct delayed_work suspend_work;
 #define SUSPEND_DELAY_MS 500
 static unsigned int suspend_delay = SUSPEND_DELAY_MS;
-static unsigned int use_suspend_delay = 1;
+static unsigned int use_suspend_delay = 0;
 static void tegra_flush_delayed_suspend_work(void);
 static bool in_earlysuspend = false;
 static unsigned int use_suspend_boost = 0;
