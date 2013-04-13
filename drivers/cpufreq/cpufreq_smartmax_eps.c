@@ -78,7 +78,7 @@ static unsigned int ramp_down_step;
 /*
  * CPU freq will be increased if measured load > max_cpu_load;
  */
-#define DEFAULT_MAX_CPU_LOAD 90
+#define DEFAULT_MAX_CPU_LOAD 95
 static unsigned int max_cpu_load;
 
 /*
@@ -91,18 +91,18 @@ static unsigned int min_cpu_load;
  * The minimum amount of time in nsecs to spend at a frequency before we can ramp up.
  * Notice we ignore this when we are below the ideal frequency.
  */
-#define DEFAULT_UP_RATE 50000
+#define DEFAULT_UP_RATE 40000
 static unsigned int up_rate;
 
 /*
  * The minimum amount of time in nsecs to spend at a frequency before we can ramp down.
  * Notice we ignore this when we are above the ideal frequency.
  */
-#define DEFAULT_DOWN_RATE 100000
+#define DEFAULT_DOWN_RATE 80000
 static unsigned int down_rate;
 
 /* in nsecs */
-#define DEFAULT_SAMPLING_RATE 50000
+#define DEFAULT_SAMPLING_RATE 40000
 static unsigned int sampling_rate;
 
 /* in nsecs */
