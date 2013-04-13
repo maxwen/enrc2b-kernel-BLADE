@@ -1179,51 +1179,11 @@ static void dbs_chown(void)
 }
 #endif
 
-static void dbs_refresh_callback_ondemand(struct work_struct *unused)
-{
-	struct cpufreq_policy *policy;
-	struct cpu_dbs_info_s *this_dbs_info;
-	unsigned int nr_cpus;
-	unsigned int touch_poke_freq;
-	unsigned int cpu = smp_processor_id();
-
-	if (lock_policy_rwsem_write(cpu) < 0)
-		return;
-
-	this_dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
-	policy = this_dbs_info->cur_policy;
-
-	g_ui_counter = dbs_tuners_ins.ui_counter;
-	if(dbs_tuners_ins.ui_counter > 0)
-		dbs_tuners_ins.sampling_rate = dbs_tuners_ins.ui_sampling_rate;
-
-	/* We poke the frequency base on the online cpu number */
-	nr_cpus = num_online_cpus();
-
-	touch_poke_freq = Touch_poke_attr[nr_cpus-1];
-
-	if(touch_poke_freq == 0 || (policy && policy->cur >= touch_poke_freq)) {
-		unlock_policy_rwsem_write(cpu);
-		return;
-	}
-
-    if (policy) {
-        __cpufreq_driver_target(policy, touch_poke_freq,
-            CPUFREQ_RELATION_L);
-        this_dbs_info->prev_cpu_idle = get_cpu_idle_time(cpu,
-            &this_dbs_info->prev_cpu_wall);
-    }
-
-	unlock_policy_rwsem_write(cpu);
-}
-
 #if defined(CONFIG_BEST_TRADE_HOTPLUG)
 extern void bthp_set_floor_cap (unsigned int floor_freq,
                                 cputime64_t floor_time
                                 );
 #endif
-
-static DECLARE_WORK(dbs_refresh_work, dbs_refresh_callback_ondemand);
 
 extern
 int tegra_input_boost (
@@ -1238,7 +1198,7 @@ static int cpufreq_ondemand_input_boost_task (
    void *data
    )
 {
-    struct cpufreq_policy *policy;
+    //struct cpufreq_policy *policy;
     struct cpu_dbs_info_s *this_dbs_info;
     unsigned int nr_cpus;
     unsigned int touch_poke_freq;
@@ -1272,25 +1232,26 @@ static int cpufreq_ondemand_input_boost_task (
                             dbs_tuners_ins.floor_valid_time);
 #endif
 
-        if (lock_policy_rwsem_write(cpu) < 0)
-            continue;
+		// TODO: needed?
+        //if (lock_policy_rwsem_write(cpu) < 0)
+        //    continue;
 
         this_dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
         if (this_dbs_info) {
-            policy = this_dbs_info->cur_policy;
+            //policy = this_dbs_info->cur_policy;
 
             g_ui_counter = dbs_tuners_ins.ui_counter;
             if (dbs_tuners_ins.ui_counter > 0)
                 dbs_tuners_ins.sampling_rate = dbs_tuners_ins.ui_sampling_rate;
 
-            if (policy) {
+            //if (policy) {
                 this_dbs_info->prev_cpu_idle =
                    get_cpu_idle_time(cpu,
                                      &this_dbs_info->prev_cpu_wall);
-            }
+            //}
         }
 
-        unlock_policy_rwsem_write(cpu);
+        //unlock_policy_rwsem_write(cpu);
     }
 
     return 0;
@@ -1300,8 +1261,6 @@ static void dbs_input_event(struct input_handle *handle, unsigned int type,
 		unsigned int code, int value)
 {
 	if (dbs_tuners_ins.touch_poke && type == EV_SYN && code == SYN_REPORT) {
-		/*schedule_work(&dbs_refresh_work);*/
-
         if (boost_task_alive)
             wake_up_process (input_boost_task);
     }
