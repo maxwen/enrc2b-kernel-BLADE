@@ -58,7 +58,9 @@ extern int mpdecision_gmode_notifier(void);
 #endif
 
 #ifdef CONFIG_TEGRA_CPUQUIET
-extern void tegra_cpuquiet_force_gmode(void);
+extern int tegra_cpuquiet_force_gmode(void);
+extern int tegra_cpuquiet_force_gmode_locked(void);
+extern void tegra_cpuquiet_device_free(void);
 #endif
 
 struct work_struct ril_suspend_resume_work;
@@ -96,11 +98,12 @@ static struct pm_qos_request_list cap_cpu_num_req;
 static struct pm_qos_request_list boost_cpu_freq_req;
 static struct workqueue_struct *suspend_wq;
 static struct delayed_work suspend_work;
-#define SUSPEND_DELAY_MS 800
+#define SUSPEND_DELAY_MS 500
 static unsigned int suspend_delay = SUSPEND_DELAY_MS;
 static unsigned int use_suspend_delay = 1;
-static void tegra_cancel_delayed_suspend_work(void);
+static void tegra_flush_delayed_suspend_work(void);
 static bool in_earlysuspend = false;
+static unsigned int use_suspend_boost = 0;
 #endif
 
 #ifdef CONFIG_TEGRA3_VARIANT_CPU_OVERCLOCK
@@ -277,6 +280,32 @@ static struct kernel_param_ops suspend_delay_ops = {
 	.get = suspend_delay_get,
 };
 module_param_cb(suspend_delay, &suspend_delay_ops, &suspend_delay, 0644);
+
+static int use_suspend_boost_set(const char *arg, const struct kernel_param *kp)
+{
+	unsigned int tmp;
+	
+	if (1 != sscanf(arg, "%u", &tmp))
+		return -EINVAL;
+
+	if (tmp < 0 || tmp > 1)
+		return -EINVAL;
+			
+    use_suspend_boost = tmp;
+    pr_info("use_suspend_boost %d\n", use_suspend_boost);
+	return 0;
+}
+
+static int use_suspend_boost_get(char *buffer, const struct kernel_param *kp)
+{
+	return param_get_uint(buffer, kp);
+}
+
+static struct kernel_param_ops use_suspend_boost_ops = {
+	.set = use_suspend_boost_set,
+	.get = use_suspend_boost_get,
+};
+module_param_cb(use_suspend_boost, &use_suspend_boost_ops, &use_suspend_boost, 0644);
 #endif
 
 static unsigned int cpu_user_cap = 0;
@@ -2228,9 +2257,12 @@ int tegra_cpu_set_speed_cap(unsigned int *speed_cap)
 	return ret;
 }
 
+#if 0
 int tegra_suspended_target(unsigned int target_freq)
 {
 	unsigned int new_speed = target_freq;
+
+	pr_info("tegra_suspended_target: new_speed=%d\n", new_speed);
 
 	if (!is_suspended)
 		return -EBUSY;
@@ -2241,12 +2273,20 @@ int tegra_suspended_target(unsigned int target_freq)
 
 	return tegra_update_cpu_speed(new_speed);
 }
+#endif
 
 int tegra_input_boost (int cpu, unsigned int target_freq)
 {
     int ret = 0;
     unsigned int curfreq = 0, scaling_max_limit = 0;
+    bool free_device = false;
 
+	if (is_suspended){
+		return -EBUSY;
+	}
+
+    mutex_lock(&tegra_cpu_lock);
+    
     curfreq = tegra_getspeed(0);
 
     /* get global caped limit */
@@ -2262,17 +2302,17 @@ int tegra_input_boost (int cpu, unsigned int target_freq)
 
     /* dont need to boost cpu at this moment */
     if (!curfreq || curfreq >= target_freq) {
+    	mutex_unlock(&tegra_cpu_lock);
         return -EINVAL;
     }
 
 #ifdef CONFIG_TEGRA_CPUQUIET
-	if (target_freq > T3_LP_MAX_FREQ && is_lp_cluster())
+	if (target_freq > T3_LP_MAX_FREQ && is_lp_cluster()){
 		// disable LP mode asap
-		// must be outside tegra_cpu_lock mutex!
-		tegra_cpuquiet_force_gmode();
+		if (!tegra_cpuquiet_force_gmode_locked())
+			free_device = true;
+	}
 #endif
-
-    mutex_lock(&tegra_cpu_lock);
     
 #if CPU_FREQ_DEBUG
 	pr_info("tegra_input_boost: cpu=%d curfreq =%d -> target_freq=%d\n", cpu, curfreq, target_freq);
@@ -2285,6 +2325,12 @@ int tegra_input_boost (int cpu, unsigned int target_freq)
 
     mutex_unlock(&tegra_cpu_lock);
 
+#ifdef CONFIG_TEGRA_CPUQUIET
+	// must be outsde of mutex
+	if (free_device){
+		tegra_cpuquiet_device_free();
+	}
+#endif
     return ret;
 }
 EXPORT_SYMBOL (tegra_input_boost);
@@ -2296,22 +2342,30 @@ static int tegra_target(struct cpufreq_policy *policy,
 	int idx;
 	unsigned int freq;
 	int ret = 0;
+	bool free_device = false;
+	
+	if (is_suspended){
+		return -EBUSY;
+	}
 
+	mutex_lock(&tegra_cpu_lock);
+		
 	ret = cpufreq_frequency_table_target(policy, freq_table, target_freq,
 		relation, &idx);
-	if (ret)
+	if (ret){
+		mutex_unlock(&tegra_cpu_lock);
 		return ret;
-
+	}
+	
 	freq = freq_table[idx].frequency;
 	
 #ifdef CONFIG_TEGRA_CPUQUIET
-	if (target_freq > T3_LP_MAX_FREQ && is_lp_cluster())
+	if (target_freq > T3_LP_MAX_FREQ && is_lp_cluster()){
 		// disable LP mode asap
-		// must be outside tegra_cpu_lock mutex!
-		tegra_cpuquiet_force_gmode();
+		if (!tegra_cpuquiet_force_gmode_locked())
+			free_device = true;
+	}
 #endif
-
-	mutex_lock(&tegra_cpu_lock);
 
 #if CPU_FREQ_DEBUG
 	pr_info("tegra_target: freq=%d\n", freq);
@@ -2322,36 +2376,60 @@ static int tegra_target(struct cpufreq_policy *policy,
 
 	mutex_unlock(&tegra_cpu_lock);
 
+#ifdef CONFIG_TEGRA_CPUQUIET
+	// must be outsde of mutex
+	if (free_device){
+		tegra_cpuquiet_device_free();
+	}
+#endif
 	return ret;
+}
+
+static void __maybe_unused tegra_unplug_all_cpus(void)
+{
+	unsigned int cpu;
+    
+	for_each_online_cpu(cpu) {
+		if (cpu == 0)
+			continue;
+		pr_info("tegra_unplug_all_cpus: cpu=%d\n", cpu);
+		cpu_down(cpu);
+	}
 }
 
 static int tegra_pm_notify(struct notifier_block *nb, unsigned long event,
 	void *dummy)
-{
-#ifdef CONFIG_HAS_EARLYSUSPEND
-	// must be outside of tegra_cpu_lock mutex!
-	if (event == PM_SUSPEND_PREPARE) {
-		tegra_cancel_delayed_suspend_work();
-	}
-#endif
-	
-	mutex_lock(&tegra_cpu_lock);
+{	
+	pr_info("tegra_pm_notify: event %ld\n", event);
+		
 	if (event == PM_SUSPEND_PREPARE) {
 		unsigned int freq;
 		is_suspended = true;
+		
+#ifdef CONFIG_HAS_EARLYSUSPEND
+		if (use_suspend_delay)
+			// must be outside of mutex
+			tegra_flush_delayed_suspend_work();
+#endif
+
+		mutex_lock(&tegra_cpu_lock);
 		freq=freq_table[suspend_index].frequency;
 		pr_info("tegra_pm_notify: suspend: setting frequency to %d kHz\n", freq);
 		tegra_update_cpu_speed(freq);
 		tegra_auto_hotplug_governor(freq, true);
+		mutex_unlock(&tegra_cpu_lock);	
 	} else if (event == PM_POST_SUSPEND) {
 		unsigned int freq;
 		is_suspended = false;
+				
+		mutex_lock(&tegra_cpu_lock);
 		tegra_cpu_edp_init(true);
 		
 		tegra_cpu_set_speed_cap(&freq);
 		pr_info("tegra_pm_notify: resume: restoring frequency to %d kHz\n", freq);
+		mutex_unlock(&tegra_cpu_lock);	
 	}
-	mutex_unlock(&tegra_cpu_lock);
+
 	return NOTIFY_OK;
 }
 
@@ -2465,9 +2543,12 @@ static void tegra_delayed_suspend_work(struct work_struct *work)
 	if(!in_earlysuspend)
 		return;
 
-	pr_info("tegra_delayed_suspend_work: clean cpu freq boost\n");
 	in_earlysuspend = false;
-	pm_qos_update_request(&boost_cpu_freq_req, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
+
+	if (use_suspend_boost) {
+		pr_info("tegra_delayed_suspend_work: clean cpu freq boost\n");
+		pm_qos_update_request(&boost_cpu_freq_req, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
+	}
 	
 	pr_info("tegra_delayed_suspend_work: cap cpu freq to %d\n", suspend_cap_freq);
 	pm_qos_update_request(&cap_cpu_freq_req, (s32)suspend_cap_freq);
@@ -2476,33 +2557,20 @@ static void tegra_delayed_suspend_work(struct work_struct *work)
 		pr_info("tegra_delayed_suspend_work: cap max cpu to %d\n", suspend_cap_cpu_num);
 		pm_qos_update_request(&cap_cpu_num_req, (s32)suspend_cap_cpu_num);
 	}
-#if 0
-	unsigned int scaling_min_freq;
-	// TODO: if scaling_min_freq != 51000 is set this will 
-	// disable deep sleep now
-	// how can we overrule cpufreq?
-	scaling_min_freq = get_cpu_freq_limit_min(0);
-	if (scaling_min_freq != T3_CPU_MIN_FREQ) {
-		pr_info("tegra_delayed_suspend_work: scaling_min_freq %d\n", scaling_min_freq);
-	}
-#endif
 }
 
-static void tegra_cancel_delayed_suspend_work(void)
+static __maybe_unused void tegra_flush_delayed_suspend_work(void)
 {
-	// delayed suspend worker hasnt run so far
+	// delayed suspend worker hasnt run so far - run it now
 	if(in_earlysuspend){
-		pr_info("tegra_cancel_delayed_suspend_work\n");
-		cancel_delayed_work_sync(&suspend_work);
-		tegra_delayed_suspend_work(NULL);
+		pr_info("tegra_flush_delayed_suspend_work\n");
+		flush_delayed_work_sync(&suspend_work);
 	}
 }
 
 static void tegra_cpufreq_early_suspend(struct early_suspend *h)
 {
 	// this is the last suspend handler
-	// queue suspend_cap_handler to avoid caping is causing
-	// hickups e.g. when playing audio
 	if (use_suspend_delay){
 		pr_info("tegra_cpufreq_early_suspend: queue suspend handler\n");
 		queue_delayed_work(suspend_wq, &suspend_work, msecs_to_jiffies(suspend_delay));
@@ -2525,30 +2593,37 @@ static void tegra_cpufreq_late_resume(struct early_suspend *h)
 		pm_qos_update_request(&cap_cpu_num_req, (s32)PM_QOS_MAX_ONLINE_CPUS_DEFAULT_VALUE);
 	}
 
-	// boost at the beginning of the resume
-	pr_info("tegra_cpufreq_late_resume: boost cpu freq\n");
-	tegra_update_cpu_speed(tegra_get_suspend_boost_freq());
-
 	in_earlysuspend = true;
-	pm_qos_update_request(&boost_cpu_freq_req, (s32)tegra_get_suspend_boost_freq());
+	
+	if (use_suspend_boost) {
+		// boost at the beginning of the resume
+		pr_info("tegra_cpufreq_late_resume: boost cpu freq\n");
+		tegra_update_cpu_speed(tegra_get_suspend_boost_freq());
+		pm_qos_update_request(&boost_cpu_freq_req, (s32)tegra_get_suspend_boost_freq());
+	}
 }
 
 static void tegra_cpufreq_performance_early_suspend(struct early_suspend *h)
 {
 	// this is the first suspend handler
-	pr_info("tegra_cpufreq_performance_early_suspend: boost cpu freq\n");
-	tegra_update_cpu_speed(tegra_get_suspend_boost_freq());
-
 	in_earlysuspend = true;
-	pm_qos_update_request(&boost_cpu_freq_req, (s32)tegra_get_suspend_boost_freq());	
+	
+	if (use_suspend_boost) {
+		pr_info("tegra_cpufreq_performance_early_suspend: boost cpu freq\n");
+		tegra_update_cpu_speed(tegra_get_suspend_boost_freq());
+		pm_qos_update_request(&boost_cpu_freq_req, (s32)tegra_get_suspend_boost_freq());	
+	}
 }
 
 static void tegra_cpufreq_performance_late_resume(struct early_suspend *h)
 {
 	// this is the last resume handler
-	pr_info("tegra_cpufreq_performance_late_resume: clean cpu freq boost\n");
 	in_earlysuspend = false;
-	pm_qos_update_request(&boost_cpu_freq_req, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
+
+	if (use_suspend_boost) {
+		pr_info("tegra_cpufreq_performance_late_resume: clean cpu freq boost\n");
+		pm_qos_update_request(&boost_cpu_freq_req, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
+	}
 }
 
 #endif
