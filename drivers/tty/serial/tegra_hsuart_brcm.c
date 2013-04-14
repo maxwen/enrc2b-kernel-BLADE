@@ -267,9 +267,10 @@ static ssize_t store_a2dp_tuning_freq(struct device *dev, struct device_attribut
 	
 	if (1 != sscanf(buf, "%u", &tmp))
 		return -EINVAL;
-		
-	if (a2dp_tuning_freq == tmp)
-		return count;
+
+	// 0 means reset to default
+	if (tmp == 0)
+		tmp = A2DP_CPU_FREQ_MIN;
 		
 	a2dp_tuning_freq = tmp;
     pr_info("a2dp_tuning_freq %d\n", a2dp_tuning_freq);
