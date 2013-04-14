@@ -68,7 +68,11 @@ static int audio_min_freq_set(const char *arg, const struct kernel_param *kp)
 
 	if (1 != sscanf(arg, "%u", &tmp))
 		return -EINVAL;
-		
+
+	// 0 means reset to default
+	if (tmp == 0)
+		tmp = AUD_CPU_FREQ_MIN;
+			
 	audio_min_freq = tmp;
     pr_info("audio_min_freq %u\n", audio_min_freq);
    	return 0;
