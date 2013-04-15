@@ -152,6 +152,10 @@ static int update_core_config(unsigned int cpunumber, bool up)
 	int max_cpus = tegra_cpq_max_cpus();
 	int min_cpus = tegra_cpq_min_cpus();
 
+#if CPUQUIET_DEBUG_VERBOSE
+	pr_info(CPUQUIET_TAG "%s\n", __func__);
+#endif
+				
 	if (cpq_state == TEGRA_CPQ_DISABLED || cpunumber >= nr_cpu_ids)
 		return ret;
 
@@ -159,7 +163,8 @@ static int update_core_config(unsigned int cpunumber, bool up)
 	 else if we are currently switching to LP and an up
 	 comes we can end up with more then 1 core up and
 	 governor stopped and !lp mode */
-	mutex_lock(&hotplug_lock);
+    if (!mutex_trylock (&hotplug_lock))
+        return -EBUSY;
 			
 	if (up) {
 		if(is_lp_cluster()) {
@@ -222,9 +227,14 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 	int device_busy = -1;
 	cputime64_t on_time = 0;
 
-	mutex_lock(tegra3_cpu_lock);
+#if CPUQUIET_DEBUG_VERBOSE
+	pr_info(CPUQUIET_TAG "%s\n", __func__);
+#endif
 
-	mutex_lock(&hotplug_lock);
+    if (!mutex_trylock (&hotplug_lock))
+        return;
+
+	mutex_lock(tegra3_cpu_lock);
 	
 	switch(cpq_state) {
 		case TEGRA_CPQ_DISABLED:
@@ -244,7 +254,7 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 			}
 #if CPUQUIET_DEBUG_VERBOSE
 			else
-				pr_info(CPUQUIET_TAG "skipping queued TEGRA_CPQ_SWITCH_TO_G - cond failed");
+				pr_info(CPUQUIET_TAG "skipping queued TEGRA_CPQ_SWITCH_TO_G - cond failed\n");
 #endif
 			break;
 		case TEGRA_CPQ_SWITCH_TO_LP:
@@ -258,23 +268,23 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 				}
 #if CPUQUIET_DEBUG_VERBOSE
 				else
-					pr_info(CPUQUIET_TAG "skipping queued TEGRA_CPQ_SWITCH_TO_LP - switch_clk_to_lpmode failed");
+					pr_info(CPUQUIET_TAG "skipping queued TEGRA_CPQ_SWITCH_TO_LP - switch_clk_to_lpmode failed\n");
 #endif
 			}
 #if CPUQUIET_DEBUG_VERBOSE
 			else
-				pr_info(CPUQUIET_TAG "skipping queued TEGRA_CPQ_SWITCH_TO_LP - cond failed");
+				pr_info(CPUQUIET_TAG "skipping queued TEGRA_CPQ_SWITCH_TO_LP - cond failed\n");
 #endif			
 			break;
 		default:
 			pr_err(CPUQUIET_TAG "%s: invalid tegra hotplug state %d\n",
 		       __func__, cpq_state);
 	}
-
-	mutex_unlock(&hotplug_lock);
 	
 	mutex_unlock(tegra3_cpu_lock);
 
+	mutex_unlock(&hotplug_lock);
+	
 	if (device_busy == 1) {
 		cpuquiet_device_busy();
 	} else if (!device_busy) {
