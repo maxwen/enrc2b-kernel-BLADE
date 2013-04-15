@@ -669,7 +669,7 @@ static ssize_t store_scaling_max_freq_limit(struct cpufreq_policy *policy,
 		return -EINVAL;
 
 	for (i = 0; i < 3; i++){
-		if (cpu_freq_limits_user[i] != 0 && cpu_freq_limits_user[i] < tegra_lpmode_freq_max())
+		if (cpu_freq_limits_user[i] != 0 && cpu_freq_limits_user[i] < T3_CPU_MIN_FREQ)
 			return -EINVAL;
 	}
 	
@@ -723,7 +723,7 @@ static ssize_t store_scaling_max_freq(struct cpufreq_policy *policy,
 	if (ret != 1)
 		return -EINVAL;
 
-	if (max_freq != 0 && max_freq < tegra_lpmode_freq_max())
+	if (max_freq != 0 && max_freq < T3_CPU_MIN_FREQ)
 		return -EINVAL;
 
 	// maxwen: this will overwrite any values set by
