@@ -75,4 +75,5 @@ extern unsigned int tegra_pmqos_cpu_freq_limits_min[];
 extern unsigned int tegra_cpu_freq_max(unsigned int cpu);
 extern unsigned int tegra_get_suspend_boost_freq(void);
 extern unsigned int tegra_lpmode_freq_max(void);
+extern void tegra_lpmode_freq_max_changed(void);
 

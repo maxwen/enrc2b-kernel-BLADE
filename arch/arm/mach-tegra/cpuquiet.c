@@ -611,6 +611,12 @@ static int tegra_auto_sysfs(void)
 	return err;
 }
 
+void tegra_lpmode_freq_max_changed(void)
+{
+	idle_top_freq = tegra_lpmode_freq_max();
+	pr_info(CPUQUIET_TAG "%s: idle_top_freq = %d\n", __func__, idle_top_freq);
+}
+
 int tegra_auto_hotplug_init(struct mutex *cpu_lock)
 {
 	int err;

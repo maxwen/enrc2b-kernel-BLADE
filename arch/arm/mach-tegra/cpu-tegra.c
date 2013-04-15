@@ -457,15 +457,23 @@ module_param_cb(enable_oc, &enable_oc_ops, &enable_oc, 0644);
 
 static int enable_lp_oc_set(const char *arg, const struct kernel_param *kp)
 {
+	bool update_suspend_freq = false;
+	
     int ret = param_set_int(arg, kp);
 	if (ret)
 		return ret;
 
     pr_info("enable_lp_oc %d\n", enable_lp_oc);
     
+    update_suspend_freq = suspend_cap_freq_default == suspend_cap_freq;
     /* reset */
-    suspend_cap_freq = tegra_lpmode_freq_max();
-	suspend_cap_freq_default = suspend_cap_freq;
+	suspend_cap_freq_default = tegra_lpmode_freq_max();
+	
+	if (update_suspend_freq)
+    	suspend_cap_freq = suspend_cap_freq_default;
+    	
+	/* tell clients that lpmode max freq has changed */
+	tegra_lpmode_freq_max_changed();
 
 	return 0;
 }
@@ -1042,17 +1050,26 @@ module_param(mips_aggressive_factor, uint, 0644);
 EXPORT_SYMBOL (mips_aggressive_factor);
 #endif
 
-// maxwen: apply all limits to a frequency
-static unsigned int get_scaled_freq (unsigned int target_freq)
+/* limit target_freq to all active freq limits */
+static unsigned int get_scaled_freq(unsigned int cpu, unsigned int target_freq)
 {
+    unsigned int scaling_max_limit = 0;
+    
     /* chip-dependent, such as thermal throttle, edp, and user-defined freq. cap */
     target_freq = tegra_throttle_governor_speed (target_freq);
 	target_freq = edp_governor_speed (target_freq);
 	target_freq = user_cap_speed (target_freq);
 	
+    /* get any per cpu defined limit */
+    scaling_max_limit = get_cpu_freq_limit(cpu);
+
+    /* apply any scaling max limits */
+    if (scaling_max_limit < target_freq)
+        target_freq = scaling_max_limit;
+	
     return target_freq;
 }
-
+    
 unsigned int best_core_to_turn_up (void) {
     /* mitigate high temperature, 0 -> 3 -> 2 -> 1 */
     if (!cpu_online (3))
@@ -1364,7 +1381,7 @@ static unsigned int big_two_mp_adjustment (
 
             i_cpu_speed =
                 max(i_cpu_speed,
-                    get_scaled_freq (rate + speed_added_to_big2));
+                    get_scaled_freq (cpu, rate + speed_added_to_big2));
             break;
 
         case BTHP_DECISION(CPU_DOWN):
@@ -1782,7 +1799,7 @@ static unsigned int cpu_get_min_speed (
     unsigned int input_boost_freq = 0UL;
 
     if (time_before_eq64 (now, iboost_floor_time))
-        input_boost_freq = get_scaled_freq (iboost_floor_freq);
+        input_boost_freq = get_scaled_freq (0, iboost_floor_freq);
 
     /* we just overwrite scaling_min_freq to cap minimum speed for all cpus */
     return max (per_cpu(bthp_cpu, 0).policy_qos.min_freq,
@@ -1891,7 +1908,7 @@ static unsigned int _do_trade_bargain (
     /* trade MUST be legal, limited under policies of pm_qos, cpufreq, ... */
     params.qos.min_freq = cpu_get_min_speed (params.cpu);
     params.qos.max_freq =
-        get_scaled_freq (cpu_get_max_speed (params.cpu));
+        get_scaled_freq (params.cpu, cpu_get_max_speed (params.cpu));
     params.qos.min_cpus = pm_qos_request (PM_QOS_MIN_ONLINE_CPUS)? :1;
     params.qos.max_cpus = pm_qos_request (PM_QOS_MAX_ONLINE_CPUS)? :NR_CPUS;
 
@@ -2205,12 +2222,13 @@ int tegra_cpu_set_speed_cap(unsigned int *speed_cap)
 	int ret = 0;
     unsigned int new_speed = tegra_cpu_highest_speed();
     unsigned int curr_speed = tegra_getspeed(0);
-    
+    int cpu = smp_processor_id();
+        
 #if defined(CONFIG_BEST_TRADE_HOTPLUG)
     unsigned int speed_wocap = 0UL;
     unsigned int speed_before_bthp = 0UL;
     unsigned int min_speed = cpu_get_min_speed (0);
-    int cpu = smp_processor_id();
+
   
     bool forced_kick = false;
 
@@ -2230,7 +2248,8 @@ int tegra_cpu_set_speed_cap(unsigned int *speed_cap)
 	if (is_suspended)
 		return -EBUSY;
 
-	new_speed = get_scaled_freq(new_speed);
+	/* apply all active freq limits */
+	new_speed = get_scaled_freq(cpu, new_speed);
 
 #if defined(CONFIG_BEST_TRADE_HOTPLUG)
     /* do a best trade for power/performance,
@@ -2327,7 +2346,7 @@ int tegra_suspended_target(unsigned int target_freq)
 int tegra_input_boost (int cpu, unsigned int target_freq)
 {
     int ret = 0;
-    unsigned int curfreq = 0, scaling_max_limit = 0;
+    unsigned int curfreq = 0;
 #ifdef CONFIG_TEGRA_CPUQUIET
     bool free_device = false;
 #endif
@@ -2340,16 +2359,8 @@ int tegra_input_boost (int cpu, unsigned int target_freq)
     
     curfreq = tegra_getspeed(0);
 
-    /* get global caped limit */
-    target_freq = get_scaled_freq(target_freq);
-
-    /* get any per cpu defined limit cause input_boost
-     might not be validated against policy->max */
-    scaling_max_limit = get_cpu_freq_limit(cpu);
-
-    /* apply any scaling max limits */
-    if (scaling_max_limit < target_freq)
-        target_freq = scaling_max_limit;
+	/* apply all active freq limits */
+    target_freq = get_scaled_freq(cpu, target_freq);
 
     /* dont need to boost cpu at this moment */
     if (!curfreq || curfreq >= target_freq) {
@@ -2402,6 +2413,9 @@ static int tegra_target(struct cpufreq_policy *policy,
 	}
 
 	mutex_lock(&tegra_cpu_lock);
+
+	/* apply all active freq limits */
+    target_freq = get_scaled_freq(policy->cpu, target_freq);
 		
 	ret = cpufreq_frequency_table_target(policy, freq_table, target_freq,
 		relation, &idx);
@@ -2746,8 +2760,8 @@ static int __init tegra_cpufreq_init(void)
 	INIT_DELAYED_WORK(&suspend_work, tegra_delayed_suspend_work);
 #endif
 
-	suspend_cap_freq = tegra_lpmode_freq_max();
-	suspend_cap_freq_default = suspend_cap_freq;
+	suspend_cap_freq_default = tegra_lpmode_freq_max();
+    suspend_cap_freq = suspend_cap_freq_default;
 	
 	ret = cpufreq_register_notifier(
 		&tegra_cpufreq_policy_nb, CPUFREQ_POLICY_NOTIFIER);

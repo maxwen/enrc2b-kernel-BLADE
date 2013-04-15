@@ -1192,6 +1192,12 @@ void tegra_auto_hotplug_governor(unsigned int cpu_freq, bool suspend)
 	}
 }
 
+void tegra_lpmode_freq_max_changed(void)
+{
+	idle_top_freq = tegra_lpmode_freq_max();
+	pr_info("%s: idle_top_freq = %d\n", __func__, idle_top_freq);
+}
+
 int tegra_auto_hotplug_init(struct mutex *cpu_lock)
 {
 	/*

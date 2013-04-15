@@ -981,6 +981,12 @@ static struct notifier_block max_cpus_notifier = {
 	.notifier_call = max_cpus_notify,
 };
 
+void tegra_lpmode_freq_max_changed(void)
+{
+	idle_top_freq = tegra_lpmode_freq_max();
+	pr_info(MPDEC_TAG "%s: idle_top_freq = %d\n", __func__, idle_top_freq);
+}
+
 static int __init tegra_mpdec_init(void)
 {
 	int cpu, rc, err = 0;
@@ -1003,7 +1009,7 @@ static int __init tegra_mpdec_init(void)
 		per_cpu(tegra_mpdec_cpudata, cpu).online = true;
 	}
 
-        was_paused = true;
+	was_paused = true;
 
 	tegra_mpdec_workq = alloc_workqueue(
 		"mpdec", WQ_UNBOUND | WQ_RESCUER | WQ_FREEZABLE, 1);
