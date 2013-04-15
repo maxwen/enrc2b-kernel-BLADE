@@ -37,7 +37,7 @@ typedef enum {
 	IDLE,
 	DOWN,
 	UP,
-} rq_stats_STATE;
+} RQ_STATS_STATE;
 
 static struct delayed_work rq_stats_work;
 static struct kobject *rq_stats_kobject;
@@ -45,7 +45,7 @@ static struct kobject *rq_stats_kobject;
 /* configurable parameters */
 static unsigned int sample_rate = 70;		/* msec */
 static unsigned int start_delay = 20000;
-static rq_stats_STATE rq_stats_state;
+static RQ_STATS_STATE rq_stats_state;
 static struct workqueue_struct *rq_stats_wq;
 
 static unsigned int NwNs_Threshold[8] = {20, 12, 24, 14, 30, 16, 0, 18};
