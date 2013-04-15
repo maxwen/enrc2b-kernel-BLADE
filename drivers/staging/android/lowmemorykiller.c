@@ -77,7 +77,7 @@ static unsigned long lowmem_fork_boost_timeout;
 static uint32_t lowmem_fork_boost = 1;
 static int last_min_adj = OOM_ADJUST_MAX + 1;;
 
-extern int compact_nodes(void);
+extern int compact_nodes(bool);
 
 #define lowmem_print(level, x...)			\
 	do {						\
@@ -306,7 +306,7 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 	read_unlock(&tasklist_lock);
 
     if (selected)
-        compact_nodes();
+        compact_nodes(false);
 
 	return rem;
 }
