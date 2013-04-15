@@ -53,10 +53,10 @@
  * lowering the frequency towards the ideal frequency is faster than below it.
  */
 
-#define DEFAULT_SUSPEND_IDEAL_FREQ T3_LP_MAX_FREQ
+#define DEFAULT_SUSPEND_IDEAL_FREQ GOV_IDLE_FREQ
 static unsigned int suspend_ideal_freq;
 
-#define DEFAULT_AWAKE_IDEAL_FREQ T3_LP_MAX_FREQ
+#define DEFAULT_AWAKE_IDEAL_FREQ GOV_IDLE_FREQ
 static unsigned int awake_ideal_freq;
 
 /*
@@ -64,7 +64,7 @@ static unsigned int awake_ideal_freq;
  * Zero disables and causes to always jump straight to max frequency.
  * When below the ideal freqeuncy we always ramp up to the ideal freq.
  */
-#define DEFAULT_RAMP_UP_STEP 300000
+#define DEFAULT_RAMP_UP_STEP 150000
 static unsigned int ramp_up_step;
 
 /*
@@ -78,7 +78,7 @@ static unsigned int ramp_down_step;
 /*
  * CPU freq will be increased if measured load > max_cpu_load;
  */
-#define DEFAULT_MAX_CPU_LOAD 85
+#define DEFAULT_MAX_CPU_LOAD 80
 static unsigned int max_cpu_load;
 
 /*

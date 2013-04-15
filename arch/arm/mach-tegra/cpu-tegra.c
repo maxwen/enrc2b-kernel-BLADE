@@ -66,7 +66,8 @@ extern void tegra_cpuquiet_device_free(void);
 struct work_struct ril_suspend_resume_work;
 
 /* frequency cap used during suspend (screen off)*/
-static unsigned int suspend_cap_freq = SUSPEND_CPU_FREQ_MAX;
+static unsigned int suspend_cap_freq;
+static unsigned int suspend_cap_freq_default;
 static unsigned int suspend_cap_cpu_num = SUSPEND_CPU_NUM_MAX;
 
 // maxwen: assumes 4 cores!
@@ -107,7 +108,8 @@ static unsigned int use_suspend_boost = 0;
 #endif
 
 #ifdef CONFIG_TEGRA3_VARIANT_CPU_OVERCLOCK
-int enable_oc = 0;
+bool enable_oc = false;
+bool enable_lp_oc = false;
 #endif
 
 // maxwen: see tegra_cpu_init
@@ -148,6 +150,21 @@ unsigned int tegra_cpu_freq_max(unsigned int cpu)
 	return T3_CPU_FREQ_MAX;
 }
 
+#define T3_LP_MAX_FREQ_DEFAULT     		475000
+
+unsigned int tegra_lpmode_freq_max(void)
+{
+	struct clk *cpu_lp_clk;
+	unsigned int max_rate; 
+
+	if (enable_lp_oc) {
+    	cpu_lp_clk = clk_get_sys(NULL, "cpu_lp");
+    	max_rate = clk_get_max_rate(cpu_lp_clk) / 1000;
+    } else
+    	max_rate = T3_LP_MAX_FREQ_DEFAULT;
+	return max_rate;
+}
+
 static bool force_policy_max;
 
 static int force_policy_max_set(const char *arg, const struct kernel_param *kp)
@@ -183,6 +200,10 @@ static int suspend_cap_freq_set(const char *arg, const struct kernel_param *kp)
 	if (1 != sscanf(arg, "%d", &tmp))
 		return -EINVAL;
 
+	// 0 means reset to default
+	if (tmp == 0)
+		tmp = suspend_cap_freq_default;
+		
     suspend_cap_freq = tmp;
     pr_info("suspend_cap_freq %d\n", suspend_cap_freq);
 	return 0;
@@ -206,11 +227,12 @@ static int suspend_cap_cpu_num_set(const char *arg, const struct kernel_param *k
 	if (1 != sscanf(arg, "%d", &tmp))
 		return -EINVAL;
 
-	if (tmp == PM_QOS_MAX_ONLINE_CPUS_DEFAULT_VALUE)
-		tmp = CONFIG_NR_CPUS;
-
 	if (tmp < 1 || tmp > CONFIG_NR_CPUS)
 		return -EINVAL;
+
+	// 0 means reset to default
+	if (tmp == 0)
+		tmp = SUSPEND_CPU_NUM_MAX;
 			
     suspend_cap_cpu_num = tmp;
     pr_info("suspend_cap_cpu_num %d\n", suspend_cap_cpu_num);
@@ -432,6 +454,33 @@ static struct kernel_param_ops enable_oc_ops = {
 };
 
 module_param_cb(enable_oc, &enable_oc_ops, &enable_oc, 0644);
+
+static int enable_lp_oc_set(const char *arg, const struct kernel_param *kp)
+{
+    int ret = param_set_int(arg, kp);
+	if (ret)
+		return ret;
+
+    pr_info("enable_lp_oc %d\n", enable_lp_oc);
+    
+    /* reset */
+    suspend_cap_freq = tegra_lpmode_freq_max();
+	suspend_cap_freq_default = suspend_cap_freq;
+
+	return 0;
+}
+
+static int enable_lp_oc_get(char *buffer, const struct kernel_param *kp)
+{
+	return param_get_uint(buffer, kp);
+}
+
+static struct kernel_param_ops enable_lp_oc_ops = {
+	.set = enable_lp_oc_set,
+	.get = enable_lp_oc_get,
+};
+
+module_param_cb(enable_lp_oc, &enable_lp_oc_ops, &enable_lp_oc, 0644);
 #endif
 
 /* disable edp limitations */
@@ -810,13 +859,13 @@ int tegra_update_cpu_speed(unsigned long rate)
 		freqs.new = rate / 1000;
 
 #ifndef CONFIG_TEGRA_CPUQUIET
-	if (rate_save > T3_LP_MAX_FREQ) {
+	if (rate_save > tegra_lpmode_freq_max()) {
 		if (is_lp_cluster()) {
 #if CPU_FREQ_DEBUG			
 			pr_info("tegra_update_cpu_speed: LP off %d %d %ld\n", freqs.old, freqs.new, rate_save);
 #endif
 			/* set rate to max of LP mode */
-			ret = clk_set_rate(cpu_clk, T3_LP_MAX_FREQ * 1000);
+			ret = clk_set_rate(cpu_clk, tegra_lpmode_freq_max() * 1000);
 #ifndef CONFIG_TEGRA_MPDECISION
 			/* change to g mode */
 			clk_set_parent(cpu_clk, cpu_g_clk);
@@ -2309,7 +2358,7 @@ int tegra_input_boost (int cpu, unsigned int target_freq)
     }
 
 #ifdef CONFIG_TEGRA_CPUQUIET
-	if (target_freq > T3_LP_MAX_FREQ && is_lp_cluster()){
+	if (target_freq > tegra_lpmode_freq_max() && is_lp_cluster()){
 		// disable LP mode asap
 		if (!tegra_cpuquiet_force_gmode_locked())
 			free_device = true;
@@ -2364,7 +2413,7 @@ static int tegra_target(struct cpufreq_policy *policy,
 	freq = freq_table[idx].frequency;
 	
 #ifdef CONFIG_TEGRA_CPUQUIET
-	if (target_freq > T3_LP_MAX_FREQ && is_lp_cluster()){
+	if (target_freq > tegra_lpmode_freq_max() && is_lp_cluster()){
 		// disable LP mode asap
 		if (!tegra_cpuquiet_force_gmode_locked())
 			free_device = true;
@@ -2557,7 +2606,7 @@ static void tegra_delayed_suspend_work(struct work_struct *work)
 	pr_info("tegra_delayed_suspend_work: cap cpu freq to %d\n", suspend_cap_freq);
 	pm_qos_update_request(&cap_cpu_freq_req, (s32)suspend_cap_freq);
 	
-	if (suspend_cap_freq > T3_LP_MAX_FREQ) {
+	if (suspend_cap_freq > tegra_lpmode_freq_max()) {
 		pr_info("tegra_delayed_suspend_work: cap max cpu to %d\n", suspend_cap_cpu_num);
 		pm_qos_update_request(&cap_cpu_num_req, (s32)suspend_cap_cpu_num);
 	}
@@ -2592,7 +2641,7 @@ static void tegra_cpufreq_late_resume(struct early_suspend *h)
 	pr_info("tegra_cpufreq_late_resume: clean cpu freq cap\n");
 	pm_qos_update_request(&cap_cpu_freq_req, (s32)PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE);
 
-	if (suspend_cap_freq > T3_LP_MAX_FREQ) {
+	if (suspend_cap_freq > tegra_lpmode_freq_max()) {
 		pr_info("tegra_cpufreq_late_resume: clean max cpu cap\n");
 		pm_qos_update_request(&cap_cpu_num_req, (s32)PM_QOS_MAX_ONLINE_CPUS_DEFAULT_VALUE);
 	}
@@ -2697,6 +2746,9 @@ static int __init tegra_cpufreq_init(void)
 	INIT_DELAYED_WORK(&suspend_work, tegra_delayed_suspend_work);
 #endif
 
+	suspend_cap_freq = tegra_lpmode_freq_max();
+	suspend_cap_freq_default = suspend_cap_freq;
+	
 	ret = cpufreq_register_notifier(
 		&tegra_cpufreq_policy_nb, CPUFREQ_POLICY_NOTIFIER);
 	if (ret){

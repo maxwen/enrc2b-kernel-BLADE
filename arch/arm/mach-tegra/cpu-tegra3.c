@@ -38,6 +38,7 @@
 #include "pm.h"
 #include "cpu-tegra.h"
 #include "clock.h"
+#include "tegra_pmqos.h"
 
 #define INITIAL_STATE		TEGRA_HP_DISABLED
 #define UP2G0_DELAY_MS		70
@@ -1217,7 +1218,7 @@ int tegra_auto_hotplug_init(struct mutex *cpu_lock)
 	if (IS_ERR(cpu_clk) || IS_ERR(cpu_g_clk) || IS_ERR(cpu_lp_clk))
 		return -ENOENT;
 
-	idle_top_freq = clk_get_max_rate(cpu_lp_clk) / 1000;
+	idle_top_freq = tegra_lpmode_freq_max();
 	idle_bottom_freq = clk_get_min_rate(cpu_g_clk) / 1000;
 
 	up2g0_delay = msecs_to_jiffies(UP2G0_DELAY_MS);

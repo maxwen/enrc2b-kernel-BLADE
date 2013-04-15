@@ -32,10 +32,12 @@
 /* any caps will be respected */
 #define T3_CPU_FREQ_BOOST		1600000
 #define T3_CPU_MIN_FREQ     	51000
-#define T3_LP_MAX_FREQ     		475000
+#define T3_SUSPEND_FREQ     	475000
+
+// used for governors ideal or idle freq
+#define GOV_IDLE_FREQ     		475000
 
 // sysfs to change available
-#define SUSPEND_CPU_FREQ_MAX	475000
 #define SUSPEND_CPU_NUM_MAX		2
 
 // f_mtp.c
@@ -72,4 +74,5 @@ extern unsigned int tegra_pmqos_cpu_freq_limits[];
 extern unsigned int tegra_pmqos_cpu_freq_limits_min[];
 extern unsigned int tegra_cpu_freq_max(unsigned int cpu);
 extern unsigned int tegra_get_suspend_boost_freq(void);
+extern unsigned int tegra_lpmode_freq_max(void);
 

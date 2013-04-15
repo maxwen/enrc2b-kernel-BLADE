@@ -53,9 +53,6 @@ extern unsigned int best_core_to_turn_up (void);
 #define TEGRA_MPDEC_DELAY                 70
 #define TEGRA_MPDEC_PAUSE                 10000
 
-/* will be overwritten later by lpcpu max clock */
-#define TEGRA_MPDEC_IDLE_FREQ             T3_LP_MAX_FREQ
-
 /* This rq value will be used if we only have the lpcpu online */
 #define TEGRA_MPDEC_LPCPU_RQ_DOWN         36
 
@@ -114,7 +111,7 @@ static struct tegra_mpdec_tuners {
 	.startdelay = TEGRA_MPDEC_STARTDELAY,
 	.delay = TEGRA_MPDEC_DELAY,
 	.pause = TEGRA_MPDEC_PAUSE,
-	.idle_freq = TEGRA_MPDEC_IDLE_FREQ,
+	.idle_freq = T3_LP_MAX_FREQ,
         .lp_cpu_up_hysteresis = TEGRA_MPDEC_LPCPU_UP_HYS,
         .lp_cpu_down_hysteresis = TEGRA_MPDEC_LPCPU_DOWN_HYS,
         .max_cpus = CONFIG_NR_CPUS,
@@ -126,7 +123,6 @@ static struct clk *cpu_g_clk;
 static struct clk *cpu_lp_clk;
 
 static unsigned int idle_top_freq;
-static unsigned int idle_bottom_freq;
 
 static unsigned int NwNs_Threshold[8] = {16, 10, 24, 12, 30, 16, 0, 18};
 static unsigned int TwTs_Threshold[8] = {140, 0, 140, 190, 140, 190, 0, 190};
@@ -996,11 +992,10 @@ static int __init tegra_mpdec_init(void)
 	if (IS_ERR(cpu_clk) || IS_ERR(cpu_g_clk) || IS_ERR(cpu_lp_clk))
 		return -ENOENT;
 
-	idle_top_freq = clk_get_max_rate(cpu_lp_clk) / 1000;
-	idle_bottom_freq = clk_get_min_rate(cpu_g_clk) / 1000;
+	idle_top_freq = tegra_lpmode_freq_max();
 
-        /* overwrite idle frequency with lpcpu max clock */
-        tegra_mpdec_tuners_ins.idle_freq = idle_top_freq;
+    /* overwrite idle frequency with lpcpu max clock */
+    tegra_mpdec_tuners_ins.idle_freq = idle_top_freq;
 
 	for_each_possible_cpu(cpu) {
 		mutex_init(&(per_cpu(tegra_mpdec_cpudata, cpu).suspend_mutex));

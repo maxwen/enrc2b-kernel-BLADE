@@ -40,6 +40,7 @@
 #include "pm.h"
 #include "sleep.h"
 #include "tegra3_emc.h"
+#include "tegra_pmqos.h"
 
 #define RST_DEVICES_L			0x004
 #define RST_DEVICES_H			0x008
@@ -4860,7 +4861,7 @@ static struct cpufreq_frequency_table freq_table_1p7GHz[] = {
 	{ 2,  204000 },
 	{ 3,  340000 },
 	{ 4,  475000 },
-	{ 5,  640000 },
+	{ 5,  620000 },
 	{ 6,  760000 },
 	{ 7,  910000 },
 	{ 8, 1000000 },
@@ -4917,7 +4918,23 @@ static int clip_cpu_rate_limits(
 	}
 	cpu_clk_lp->max_rate = freq_table[idx].frequency * 1000;
 	cpu_clk_g->min_rate = freq_table[idx-1].frequency * 1000;
+
+	ret = cpufreq_frequency_table_target(policy, freq_table,
+		T3_SUSPEND_FREQ, CPUFREQ_RELATION_H, &idx);
+	if (ret || !idx) {
+		pr_err("%s: suspend rate %d %s of cpufreq table", __func__,
+			T3_SUSPEND_FREQ * 1000, ret ? "outside" : "at the bottom");
+		return ret;
+	}
 	data->suspend_index = idx;
+
+#if 0
+	pr_info("lp->max_rate = %lu\n", cpu_clk_lp->max_rate);
+	pr_info("g->min_rate = %lu\n", cpu_clk_g->min_rate);
+	pr_info("g->max_rate = %lu\n", cpu_clk_g->max_rate);
+	pr_info("suspend_rate = %d\n", freq_table[idx].frequency * 1000);
+#endif
+
 	return 0;
 }
 

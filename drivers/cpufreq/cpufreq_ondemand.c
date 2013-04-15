@@ -126,7 +126,6 @@ static unsigned int dbs_enable;	/* number of CPUs using this policy */
 static unsigned int g_ui_counter = 0;
 
 /* lpcpu variables */
-static struct clk *cpu_lp_clk;
 static unsigned int idle_top_freq;
 
 /*
@@ -1465,8 +1464,7 @@ static int __init cpufreq_gov_dbs_init(void)
 	u64 idle_time;
 	int cpu = get_cpu();
 
-    cpu_lp_clk = clk_get_sys(NULL, "cpu_lp");
-    idle_top_freq = clk_get_max_rate(cpu_lp_clk) / 1000;
+    idle_top_freq = GOV_IDLE_FREQ;
 
 	idle_time = get_cpu_idle_time_us(cpu, &wall);
 	put_cpu();
