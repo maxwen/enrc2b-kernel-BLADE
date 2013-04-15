@@ -39,7 +39,7 @@
 #include "tegra_pmqos.h"
 
 #define CPUQUIET_DEBUG 1
-#define CPUQUIET_DEBUG_VERBOSE 0
+#define CPUQUIET_DEBUG_VERBOSE 1
 
 extern unsigned int best_core_to_turn_up(void);
 
@@ -69,6 +69,8 @@ static struct cpumask cr_online_requests;
 static cputime64_t lp_on_time;
 static unsigned int min_cpus = 1;
 static unsigned int max_cpus = CONFIG_NR_CPUS;
+
+static DEFINE_MUTEX(hotplug_lock);
 
 #define CPUQUIET_TAG                       "[CPUQUIET]: "
 
@@ -114,6 +116,13 @@ static inline int switch_clk_to_gmode(void)
 	return clk_set_parent(cpu_clk, cpu_g_clk);
 }
 
+static inline int switch_clk_to_lpmode(void)
+{
+	/* set rate to max of LP mode */
+	clk_set_rate(cpu_clk, idle_top_freq * 1000);
+	return clk_set_parent(cpu_clk, cpu_lp_clk);
+}
+
 static inline void show_status(const char* extra, cputime64_t on_time, int cpu)
 {
 #if CPUQUIET_DEBUG
@@ -146,12 +155,12 @@ static int update_core_config(unsigned int cpunumber, bool up)
 	if (cpq_state == TEGRA_CPQ_DISABLED || cpunumber >= nr_cpu_ids)
 		return ret;
 
-	// if we are in the state of switching to LP mode
-	// block any up request else we will end up 
-	// in a locked state with > 1 core on and governor inactive
-	if (cpq_state == TEGRA_CPQ_SWITCH_TO_LP && up)
-		return ret;
-		
+	/* sync with tegra_cpuquiet_work_func 
+	 else if we are currently switching to LP and an up
+	 comes we can end up with more then 1 core up and
+	 governor stopped and !lp mode */
+	mutex_lock(&hotplug_lock);
+			
 	if (up) {
 		if(is_lp_cluster()) {
 			cpumask_set_cpu(cpunumber, &cr_online_requests);
@@ -172,7 +181,9 @@ static int update_core_config(unsigned int cpunumber, bool up)
 			}
 		}
 	}
-		
+
+	mutex_unlock(&hotplug_lock);
+			
 	return ret;
 }
 
@@ -213,6 +224,8 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 
 	mutex_lock(tegra3_cpu_lock);
 
+	mutex_lock(&hotplug_lock);
+	
 	switch(cpq_state) {
 		case TEGRA_CPQ_DISABLED:
 		case TEGRA_CPQ_IDLE:
@@ -231,15 +244,12 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 			}
 #if CPUQUIET_DEBUG_VERBOSE
 			else
-				pr_info(CPUQUIET_TAG "skipping queued TEGRA_CPQ_SWITCH_TO_G");
+				pr_info(CPUQUIET_TAG "skipping queued TEGRA_CPQ_SWITCH_TO_G - cond failed");
 #endif
 			break;
 		case TEGRA_CPQ_SWITCH_TO_LP:
 			if (lp_possible()) {
-				// this can fail expected!
-				// dont switch to LP if freq is too high to not force
-				// a slow-down. could be changed from start of down delay
-				if (!clk_set_parent(cpu_clk, cpu_lp_clk)) {
+				if (!switch_clk_to_lpmode()) {
 					show_status("LP -> on", 0, -1);
 					/*catch-up with governor target speed*/
 					tegra_cpu_set_speed_cap(NULL);
@@ -248,7 +258,7 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 				}
 #if CPUQUIET_DEBUG_VERBOSE
 				else
-					pr_info(CPUQUIET_TAG "skipping queued TEGRA_CPQ_SWITCH_TO_LP - clk_set_parent failed");
+					pr_info(CPUQUIET_TAG "skipping queued TEGRA_CPQ_SWITCH_TO_LP - switch_clk_to_lpmode failed");
 #endif
 			}
 #if CPUQUIET_DEBUG_VERBOSE
@@ -261,6 +271,8 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 		       __func__, cpq_state);
 	}
 
+	mutex_unlock(&hotplug_lock);
+	
 	mutex_unlock(tegra3_cpu_lock);
 
 	if (device_busy == 1) {
