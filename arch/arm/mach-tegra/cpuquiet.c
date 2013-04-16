@@ -163,8 +163,12 @@ static int update_core_config(unsigned int cpunumber, bool up)
 	 else if we are currently switching to LP and an up
 	 comes we can end up with more then 1 core up and
 	 governor stopped and !lp mode */
-    if (!mutex_trylock (&hotplug_lock))
+    if (!mutex_trylock (&hotplug_lock)){
+#if CPUQUIET_DEBUG_VERBOSE
+		pr_info(CPUQUIET_TAG "%s failed to get hotplug_lock\n", __func__);
+#endif
         return -EBUSY;
+	}
 			
 	if (up) {
 		if(is_lp_cluster()) {
@@ -231,8 +235,12 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 	pr_info(CPUQUIET_TAG "%s\n", __func__);
 #endif
 
-    if (!mutex_trylock (&hotplug_lock))
-        return;
+	if (!mutex_trylock (&hotplug_lock)){
+#if CPUQUIET_DEBUG_VERBOSE
+		pr_info(CPUQUIET_TAG "%s failed to get hotplug_lock\n", __func__);
+#endif
+		return;
+	}
 
 	mutex_lock(tegra3_cpu_lock);
 	
@@ -247,7 +255,6 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 					show_status("LP -> off", on_time, -1);
 					/*catch-up with governor target speed */
 					tegra_cpu_set_speed_cap(NULL);
-					/* process pending core requests*/
 					device_busy = 0;
 				} else
 					pr_err(CPUQUIET_TAG "tegra_cpuquiet_work_func - switch_clk_to_gmode failed\n");				
@@ -288,6 +295,7 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 	if (device_busy == 1) {
 		cpuquiet_device_busy();
 	} else if (!device_busy) {
+		/* process pending core requests*/
 		apply_core_config();
 		cpuquiet_device_free();
 	}
@@ -428,7 +436,7 @@ int tegra_cpuquiet_force_gmode(void)
 		show_status("LP -> off - force", on_time, -1);
 
     	mutex_unlock(tegra3_cpu_lock);
-
+		/* process pending core requests*/
 		apply_core_config();
 		cpuquiet_device_free();
 	}
@@ -463,6 +471,7 @@ int tegra_cpuquiet_force_gmode_locked(void)
 
 void tegra_cpuquiet_device_free(void)
 {
+	/* process pending core requests*/
 	apply_core_config();
 	cpuquiet_device_free();
 }
