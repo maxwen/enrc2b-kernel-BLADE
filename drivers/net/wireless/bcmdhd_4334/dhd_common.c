@@ -287,14 +287,9 @@ dhd_wl_ioctl(dhd_pub_t *dhd_pub, int ifindex, wl_ioctl_t *ioc, void *buf, int le
 	dhd_os_proto_block(dhd_pub);
 
 	ret = dhd_prot_ioctl(dhd_pub, ifindex, ioc, buf, len);
-#if defined(CUSTOMER_HW4)
-	if (!ret || ret == -ETIMEDOUT)
-#else
-	if (!ret)
-#endif /* CUSTOMER_HW4 */
-		/* Send hang event only if dhd_open() was success */
-		if (dhd_pub->up)
-			dhd_os_check_hang(dhd_pub, ifindex, ret);
+	if ((ret || ret == -ETIMEDOUT) && dhd_pub->up){
+		dhd_os_check_hang(dhd_pub, ifindex, ret);
+    }
 
 	dhd_os_proto_unblock(dhd_pub);
 

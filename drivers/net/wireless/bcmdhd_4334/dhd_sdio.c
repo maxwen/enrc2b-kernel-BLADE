@@ -5575,6 +5575,9 @@ dhdsdio_hostmail(dhd_bus_t *bus)
 	if (hmb_data & HMB_DATA_FWHALT) {
 		DHD_ERROR(("INTERNAL ERROR: FIRMWARE HALTED\n"));
 		dhdsdio_checkdied(bus, NULL, 0);
+		bus->dhd->busstate = DHD_BUS_DOWN;
+		bus->intstatus = 0;
+		dhd_info_send_hang_message(bus->dhd);
 	}
 #endif /* DHD_DEBUG */
 

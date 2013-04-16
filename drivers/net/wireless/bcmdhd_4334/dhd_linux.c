@@ -700,8 +700,8 @@ static int dhd_set_suspend(int value, dhd_pub_t *dhd)
     is_screen_off = value;
 /* HTC_CSP_END */
 
-	printf("%s: enter, value = %d in_suspend=%d\n",
-		__FUNCTION__, value, dhd->in_suspend);
+	DHD_TRACE(("%s: enter, value = %d in_suspend=%d\n",
+		__FUNCTION__, value, dhd->in_suspend));
 
 /* HTC_CSP_START */
 	/* indicate wl_iw screen off */
@@ -1555,9 +1555,11 @@ _dhd_sysioc_thread(void *data)
 	unsigned long flags;
 #endif
 
+#ifndef USE_KTHREAD_API
 	DAEMONIZE("dhd_sysioc");
 
 	complete(&tsk->completed);
+#endif
 
 	while (down_interruptible(&tsk->sema) == 0) {
 #ifdef MCAST_LIST_ACCUMULATION
@@ -1827,7 +1829,7 @@ dhd_start_xmit(struct sk_buff *skb, struct net_device *net)
 			__FUNCTION__, dhd->pub.up, dhd->pub.busstate));
 		netif_stop_queue(net);
 /* HTC_CSP_START */
-		dev_kfree_skb(skb);
+		//dev_kfree_skb(skb);
 /* HTC_CSP_END */
 		/* Send Event when bus down detected during data session */
 		if (dhd->pub.up) {
@@ -2369,10 +2371,12 @@ dhd_watchdog_thread(void *data)
 		setScheduler(current, SCHED_FIFO, &param);
 	}
 
+#ifndef USE_KTHREAD_API
 	DAEMONIZE("dhd_watchdog");
 
 	/* Run until signal received */
 	complete(&tsk->completed);
+#endif
 
 	while (1)
 		if (down_interruptible (&tsk->sema) == 0) {
@@ -2482,11 +2486,13 @@ dhd_dpc_thread(void *data)
 		setScheduler(current, SCHED_FIFO, &param);
 	}
 
+#ifndef USE_KTHREAD_API
 	DAEMONIZE("dhd_dpc");
 	/* DHD_OS_WAKE_LOCK is called in dhd_sched_dpc[dhd_linux.c] down below  */
 
 	/*  signal: thread has started */
 	complete(&tsk->completed);
+#endif
 
 	/* Run until signal received */
 	while (1) {
@@ -3664,7 +3670,12 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
     
 	if (dhd_dpc_prio >= 0) {
 		/* Initialize watchdog thread */
+#ifdef USE_KTHREAD_API
+		printf("%s: Initialize watchdog thread\n",__func__);
+		PROC_START2(dhd_watchdog_thread, dhd, &dhd->thr_wdt_ctl, 0, "dhd_watchdog_thread");
+#else
 		PROC_START(dhd_watchdog_thread, dhd, &dhd->thr_wdt_ctl, 0);
+#endif
 	} else {
 		dhd->thr_wdt_ctl.thr_pid = -1;
 	}
@@ -3672,7 +3683,12 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 	/* Set up the bottom half handler */
 	if (dhd_dpc_prio >= 0) {
 		/* Initialize DPC thread */
+#ifdef USE_KTHREAD_API
+		printf("%s: Initialize DPC thread\n",__func__);
+		PROC_START2(dhd_dpc_thread, dhd, &dhd->thr_dpc_ctl, 0, "dhd_dpc");
+#else
 		PROC_START(dhd_dpc_thread, dhd, &dhd->thr_dpc_ctl, 0);
+#endif
 	} else {
 		/*  use tasklet for dpc */
 		tasklet_init(&dhd->tasklet, dhd_dpc, (ulong)dhd);
@@ -3685,7 +3701,12 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen)
 #endif /* DHDTHREAD */
 
 	if (dhd_sysioc) {
+#ifdef USE_KTHREAD_API
+		printf("%s: Initialize sysioc thread\n",__func__);
+		PROC_START2(_dhd_sysioc_thread, dhd, &dhd->thr_sysioc_ctl, 0, "dhd_sysioc");
+#else
 		PROC_START(_dhd_sysioc_thread, dhd, &dhd->thr_sysioc_ctl, 0);
+#endif
 	} else {
 		dhd->thr_sysioc_ctl.thr_pid = -1;
 	}

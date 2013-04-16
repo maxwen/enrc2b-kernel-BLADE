@@ -532,7 +532,7 @@ static s8 wl_dbg_estr[][WL_DBG_ESTR_MAX] = {
 	.hw_value		= (_channel),			\
 	.flags			= (_flags),			\
 	.max_antenna_gain	= 0,				\
-	.max_power		= 20,				\
+	.max_power		= 30,				\
 }
 
 #define CHAN5G(_channel, _flags) {				\
@@ -541,7 +541,7 @@ static s8 wl_dbg_estr[][WL_DBG_ESTR_MAX] = {
 	.hw_value		= (_channel),			\
 	.flags			= (_flags),			\
 	.max_antenna_gain	= 0,				\
-	.max_power		= 20,				\
+	.max_power		= 30,				\
 }
 
 #define RATE_TO_BASE100KBPS(rate)   (((rate) * 10) / 2)
@@ -7858,7 +7858,11 @@ retry:
 	if (count < 10) {
 		ret = 0;
 		wl->event_tsk.thr_pid = -1;
+#ifdef USE_KTHREAD_API
+		PROC_START2(wl_event_handler, wl, &wl->event_tsk, 0, "wl_event_handler");
+#else
 		PROC_START(wl_event_handler, wl, &wl->event_tsk, 0);
+#endif
 		if ((wl->event_tsk.thr_pid < 0) || (wl->event_tsk.thr_pid > 0xf0000000)) {
 			printf("%s: %dnd Create thread failed\n", __func__, count);
 			count++;
@@ -9059,8 +9063,10 @@ static s32 wl_event_handler(void *data)
 	tsk_ctl_t *tsk = (tsk_ctl_t *)data;
 
 	wl = (struct wl_priv *)tsk->parent;
+#ifndef USE_KTHREAD_API
 	DAEMONIZE("dhd_cfg80211_event");
 	complete(&tsk->completed);
+#endif
 
 	while (down_interruptible (&tsk->sema) == 0) {
 		SMP_RD_BARRIER_DEPENDS();

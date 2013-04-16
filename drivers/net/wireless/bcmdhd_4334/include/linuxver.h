@@ -28,6 +28,8 @@
 #ifndef _linuxver_h_
 #define _linuxver_h_
 
+#include <linux/kthread.h>
+
 #include <linux/version.h>
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(2, 6, 0))
 #include <linux/config.h>
@@ -505,6 +507,17 @@ typedef struct {
 #define SMP_RD_BARRIER_DEPENDS(x) smp_rmb(x)
 #endif
 
+
+#define PROC_START2(thread_func, owner, tsk_ctl, flags, name) \
+{ \
+	sema_init(&((tsk_ctl)->sema), 0); \
+	init_completion(&((tsk_ctl)->completed)); \
+	(tsk_ctl)->parent = owner; \
+	(tsk_ctl)->terminated = FALSE; \
+	(tsk_ctl)->p_task  = kthread_run(thread_func, tsk_ctl, (char*)name); \
+	(tsk_ctl)->thr_pid = (tsk_ctl)->p_task->pid; \
+	DBG_THR(("%s thr:%lx created\n", __FUNCTION__, (tsk_ctl)->thr_pid)); \
+}
 
 #define PROC_START(thread_func, owner, tsk_ctl, flags) \
 { \

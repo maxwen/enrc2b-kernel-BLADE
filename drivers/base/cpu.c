@@ -49,7 +49,10 @@ static void tegra_cpuplug_work_func(struct work_struct *work)
 		if (!cpu_online(cpu)) {
 			cpu_up(cpu);
 			pr_info("[cpu] cpu %d is on", cpu);
+			should_on_cpu--;
 			mdelay(cpu_on_mdelay);
+			if (!should_on_cpu)
+				break;
 		}
 	}
 }

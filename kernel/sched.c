@@ -3410,6 +3410,19 @@ void sched_set_stop_task(int cpu, struct task_struct *stop)
 		 * it can die in pieces.
 		 */
 		old_stop->sched_class = &rt_sched_class;
+
+		if (old_stop->state == TASK_RUNNING)
+			pr_warn("KERNEL_WARNING: %s(%p): old_stop->state == TASK_RUNNING\n",
+					old_stop->comm, old_stop);
+		if (old_stop->on_rq == 1)
+			pr_warn("KERNEL_WARNING: %s(%p): old_stop->on_rq == 1\n",
+					old_stop->comm, old_stop);
+
+		/*
+		 * also reset the schedule state as enqueue-able
+		 */
+		old_stop->on_rq = 0;
+		set_mb(old_stop->state, TASK_INTERRUPTIBLE);
 	}
 }
 
