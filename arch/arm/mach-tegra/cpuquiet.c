@@ -65,7 +65,6 @@ static struct clk *cpu_clk;
 static struct clk *cpu_g_clk;
 static struct clk *cpu_lp_clk;
 
-static struct cpumask cr_online_requests;
 static cputime64_t lp_on_time;
 static unsigned int min_cpus = 1;
 static unsigned int max_cpus = CONFIG_NR_CPUS;
@@ -172,7 +171,6 @@ static int update_core_config(unsigned int cpunumber, bool up)
 			
 	if (up) {
 		if(is_lp_cluster()) {
-			cpumask_set_cpu(cpunumber, &cr_online_requests);
 			ret = -EBUSY;
 		} else {
 			if (nr_cpus < max_cpus){
@@ -211,20 +209,6 @@ static struct cpuquiet_driver tegra_cpuquiet_driver = {
 	.quiesence_cpu          = tegra_quiesence_cpu,
 	.wake_cpu               = tegra_wake_cpu,
 };
-
-static void apply_core_config(void)
-{
-	unsigned int cpu;
-
-	if (is_lp_cluster() || cpq_state == TEGRA_CPQ_DISABLED)
-		return;
-
-	for_each_cpu_mask(cpu, cr_online_requests) {
-		if (cpu < nr_cpu_ids && !cpu_online(cpu))
-			if (!tegra_wake_cpu(cpu))
-				cpumask_clear_cpu(cpu, &cr_online_requests);
-	}
-}
 
 static void tegra_cpuquiet_work_func(struct work_struct *work)
 {
@@ -295,8 +279,6 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 	if (device_busy == 1) {
 		cpuquiet_device_busy();
 	} else if (!device_busy) {
-		/* process pending core requests*/
-		apply_core_config();
 		cpuquiet_device_free();
 	}
 }
@@ -436,8 +418,6 @@ int tegra_cpuquiet_force_gmode(void)
 		show_status("LP -> off - force", on_time, -1);
 
     	mutex_unlock(tegra3_cpu_lock);
-		/* process pending core requests*/
-		apply_core_config();
 		cpuquiet_device_free();
 	}
 	
@@ -471,8 +451,6 @@ int tegra_cpuquiet_force_gmode_locked(void)
 
 void tegra_cpuquiet_device_free(void)
 {
-	/* process pending core requests*/
-	apply_core_config();
 	cpuquiet_device_free();
 }
 
@@ -675,7 +653,6 @@ int tegra_auto_hotplug_init(struct mutex *cpu_lock)
 	INIT_DELAYED_WORK(&cpuquiet_work, tegra_cpuquiet_work_func);
 	INIT_WORK(&minmax_work, min_max_constraints_workfunc);
 
-	cpumask_clear(&cr_online_requests);
 	tegra3_cpu_lock = cpu_lock;
 
 	cpq_state = INITIAL_STATE;
