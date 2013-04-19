@@ -4917,7 +4917,15 @@ static int clip_cpu_rate_limits(
 		return ret;
 	}
 	cpu_clk_lp->max_rate = freq_table[idx].frequency * 1000;
-	cpu_clk_g->min_rate = freq_table[idx-1].frequency * 1000;
+
+	ret = cpufreq_frequency_table_target(policy, freq_table,
+		T3_GMODE_MIN_FREQ, CPUFREQ_RELATION_H, &idx);
+	if (ret || !idx) {
+		pr_err("%s: LP CPU min rate %lu %s of cpufreq table", __func__,
+		       cpu_clk_lp->min_rate, ret ? "outside" : "at the bottom");
+		return ret;
+	}
+	cpu_clk_g->min_rate = freq_table[idx].frequency * 1000;
 
 	ret = cpufreq_frequency_table_target(policy, freq_table,
 		T3_SUSPEND_FREQ, CPUFREQ_RELATION_H, &idx);

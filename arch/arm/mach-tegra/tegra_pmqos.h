@@ -33,6 +33,7 @@
 #define T3_CPU_FREQ_BOOST		1600000
 #define T3_CPU_MIN_FREQ     	51000
 #define T3_SUSPEND_FREQ     	475000
+#define T3_GMODE_MIN_FREQ     	340000
 
 // used for governors ideal or idle freq
 #define GOV_IDLE_FREQ     		475000
