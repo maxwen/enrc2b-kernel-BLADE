@@ -53,7 +53,7 @@
 #define SET_FAKE_TEMP		0x4000
 #define SET_FAKE_CAPACITY	0x8000
 
-#define BATTERY_DEBUG 0
+#define BATTERY_DEBUG 1
 
 #if BATTERY_DEBUG
 #define BATT_LOG(fmt, ...) do { \
@@ -1614,8 +1614,13 @@ static void htc_battery_complete(struct device *dev)
 
 static void reevaluate_charger(void)
 {
+	char message[16];
+	char *envp[] = { message, NULL };
+
 	BATT_LOG("%s", __func__);
-	
+
+	mutex_lock(&htc_batt_info.info_lock);
+		
 	if ( !!(get_kernel_flag() & ALL_AC_CHARGING) ) {
 		BATT_LOG("Debug flag is set to force AC charging, fake as AC");
 		htc_batt_info.rep.charging_source = CHARGER_AC;
@@ -1627,6 +1632,19 @@ static void reevaluate_charger(void)
 			htc_batt_info.rep.charging_source = CHARGER_USB;
 	}
 
+#if WK_ALARM_NOT_WORK	/* fixme: no use this workaround now since solution is phased in */
+	is_alarm_not_work = 0;
+#endif
+
+	htc_batt_timer.charger_flag =
+			(unsigned int)htc_batt_info.rep.charging_source;
+
+	scnprintf(message, 16, "CHG_SOURCE=%d",
+					htc_batt_info.rep.charging_source);
+
+	update_wake_lock(htc_batt_info.rep.charging_source);
+	mutex_unlock(&htc_batt_info.info_lock);
+	
 	if (htc_batt_info.rep.charging_source == CHARGER_USB) {
 		wake_lock(&htc_batt_info.vbus_wake_lock);
 		if (!!(get_kernel_flag() & ALL_AC_CHARGING))
@@ -1639,6 +1657,8 @@ static void reevaluate_charger(void)
 		tps80032_charger_set_ctrl(POWER_SUPPLY_ENABLE_FAST_CHARGE);
 		wake_unlock(&htc_batt_info.vbus_wake_lock);
 	}
+
+	kobject_uevent_env(&htc_batt_info.batt_cable_kobj, KOBJ_CHANGE, envp);	
 }
 
 static struct dev_pm_ops htc_battery_tps80032_pm_ops = {
