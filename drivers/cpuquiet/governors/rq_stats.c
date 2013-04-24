@@ -48,7 +48,7 @@ static unsigned int start_delay = 20000;
 static RQ_STATS_STATE rq_stats_state;
 static struct workqueue_struct *rq_stats_wq;
 
-static unsigned int NwNs_Threshold[8] = {18, 12, 24, 14, 30, 16, 0, 18};
+static unsigned int NwNs_Threshold[8] = {18, 14, 24, 16, 30, 18, 0, 20};
 static unsigned int TwTs_Threshold[8] = {70, 0, 70, 100, 70, 100, 0, 100};
 
 extern unsigned int get_rq_info(void);
