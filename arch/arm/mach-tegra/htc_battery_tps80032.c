@@ -53,7 +53,7 @@
 #define SET_FAKE_TEMP		0x4000
 #define SET_FAKE_CAPACITY	0x8000
 
-#define BATTERY_DEBUG 1
+#define BATTERY_DEBUG 0
 
 #if BATTERY_DEBUG
 #define BATT_LOG(fmt, ...) do { \
