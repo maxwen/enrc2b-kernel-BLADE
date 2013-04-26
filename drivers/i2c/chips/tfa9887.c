@@ -170,6 +170,7 @@ static unsigned char amp_off[1][3] = {
 	{0x09, 0x06, 0x19}
 };
 
+#if 0
 static unsigned char config_seq1[1][1] = {
 	{0x03}
 };
@@ -268,6 +269,7 @@ void set_tfa9887_config()
     tfa9887_i2c_write(config_seq15[0], 3);
     tfa9887_i2c_write(config_seq16[0], 3);
 }
+#endif
 
 static int tfa9887_i2c_write(char *txData, int length)
 {
@@ -591,7 +593,7 @@ static struct i2c_driver tfa9887_driver = {
 static int __init tfa9887_init(void)
 {
 	mutex_init(&spk_amp_lock);
-    dsp_enabled = 1;
+    dsp_enabled = 0;
 	return i2c_add_driver(&tfa9887_driver);
 }
 
