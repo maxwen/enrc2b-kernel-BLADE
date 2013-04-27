@@ -1685,7 +1685,8 @@ fast_charge_store(struct device *dev,
 		if(fast_charge != value){
 			fast_charge = value;
 			BATT_LOG("set fast_charge %d", fast_charge);
-			reevaluate_charger();
+			if (htc_batt_info.online != CONNECT_TYPE_NONE && htc_batt_info.online != CONNECT_TYPE_INTERNAL)
+			    reevaluate_charger();
 		}
 	}
 	else
