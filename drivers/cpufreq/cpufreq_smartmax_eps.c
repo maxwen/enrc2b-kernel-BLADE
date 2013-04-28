@@ -9,7 +9,7 @@
  *
  * Author: maxwen
  *
- * Based on the ondemand and smartmax governor
+ * Based on the ondemand and smartassV2 governor
  *
  * ondemand:
  *  Copyright (C)  2001 Russell King
