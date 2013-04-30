@@ -38,7 +38,7 @@
 #include "clock.h"
 #include "tegra_pmqos.h"
 
-#define CPUQUIET_DEBUG 1
+#define CPUQUIET_DEBUG 0
 #define CPUQUIET_DEBUG_VERBOSE 0
 
 extern unsigned int best_core_to_turn_up(void);

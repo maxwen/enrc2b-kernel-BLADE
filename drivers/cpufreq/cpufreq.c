@@ -2093,7 +2093,7 @@ static int __cpufreq_set_policy(struct cpufreq_policy *data,
 			/* save old, working values */
 			struct cpufreq_governor *old_gov = data->governor;
 
-			pr_info("governor switch %d %s -> %s\n", policy->cpu, old_gov->name, policy->governor->name);
+			pr_debug("governor switch %d %s -> %s\n", policy->cpu, old_gov->name, policy->governor->name);
 
 			/* end old governor */
 			if (data->governor)
