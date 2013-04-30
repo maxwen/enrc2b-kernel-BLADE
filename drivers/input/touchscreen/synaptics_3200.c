@@ -168,7 +168,7 @@ static bool s2w_allow_double_tap = false;
 static unsigned int s2w_double_tap_duration = 150; /* msecs */
 static unsigned int s2w_double_tap_threshold = 300;  /* msecs */
 static cputime64_t s2w_double_tap_start = 0;
-
+static unsigned int s2w_double_tap_barrier_y = 1300;
 static bool s2w_switch = true;
 static bool scr_suspended = false;
 static bool exec_count = true;
@@ -2120,9 +2120,9 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 			ts->finger_pressed = finger_pressed;
 		}
 
-		if(ts->debug_log_level & BIT(3)) {
+		if((ts->debug_log_level & BIT(3)) || (scr_suspended && s2w_allow_double_tap)) {
 			for(i = 0; i < ts->finger_support; i++) {
-				if (finger_release_changed & BIT(i) ) {
+				if ((finger_pressed | finger_release_changed) & BIT(i)) {
 					uint32_t flip_flag = SYNAPTICS_FLIP_X;
 					uint8_t pos_mask = 0x0f;
 					for (j = 0; j < 2; j++) {
@@ -2142,17 +2142,20 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 
 					if (ts->layout[1] < finger_data[i][0])
 						finger_data[i][0] = ts->layout[1];
-					if(ts->width_factor && ts->height_factor){
-						printk(KERN_INFO
-							"[TP] Screen:F[%02d]:Up, X=%d, Y=%d, W=%d, Z=%d\n",
-							i+1, (finger_data[i][0]*ts->width_factor)>>SHIFT_BITS,
-							(finger_data[i][1]*ts->height_factor)>>SHIFT_BITS,
-							finger_data[i][2], finger_data[i][3]);
-					} else {
-						printk(KERN_INFO
-							"[TP] Raw:F[%02d]:Up, X=%d, Y=%d, W=%d, Z=%d\n",
-							i+1, finger_data[i][0], finger_data[i][1],
-							finger_data[i][2], finger_data[i][3]);
+						
+					if(ts->debug_log_level & BIT(3)){
+						if(ts->width_factor && ts->height_factor){
+							printk(KERN_INFO
+								"[TP] Screen:F[%02d]:Up, X=%d, Y=%d, W=%d, Z=%d\n",
+								i+1, (finger_data[i][0]*ts->width_factor)>>SHIFT_BITS,
+								(finger_data[i][1]*ts->height_factor)>>SHIFT_BITS,
+								finger_data[i][2], finger_data[i][3]);
+						} else {
+							printk(KERN_INFO
+								"[TP] Raw:F[%02d]:Up, X=%d, Y=%d, W=%d, Z=%d\n",
+								i+1, finger_data[i][0], finger_data[i][1],
+								finger_data[i][2], finger_data[i][3]);
+						}
 					}
 				}
 				base += 5;
@@ -2190,14 +2193,17 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 					    return;
 				    }
 				}
-				if (scr_suspended && s2w_allow_double_tap){
+				if (scr_suspended && s2w_allow_double_tap && finger_data[0][1] > s2w_double_tap_barrier_y){
 					cputime64_t now = ktime_to_ns(ktime_get());
 					cputime64_t diff = cputime64_sub(now, s2w_double_tap_start);
 					cputime64_t tapTime = s2w_double_tap_duration * 1000 * 1000;
 					cputime64_t tooLongTime = s2w_double_tap_threshold * 1000 * 1000;
 
-					pr_info(S2W_TAG "s2w_double_tap diff=%lld\n", diff);
-
+					if(touchDebug){
+						pr_info(S2W_TAG "s2w_double_tap x=%d y=%d\n", finger_data[0][0], finger_data[0][1]);
+						pr_info(S2W_TAG "s2w_double_tap diff=%lld\n", diff);
+					}
+					
 					if (diff > tapTime && diff < tooLongTime){
 						pr_info(S2W_TAG "s2w_double_tap ON");
 						mode = true;
