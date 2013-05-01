@@ -709,7 +709,7 @@ static ssize_t store_scaling_max_freq_limit(struct cpufreq_policy *policy,
 	if (ret < 4)
 		return -EINVAL;
 
-	for (i = 0; i < 3; i++){
+	for (i = 0; i < 4; i++){
 		if (cpu_freq_limits_user[i] != 0 && cpu_freq_limits_user[i] < T3_CPU_MIN_FREQ)
 			return -EINVAL;
 	}
