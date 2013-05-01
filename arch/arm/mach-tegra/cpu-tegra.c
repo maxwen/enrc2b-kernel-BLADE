@@ -108,9 +108,22 @@ static unsigned int use_suspend_boost = 0;
 #endif
 
 #ifdef CONFIG_TEGRA3_VARIANT_CPU_OVERCLOCK
-bool enable_oc = false;
-bool enable_lp_oc = false;
+unsigned int enable_oc = false;
+static unsigned int enable_lp_oc = false;
 #endif
+
+#ifdef CONFIG_TEGRA_CPUQUIET
+extern void tegra_cpuquiet_set_no_lp(bool);
+static unsigned int disable_lp_mode_on_resume = false;
+#endif
+
+static unsigned int force_policy_max;
+/* called from ril 
+this fixes the "screen not turning on issue" on incoming calls!
+the problem is that else the device may go into suspend again
+because min freq is 0 */
+static unsigned int ril_boost = 0;
+static unsigned int perf_early_suspend = 0;
 
 // maxwen: see tegra_cpu_init
 // values can be changed in sysfs interface of cpufreq
@@ -165,8 +178,6 @@ unsigned int tegra_lpmode_freq_max(void)
 	return max_rate;
 }
 
-static bool force_policy_max;
-
 static int force_policy_max_set(const char *arg, const struct kernel_param *kp)
 {
 	int ret;
@@ -174,7 +185,7 @@ static int force_policy_max_set(const char *arg, const struct kernel_param *kp)
 
 	mutex_lock(&tegra_cpu_lock);
 
-	ret = param_set_bool(arg, kp);
+	ret = param_set_uint(arg, kp);
 	if ((ret == 0) && (old_policy != force_policy_max))
 		tegra_cpu_set_speed_cap(NULL);
 
@@ -184,7 +195,7 @@ static int force_policy_max_set(const char *arg, const struct kernel_param *kp)
 
 static int force_policy_max_get(char *buffer, const struct kernel_param *kp)
 {
-	return param_get_bool(buffer, kp);
+	return param_get_uint(buffer, kp);
 }
 
 static struct kernel_param_ops policy_ops = {
@@ -195,17 +206,15 @@ module_param_cb(force_policy_max, &policy_ops, &force_policy_max, 0644);
 
 static int suspend_cap_freq_set(const char *arg, const struct kernel_param *kp)
 {
-	int tmp;
-	
-	if (1 != sscanf(arg, "%d", &tmp))
-		return -EINVAL;
+	int ret = param_set_uint(arg, kp);
+	if (ret)
+		return ret;
 
 	// 0 means reset to default
-	if (tmp == 0)
-		tmp = suspend_cap_freq_default;
+	if (suspend_cap_freq == 0)
+		suspend_cap_freq = suspend_cap_freq_default;
 		
-    suspend_cap_freq = tmp;
-    pr_info("suspend_cap_freq %d\n", suspend_cap_freq);
+    pr_info("suspend_cap_freq=%d\n", suspend_cap_freq);
 	return 0;
 }
 
@@ -222,20 +231,15 @@ module_param_cb(suspend_cap_freq, &suspend_cap_freq_ops, &suspend_cap_freq, 0644
 
 static int suspend_cap_cpu_num_set(const char *arg, const struct kernel_param *kp)
 {
-	int tmp;
-	
-	if (1 != sscanf(arg, "%d", &tmp))
-		return -EINVAL;
-
-	if (tmp < 1 || tmp > CONFIG_NR_CPUS)
-		return -EINVAL;
+	int ret = param_set_uint(arg, kp);
+	if (ret)
+		return ret;
 
 	// 0 means reset to default
-	if (tmp == 0)
-		tmp = SUSPEND_CPU_NUM_MAX;
-			
-    suspend_cap_cpu_num = tmp;
-    pr_info("suspend_cap_cpu_num %d\n", suspend_cap_cpu_num);
+	if (suspend_cap_cpu_num == 0)
+		suspend_cap_cpu_num = SUSPEND_CPU_NUM_MAX;
+
+    pr_info("suspend_cap_cpu_num=%d\n", suspend_cap_cpu_num);
 	return 0;
 }
 
@@ -253,16 +257,11 @@ module_param_cb(suspend_cap_cpu_num, &suspend_cap_cpu_num_ops, &suspend_cap_cpu_
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static int use_suspend_delay_set(const char *arg, const struct kernel_param *kp)
 {
-	unsigned int tmp;
-	
-	if (1 != sscanf(arg, "%u", &tmp))
-		return -EINVAL;
+	int ret = param_set_uint(arg, kp);
+	if (ret)
+		return ret;
 
-	if (tmp < 0 || tmp > 1)
-		return -EINVAL;
-			
-    use_suspend_delay = tmp;
-    pr_info("use_suspend_delay %d\n", use_suspend_delay);
+    pr_info("use_suspend_delay=%d\n", use_suspend_delay);
 	return 0;
 }
 
@@ -278,17 +277,12 @@ static struct kernel_param_ops use_suspend_delay_ops = {
 module_param_cb(use_suspend_delay, &use_suspend_delay_ops, &use_suspend_delay, 0644);
 
 static int suspend_delay_set(const char *arg, const struct kernel_param *kp)
-{
-	unsigned int tmp;
-	
-	if (1 != sscanf(arg, "%u", &tmp))
-		return -EINVAL;
-
-	if (tmp < 0 || tmp > 1)
-		return -EINVAL;
+{	
+	int ret = param_set_uint(arg, kp);
+	if (ret)
+		return ret;
 			
-    suspend_delay = tmp;
-    pr_info("suspend_delay %d\n", suspend_delay);
+    pr_info("suspend_delay=%d\n", suspend_delay);
 	return 0;
 }
 
@@ -304,17 +298,12 @@ static struct kernel_param_ops suspend_delay_ops = {
 module_param_cb(suspend_delay, &suspend_delay_ops, &suspend_delay, 0644);
 
 static int use_suspend_boost_set(const char *arg, const struct kernel_param *kp)
-{
-	unsigned int tmp;
-	
-	if (1 != sscanf(arg, "%u", &tmp))
-		return -EINVAL;
+{	
+	int ret = param_set_uint(arg, kp);
+	if (ret)
+		return ret;
 
-	if (tmp < 0 || tmp > 1)
-		return -EINVAL;
-			
-    use_suspend_boost = tmp;
-    pr_info("use_suspend_boost %d\n", use_suspend_boost);
+    pr_info("use_suspend_boost=%d\n", use_suspend_boost);
 	return 0;
 }
 
@@ -369,6 +358,8 @@ static int cpu_user_cap_set(const char *arg, const struct kernel_param *kp)
 		_cpu_user_cap_set_locked();
 
 	mutex_unlock(&tegra_cpu_lock);
+
+    pr_info("cpu_user_cap=%d\n", cpu_user_cap);
 	return ret;
 }
 
@@ -390,12 +381,6 @@ static unsigned int user_cap_speed(unsigned int requested_speed)
 	return requested_speed;
 }
 
-/* called from ril 
-this fixes the "screen not turning on issue" on incoming calls!
-the problem is that else the device may go into suspend again
-because min freq is 0 */
-static int ril_boost = 0;
-
 static int ril_boost_set(const char *arg, const struct kernel_param *kp)
 {
 	return schedule_work(&ril_suspend_resume_work);
@@ -412,8 +397,6 @@ static struct kernel_param_ops ril_boost_ops = {
 };
 
 module_param_cb(ril_boost, &ril_boost_ops, &ril_boost, 0644);
-
-static int perf_early_suspend = 0;
 
 static int perf_early_suspend_set(const char *arg, const struct kernel_param *kp)
 {
@@ -436,10 +419,11 @@ module_param_cb(perf_early_suspend, &perf_early_suspend_ops, &perf_early_suspend
 #ifdef CONFIG_TEGRA3_VARIANT_CPU_OVERCLOCK
 static int enable_oc_set(const char *arg, const struct kernel_param *kp)
 {
-    int ret = param_set_int(arg, kp);
+	int ret = param_set_uint(arg, kp);
 	if (ret)
 		return ret;
-    pr_info("enable_oc %d\n", enable_oc);
+
+    pr_info("enable_oc=%d\n", enable_oc);
 	return 0;
 }
 
@@ -458,12 +442,16 @@ module_param_cb(enable_oc, &enable_oc_ops, &enable_oc, 0644);
 static int enable_lp_oc_set(const char *arg, const struct kernel_param *kp)
 {
 	bool update_suspend_freq = false;
-	
-    int ret = param_set_int(arg, kp);
+    unsigned int old_value = enable_lp_oc;
+    
+	int ret = param_set_uint(arg, kp);
 	if (ret)
 		return ret;
-
-    pr_info("enable_lp_oc %d\n", enable_lp_oc);
+	
+	if (old_value == enable_lp_oc)
+		return 0;
+	    
+    pr_info("enable_lp_oc=%d\n", enable_lp_oc);
     
     update_suspend_freq = suspend_cap_freq_default == suspend_cap_freq;
     /* reset */
@@ -489,6 +477,39 @@ static struct kernel_param_ops enable_lp_oc_ops = {
 };
 
 module_param_cb(enable_lp_oc, &enable_lp_oc_ops, &enable_lp_oc, 0644);
+#endif
+
+#ifdef CONFIG_TEGRA_CPUQUIET
+static int disable_lp_mode_on_resume_set(const char *arg, const struct kernel_param *kp)
+{	
+    unsigned int old_value = disable_lp_mode_on_resume;
+    
+	int ret = param_set_uint(arg, kp);
+	if (ret)
+		return ret;
+
+	if (old_value == disable_lp_mode_on_resume)
+		return 0;
+
+	pr_info("disable_lp_mode_on_resume=%d\n", disable_lp_mode_on_resume);
+	
+	tegra_cpuquiet_set_no_lp(disable_lp_mode_on_resume);
+
+	return 0;
+}
+
+static int disable_lp_mode_on_resume_get(char *buffer, const struct kernel_param *kp)
+{
+	return param_get_uint(buffer, kp);
+}
+
+static struct kernel_param_ops disable_lp_mode_on_resume_ops = {
+	.set = disable_lp_mode_on_resume_set,
+	.get = disable_lp_mode_on_resume_get,
+};
+
+module_param_cb(disable_lp_mode_on_resume, &disable_lp_mode_on_resume_ops, &disable_lp_mode_on_resume, 0644);
+
 #endif
 
 /* disable edp limitations */
@@ -2624,6 +2645,11 @@ static void tegra_delayed_suspend_work(struct work_struct *work)
 		pr_info("tegra_delayed_suspend_work: cap max cpu to %d\n", suspend_cap_cpu_num);
 		pm_qos_update_request(&cap_cpu_num_req, (s32)suspend_cap_cpu_num);
 	}
+
+#ifdef CONFIG_TEGRA_CPUQUIET	
+	if (disable_lp_mode_on_resume)
+		tegra_cpuquiet_set_no_lp(false);
+#endif
 }
 
 static __maybe_unused void tegra_flush_delayed_suspend_work(void)
@@ -2651,6 +2677,9 @@ static void tegra_cpufreq_late_resume(struct early_suspend *h)
 #ifdef CONFIG_TEGRA_CPUQUIET
 	// disable LP mode asap
 	tegra_cpuquiet_force_gmode();
+	
+	if (disable_lp_mode_on_resume)
+		tegra_cpuquiet_set_no_lp(true);
 #endif	
 	pr_info("tegra_cpufreq_late_resume: clean cpu freq cap\n");
 	pm_qos_update_request(&cap_cpu_freq_req, (s32)PM_QOS_CPU_FREQ_MAX_DEFAULT_VALUE);
@@ -2700,6 +2729,9 @@ static void ril_suspend_resume_worker(struct work_struct *w)
 #ifdef CONFIG_TEGRA_CPUQUIET
 	// disable LP mode asap
 	tegra_cpuquiet_force_gmode();
+	
+	if (disable_lp_mode_on_resume)
+		tegra_cpuquiet_set_no_lp(true);
 #endif
 
 	pr_info("ril_suspend_resume_worker: clean cpu cap by RIL\n");

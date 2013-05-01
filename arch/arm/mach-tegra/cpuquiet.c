@@ -51,6 +51,7 @@ static struct mutex *tegra3_cpu_lock;
 static struct workqueue_struct *cpuquiet_wq;
 static struct delayed_work cpuquiet_work;
 static struct work_struct minmax_work;
+static struct work_struct cpu_core_state_work;
 
 static struct kobject *tegra_auto_sysfs_kobject;
 
@@ -60,6 +61,9 @@ static bool enable;
 static unsigned int lp_up_delay = LP_UP_DELAY_MS_DEF;
 static unsigned int lp_down_delay = LP_DOWN_DELAY_MS_DEF;
 static unsigned int idle_top_freq;
+static bool manual_hotplug = false;
+// core 0 is always active
+unsigned int cpu_core_state[3] = {0, 0, 0};
 
 static struct clk *cpu_clk;
 static struct clk *cpu_g_clk;
@@ -276,10 +280,12 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 
 	mutex_unlock(&hotplug_lock);
 	
-	if (device_busy == 1) {
-		cpuquiet_device_busy();
-	} else if (!device_busy) {
-		cpuquiet_device_free();
+	if (!manual_hotplug){
+		if (device_busy == 1) {
+			cpuquiet_device_busy();
+		} else if (!device_busy) {
+			cpuquiet_device_free();
+		}
 	}
 }
 
@@ -355,7 +361,7 @@ static void min_cpus_change(void)
 
 	schedule_work(&minmax_work);
 
-	if (g_cluster)
+	if (g_cluster && !manual_hotplug)
 		cpuquiet_device_free();
 }
 
@@ -365,7 +371,11 @@ static int min_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
 
 	if (n < 1 || n > CONFIG_NR_CPUS)
 		return NOTIFY_OK;
-	
+
+	if (manual_hotplug){
+		return NOTIFY_OK;
+	}
+
 	min_cpus_change();
 
 	return NOTIFY_OK;
@@ -386,7 +396,11 @@ static int max_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
 
 	if (n < 1)
 		return NOTIFY_OK;
-	
+
+	if (manual_hotplug){
+		return NOTIFY_OK;
+	}
+
 	max_cpus_change();
 
 	return NOTIFY_OK;
@@ -418,7 +432,9 @@ int tegra_cpuquiet_force_gmode(void)
 		show_status("LP -> off - force", on_time, -1);
 
     	mutex_unlock(tegra3_cpu_lock);
-		cpuquiet_device_free();
+
+		if (!manual_hotplug)
+			cpuquiet_device_free();
 	}
 	
 	return 0;
@@ -451,7 +467,17 @@ int tegra_cpuquiet_force_gmode_locked(void)
 
 void tegra_cpuquiet_device_free(void)
 {
-	cpuquiet_device_free();
+	if (!manual_hotplug)
+		cpuquiet_device_free();
+}
+
+
+void tegra_cpuquiet_set_no_lp(bool value)
+{
+	if (value)
+		tegra_cpuquiet_force_gmode();
+
+	no_lp = value;
 }
 
 void tegra_auto_hotplug_governor(unsigned int cpu_freq, bool suspend)
@@ -512,6 +538,8 @@ static void enable_callback(struct cpuquiet_attribute *attr)
 	if (disabled == -1)
 		return;
 
+	pr_info(CPUQUIET_TAG "enable=%d\n", enable);				
+	
 	if (disabled == 1) {
 		cancel_delayed_work_sync(&cpuquiet_work);
 		pr_info(CPUQUIET_TAG "enable_callback: clusterswitch disabled\n");
@@ -541,10 +569,14 @@ ssize_t store_min_cpus(struct cpuquiet_attribute *cattr,
 
 	if ((ret != 1) || n < 1 || n > CONFIG_NR_CPUS)
 		return -EINVAL;
+
+	if (manual_hotplug)
+		return -EBUSY;
 	
 	min_cpus = n;
 	min_cpus_change();
-	
+
+	pr_info(CPUQUIET_TAG "min_cpus=%d\n", min_cpus);				
 	return count;
 }
 
@@ -568,18 +600,155 @@ ssize_t store_max_cpus(struct cpuquiet_attribute *cattr,
 	if ((ret != 1) || n < 1 || n > CONFIG_NR_CPUS)
 		return -EINVAL;
 
+	if (manual_hotplug)
+		return -EBUSY;
+
 	max_cpus = n;	
 	max_cpus_change();
-		
+
+	pr_info(CPUQUIET_TAG "max_cpus=%d\n", max_cpus);			
 	return count;
 }
 
-CPQ_BASIC_ATTRIBUTE(no_lp, 0644, bool);
+ssize_t show_no_lp(struct cpuquiet_attribute *cattr, char *buf)
+{
+	char *out = buf;
+	
+	out += sprintf(out, "%d\n", no_lp);
+
+	return out - buf;
+}
+
+ssize_t store_no_lp(struct cpuquiet_attribute *cattr,
+					const char *buf, size_t count)
+{
+	int ret;
+	unsigned int n;
+
+	ret = sscanf(buf, "%d", &n);
+
+	if ((ret != 1) || n < 0 || n > 1)
+		return -EINVAL;
+
+	if (no_lp == n)
+		return count;
+	
+	if (n)
+		tegra_cpuquiet_force_gmode();
+
+	no_lp = n;	
+
+	pr_info(CPUQUIET_TAG "no_lp=%d\n", no_lp);	
+	return count;
+}
+
+ssize_t show_manual_hotplug(struct cpuquiet_attribute *cattr, char *buf)
+{
+	char *out = buf;
+		
+	out += sprintf(out, "%d\n", manual_hotplug);
+
+	return out - buf;
+}
+
+ssize_t store_manual_hotplug(struct cpuquiet_attribute *cattr,
+					const char *buf, size_t count)
+{
+	int ret;
+	unsigned int n;
+		
+	ret = sscanf(buf, "%d", &n);
+
+	if ((ret != 1) || n < 0 || n > 1)
+		return -EINVAL;
+
+	if (n == manual_hotplug)
+    	return count;
+
+	manual_hotplug = n;	
+
+	pr_info(CPUQUIET_TAG "manual_hotplug=%d\n", manual_hotplug);
+		
+	// stop governor
+	if (manual_hotplug) {
+		cancel_delayed_work_sync(&cpuquiet_work);
+		cpuquiet_device_busy();
+		schedule_work(&cpu_core_state_work);
+	} else {
+		cpuquiet_device_free();
+	}	    
+	return count;
+}
+
+static void cpu_core_state_workfunc(struct work_struct *work)
+{
+	int i = 0;
+	int cpu = 0;
+
+	for (i = 0; i < 3; i++){
+		cpu = i + 1;
+		if (cpu_core_state[i] == 0 && cpu_online(cpu)){
+			show_status("DOWN", 0, cpu);
+			cpu_down(cpu);
+		} else if (cpu_core_state[i] == 1 && !cpu_online(cpu)){
+			if (is_lp_cluster())
+				tegra_cpuquiet_force_gmode();
+			
+			show_status("UP", 0, cpu);
+			cpu_up(cpu);
+		}
+	}
+}
+
+ssize_t show_cpu_core_state(struct cpuquiet_attribute *cattr, char *buf)
+{
+	char *out = buf;
+		
+	out += sprintf(out, "%d %d %d\n", cpu_core_state[0], cpu_core_state[1], cpu_core_state[2]);
+
+	return out - buf;
+}
+
+ssize_t store_cpu_core_state(struct cpuquiet_attribute *cattr,
+					const char *buf, size_t count)
+{
+	int ret;
+	unsigned int cpu_core_state_user[3] = {0, 0, 0};
+	int i = 0;
+
+	if (!manual_hotplug)
+		return -EINVAL;
+
+	ret = sscanf(buf, "%u,%u,%u", &cpu_core_state_user[0], &cpu_core_state_user[1],
+		&cpu_core_state_user[2]);
+		
+	if (ret < 3)
+		return -EINVAL;
+
+	for (i = 0; i < 3; i++){
+		if (cpu_core_state_user[i] < 0 || cpu_core_state_user[i] > 1)
+			return -EINVAL;
+	}
+
+	cpu_core_state[0]=cpu_core_state_user[0];
+	cpu_core_state[1]=cpu_core_state_user[1];
+	cpu_core_state[2]=cpu_core_state_user[2];
+
+	schedule_work(&cpu_core_state_work);
+
+	pr_info(CPUQUIET_TAG "cpu_core_state=%d %d %d\n", cpu_core_state[0], cpu_core_state[1], cpu_core_state[2]);
+		    
+	return count;
+}
+
 CPQ_BASIC_ATTRIBUTE(lp_up_delay, 0644, uint);
 CPQ_BASIC_ATTRIBUTE(lp_down_delay, 0644, uint);
 CPQ_ATTRIBUTE(enable, 0644, bool, enable_callback);
 CPQ_ATTRIBUTE_CUSTOM(min_cpus, 0644, show_min_cpus, store_min_cpus);
 CPQ_ATTRIBUTE_CUSTOM(max_cpus, 0644, show_max_cpus, store_max_cpus);
+CPQ_ATTRIBUTE_CUSTOM(no_lp, 0644, show_no_lp, store_no_lp);
+CPQ_ATTRIBUTE_CUSTOM(manual_hotplug, 0644, show_manual_hotplug, store_manual_hotplug);
+CPQ_ATTRIBUTE_CUSTOM(cpu_core_state, 0644, show_cpu_core_state, store_cpu_core_state);
 
 static struct attribute *tegra_auto_attributes[] = {
 	&no_lp_attr.attr,
@@ -588,6 +757,8 @@ static struct attribute *tegra_auto_attributes[] = {
 	&enable_attr.attr,
 	&min_cpus_attr.attr,
 	&max_cpus_attr.attr,
+	&manual_hotplug_attr.attr,
+	&cpu_core_state_attr.attr,
 	NULL,
 };
 
@@ -652,6 +823,7 @@ int tegra_auto_hotplug_init(struct mutex *cpu_lock)
 
 	INIT_DELAYED_WORK(&cpuquiet_work, tegra_cpuquiet_work_func);
 	INIT_WORK(&minmax_work, min_max_constraints_workfunc);
+	INIT_WORK(&cpu_core_state_work, cpu_core_state_workfunc);
 
 	tegra3_cpu_lock = cpu_lock;
 
