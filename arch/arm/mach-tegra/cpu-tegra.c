@@ -103,6 +103,7 @@ static struct delayed_work suspend_work;
 static unsigned int suspend_delay = SUSPEND_DELAY_MS;
 static unsigned int use_suspend_delay = 0;
 static void tegra_flush_delayed_suspend_work(void);
+static void tegra_cancel_delayed_suspend_work(void);
 static bool in_earlysuspend = false;
 static unsigned int use_suspend_boost = 0;
 #endif
@@ -2652,12 +2653,22 @@ static void tegra_delayed_suspend_work(struct work_struct *work)
 #endif
 }
 
-static __maybe_unused void tegra_flush_delayed_suspend_work(void)
+static void tegra_flush_delayed_suspend_work(void)
 {
 	// delayed suspend worker hasnt run so far - run it now
 	if(in_earlysuspend){
 		pr_info("tegra_flush_delayed_suspend_work\n");
 		flush_delayed_work_sync(&suspend_work);
+	}
+}
+
+static void tegra_cancel_delayed_suspend_work(void)
+{
+	// cancel any suspend worker still in queue
+	if(in_earlysuspend){
+		pr_info("tegra_cancel_delayed_suspend_work\n");
+		cancel_delayed_work_sync(&suspend_work);
+		in_earlysuspend = false;
 	}
 }
 
@@ -2674,6 +2685,10 @@ static void tegra_cpufreq_early_suspend(struct early_suspend *h)
 static void tegra_cpufreq_late_resume(struct early_suspend *h)
 {
 	// this is the first resume handler
+    // cancel any suspend handler still in the queue
+	if (use_suspend_delay)
+		tegra_cancel_delayed_suspend_work();
+
 #ifdef CONFIG_TEGRA_CPUQUIET
 	// disable LP mode asap
 	tegra_cpuquiet_force_gmode();
