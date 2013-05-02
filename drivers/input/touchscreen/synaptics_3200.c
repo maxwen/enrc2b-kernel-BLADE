@@ -2182,17 +2182,6 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 				if(touchDebug)
 					pr_info(S2W_TAG " Finger leave\n");
 
-                if (s2w_switch){
-				    exec_count = true;
-				    barrier = false;
-                    downx = -1;
-
-				    if(!mode && !s2w_allow_double_tap){
-					    if(touchDebug)
-					    	pr_info(S2W_TAG "suspend - ignoring last finger leave");
-					    return;
-				    }
-				}
 				if (scr_suspended && s2w_allow_double_tap && finger_data[0][1] > s2w_double_tap_barrier_y){
 					cputime64_t now = ktime_to_ns(ktime_get());
 					cputime64_t diff = cputime64_sub(now, s2w_double_tap_start);
@@ -2208,9 +2197,22 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 						pr_info(S2W_TAG "s2w_double_tap ON");
 						mode = true;
 						sweep2wake_pwrtrigger();
+						return;
 					}   	
 
 					s2w_double_tap_start = now;
+				}
+
+                if (s2w_switch){
+				    exec_count = true;
+				    barrier = false;
+                    downx = -1;
+
+				    if(!mode){
+					    if(touchDebug)
+					    	pr_info(S2W_TAG "suspend - ignoring last finger leave");
+					    return;
+				    }
 				}
 			}
 #endif
