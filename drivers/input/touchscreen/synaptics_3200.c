@@ -166,7 +166,7 @@ static bool s2w_allow_stroke = true;
 // double tap to wake
 static bool s2w_allow_double_tap = false;
 static unsigned int s2w_double_tap_duration = 150; /* msecs */
-static unsigned int s2w_double_tap_threshold = 300;  /* msecs */
+static unsigned int s2w_double_tap_threshold = 500;  /* msecs */
 static cputime64_t s2w_double_tap_start = 0;
 static unsigned int s2w_double_tap_barrier_y = 1300;
 static bool s2w_switch = true;
@@ -2155,6 +2155,7 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 			ts->finger_pressed = finger_pressed;
 		}
 
+		// for double tap to wake we must prefill the values here
 		if((ts->debug_log_level & BIT(3)) || (scr_suspended && s2w_allow_double_tap)) {
 			for(i = 0; i < ts->finger_support; i++) {
 				if ((finger_pressed | finger_release_changed) & BIT(i)) {
@@ -2238,16 +2239,16 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 					s2w_double_tap_start = now;
 				}
 
-                if (s2w_switch){
-				    exec_count = true;
-				    barrier = false;
-                    downx = -1;
+				if (s2w_switch){
+					exec_count = true;
+					barrier = false;
+         			downx = -1;
 
-				    if(!mode){
-					    if(touchDebug)
-					    	pr_info(S2W_TAG "suspend - ignoring last finger leave");
-					    return;
-				    }
+					if(!mode){
+						if(touchDebug)
+							pr_info(S2W_TAG "suspend - ignoring last finger leave");
+						return;
+					}
 				}
 			}
 #endif
