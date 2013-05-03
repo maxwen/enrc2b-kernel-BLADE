@@ -165,10 +165,15 @@ static bool s2w_allow_stroke = true;
 
 // double tap to wake
 static bool s2w_allow_double_tap = false;
+// minimal duration between taps to be recognized
 static unsigned int s2w_double_tap_duration = 150; /* msecs */
-static unsigned int s2w_double_tap_threshold = 500;  /* msecs */
+// maximal duration between taps to be recognized
+// max = s2w_double_tap_duration + s2w_double_tap_threshold
+static unsigned int s2w_double_tap_threshold = 150;  /* msecs */
 static cputime64_t s2w_double_tap_start = 0;
+// screen y barrier below that touch events will be recognized
 static unsigned int s2w_double_tap_barrier_y = 1300;
+
 static bool s2w_switch = true;
 static bool scr_suspended = false;
 static bool exec_count = true;
@@ -2222,7 +2227,7 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 					cputime64_t now = ktime_to_ns(ktime_get());
 					cputime64_t diff = cputime64_sub(now, s2w_double_tap_start);
 					cputime64_t tapTime = s2w_double_tap_duration * 1000 * 1000;
-					cputime64_t tooLongTime = s2w_double_tap_threshold * 1000 * 1000;
+					cputime64_t tooLongTime = tapTime + s2w_double_tap_threshold * 1000 * 1000;
 
 					if(touchDebug){
 						pr_info(S2W_TAG "s2w_double_tap x=%d y=%d\n", finger_data[0][0], finger_data[0][1]);
