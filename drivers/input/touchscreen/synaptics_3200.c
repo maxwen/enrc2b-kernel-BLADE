@@ -13,6 +13,7 @@
  * GNU General Public License for more details.
  *
  * S2W, free swipe and stroke support modified by NIKER, 2012
+ * double tap to wake support by maxwen 2013
  */
 
 #include <linux/module.h>
