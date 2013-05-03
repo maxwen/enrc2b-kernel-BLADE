@@ -1835,7 +1835,40 @@ static ssize_t synaptics_s2w_double_tap_threshold_dump(struct device *dev,
 
 static DEVICE_ATTR(s2w_double_tap_threshold, (S_IWUSR|S_IRUGO),
 	synaptics_s2w_double_tap_threshold_show, synaptics_s2w_double_tap_threshold_dump);	
-	
+
+static ssize_t synaptics_s2w_double_tap_barrier_y_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	size_t count = 0;
+
+	count += sprintf(buf, "%d\n", s2w_double_tap_barrier_y);
+
+	return count;
+}
+
+static ssize_t synaptics_s2w_double_tap_barrier_y_dump(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned long value;
+    int ret = 0;
+
+	ret = strict_strtoul(buf, 10, &value);
+    if (ret < 0) {
+        pr_info(S2W_TAG "set s2w_double_tap_barrier_y failed %s", buf);
+        return count;
+    }
+    if (value > 0) {
+        s2w_double_tap_barrier_y = (int)value;
+    	pr_info(S2W_TAG "s2w_double_tap_barrier_y=%d", s2w_double_tap_barrier_y);
+    } else {
+        pr_info(S2W_TAG "set s2w_double_tap_barrier_y failed - valid values are > 0 - %s", buf);
+    }
+	return count;
+}
+
+static DEVICE_ATTR(s2w_double_tap_barrier_y, (S_IWUSR|S_IRUGO),
+	synaptics_s2w_double_tap_barrier_y_show, synaptics_s2w_double_tap_barrier_y_dump);
+
 #endif
 
 static ssize_t synaptics_calibration_control_show(struct device *dev,
@@ -1917,7 +1950,8 @@ static int synaptics_touch_sysfs_init(void)
         sysfs_create_file(android_touch_kobj, &dev_attr_s2w_min_distance.attr) ||
         sysfs_create_file(android_touch_kobj, &dev_attr_s2w_allow_double_tap.attr) ||
         sysfs_create_file(android_touch_kobj, &dev_attr_s2w_double_tap_duration.attr) ||        
-        sysfs_create_file(android_touch_kobj, &dev_attr_s2w_double_tap_threshold.attr)
+        sysfs_create_file(android_touch_kobj, &dev_attr_s2w_double_tap_threshold.attr) ||
+        sysfs_create_file(android_touch_kobj, &dev_attr_s2w_double_tap_barrier_y.attr)        
 	    )
         return -ENOMEM;
 #endif
@@ -1976,6 +2010,7 @@ static void synaptics_touch_sysfs_remove(void)
 	sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_allow_double_tap.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_double_tap_duration.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_double_tap_threshold.attr);
+	sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_double_tap_barrier_y.attr);
 #endif
 #ifdef SYN_WIRELESS_DEBUG
 	sysfs_remove_file(android_touch_kobj, &dev_attr_enabled.attr);
