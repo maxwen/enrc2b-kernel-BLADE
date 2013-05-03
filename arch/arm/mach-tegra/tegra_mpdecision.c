@@ -984,6 +984,8 @@ static struct notifier_block max_cpus_notifier = {
 void tegra_lpmode_freq_max_changed(void)
 {
 	idle_top_freq = tegra_lpmode_freq_max();
+    /* overwrite idle frequency with lpcpu max clock */
+	tegra_mpdec_tuners_ins.idle_freq = idle_top_freq;
 	pr_info(MPDEC_TAG "%s: idle_top_freq = %d\n", __func__, idle_top_freq);
 }
 
@@ -999,7 +1001,6 @@ static int __init tegra_mpdec_init(void)
 		return -ENOENT;
 
 	idle_top_freq = tegra_lpmode_freq_max();
-
     /* overwrite idle frequency with lpcpu max clock */
     tegra_mpdec_tuners_ins.idle_freq = idle_top_freq;
 
