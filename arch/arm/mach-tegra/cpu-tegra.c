@@ -382,6 +382,7 @@ static unsigned int user_cap_speed(unsigned int requested_speed)
 
 static int ril_boost_set(const char *arg, const struct kernel_param *kp)
 {
+	param_set_uint(arg, kp);
 	return schedule_work(&ril_suspend_resume_work);
 }
 
@@ -2687,6 +2688,13 @@ static void tegra_cpufreq_late_resume(struct early_suspend *h)
 	if (use_suspend_delay)
 		tegra_cancel_delayed_suspend_work();
 
+    // clean any ril boost
+    if (ril_boost){ 
+    	pr_info("tegra_cpufreq_late_resume: clean cpu freq boost from RIL\n");
+		pm_qos_update_request(&boost_cpu_freq_req, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
+		ril_boost = 0;
+    }
+        
 #ifdef CONFIG_TEGRA_CPUQUIET
 	// disable LP mode asap
 	tegra_cpuquiet_force_gmode();
