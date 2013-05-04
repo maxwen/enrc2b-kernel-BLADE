@@ -4363,12 +4363,12 @@ struct clk tegra_list_clks[] = {
 	PERIPH_CLK("hda",	"tegra30-hda",		"hda",   125,	0x428,	108000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
 	PERIPH_CLK("hda2codec_2x",	"tegra30-hda",	"hda2codec",   111,	0x3e4,	48000000,  mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
 	PERIPH_CLK("hda2hdmi",	"tegra30-hda",		"hda2hdmi",	128,	0,	48000000,  mux_clk_m,			PERIPH_ON_APB),
-	PERIPH_CLK("sbc1",	"spi_tegra.0",		"spi",	41,	0x134,	52000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
-	PERIPH_CLK("sbc2",	"spi_tegra.1",		"spi",	44,	0x118,	52000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
-	PERIPH_CLK("sbc3",	"spi_tegra.2",		"spi",	46,	0x11c,	52000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
-	PERIPH_CLK("sbc4",	"spi_tegra.3",		"spi",	68,	0x1b4,	52000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
-	PERIPH_CLK("sbc5",	"spi_tegra.4",		"spi",	104,	0x3c8,	52000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
-	PERIPH_CLK("sbc6",	"spi_tegra.5",		"spi",	105,	0x3cc,	52000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
+	PERIPH_CLK("sbc1",	"spi_tegra.0",		"spi",	41,	0x134,	160000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
+	PERIPH_CLK("sbc2",	"spi_tegra.1",		"spi",	44,	0x118,	160000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
+	PERIPH_CLK("sbc3",	"spi_tegra.2",		"spi",	46,	0x11c,	160000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
+	PERIPH_CLK("sbc4",	"spi_tegra.3",		"spi",	68,	0x1b4,	160000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
+	PERIPH_CLK("sbc5",	"spi_tegra.4",		"spi",	104,	0x3c8,	160000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
+	PERIPH_CLK("sbc6",	"spi_tegra.5",		"spi",	105,	0x3cc,	160000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71 | PERIPH_ON_APB),
 	PERIPH_CLK("sata_oob",	"tegra_sata_oob",	NULL,	123,	0x420,	216000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71),
 	PERIPH_CLK("sata",	"tegra_sata",		NULL,	124,	0x424,	216000000, mux_pllp_pllc_pllm_clkm,	MUX | DIV_U71),
 	PERIPH_CLK("sata_cold",	"tegra_sata_cold",	NULL,	129,	0,	48000000,  mux_clk_m,			0),
@@ -4481,7 +4481,7 @@ struct clk tegra_list_clks[] = {
 	SHARED_CLK("cap.emc",	"cap.emc",		NULL,	&tegra_clk_emc, NULL, 0, SHARED_CEILING),
 	SHARED_CLK("3d.emc",	"tegra_gr3d",		"emc",	&tegra_clk_emc, NULL, 0, 0),
 	SHARED_CLK("2d.emc",	"tegra_gr2d",		"emc",	&tegra_clk_emc, NULL, 0, 0),
-	SHARED_CLK("mpe.emc",	"tegra_mpe",		"emc",	&tegra_clk_emc, NULL, 0, SHARED_BW),
+	SHARED_CLK("mpe.emc",	"tegra_mpe",		"emc",	&tegra_clk_emc, NULL, 0, 0),
 	SHARED_CLK("camera.emc", "tegra_camera",	"emc",	&tegra_clk_emc, NULL, 0, SHARED_BW),
 	SHARED_CLK("sdmmc4.emc", "sdhci-tegra.3",	"emc",	&tegra_clk_emc, NULL, 0, 0),
 	SHARED_CLK("floor.emc",	"floor.emc",		NULL,	&tegra_clk_emc, NULL, 0, 0),
@@ -4981,10 +4981,10 @@ struct tegra_cpufreq_table_data *tegra_cpufreq_table_get(void)
 	return NULL;
 }
 
-static unsigned long emc_max_rate_threshold = 910000;
+static unsigned long emc_max_rate_threshold = 1100000;
 module_param(emc_max_rate_threshold, ulong, 0644);
 
-static unsigned long emc_balance_threshold = 620000;
+static unsigned long emc_balance_threshold = 640000;
 module_param(emc_balance_threshold, ulong, 0644);
 
 static unsigned long emc_balance_rate = 437000000;
@@ -5006,13 +5006,13 @@ unsigned long tegra_emc_to_cpu_ratio(unsigned long cpu_rate)
 	/* Vote on memory bus frequency based on cpu frequency;
 	   cpu rate is in kHz, emc rate is in Hz */
 	if (cpu_rate >= emc_max_rate_threshold)
-		return emc_max_rate;	/* cpu >= 910 MHz, emc max */
+		return emc_max_rate;	/* cpu >= 1100 MHz, emc max */
     else if (emc_balance_threshold && cpu_rate >= emc_balance_threshold)
-        return emc_balance_rate;/* cpu >= 620 MHz, 437 MHz */
-	else if (cpu_rate >= 475000)
-		return emc_max_rate/2;	/* cpu >= 475 MHz, emc max/2 */
-	else if (cpu_rate >= 204000)
-		return 100000000;	/* cpu >= 204 MHz, emc 100 MHz */
+        return emc_balance_rate;/* cpu >= 640 MHz, 437 MHz */
+	else if (cpu_rate >= 450000)
+		return emc_max_rate/2;	/* cpu >= 450 MHz, emc max/2 */
+	else if (cpu_rate >= 250000)
+		return 100000000;	/* cpu >= 250 MHz, emc 100 MHz */
 	else
 		return 0;		/* emc min */
 }
