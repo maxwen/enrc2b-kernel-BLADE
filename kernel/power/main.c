@@ -182,6 +182,8 @@ static ssize_t state_store(struct kobject *kobj, struct kobj_attribute *attr,
 	int len;
 	int error = -EINVAL;
 
+	pr_info("state_store:  buf=%s\n", buf);
+
 	p = memchr(buf, '\n', n);
 	len = p ? p - buf : n;
 

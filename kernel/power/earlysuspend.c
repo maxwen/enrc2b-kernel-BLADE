@@ -32,7 +32,7 @@ enum {
 extern struct wake_lock power_key_wake_lock;
 extern struct wake_lock udc_resume_wake_lock;
 
-static int debug_mask = DEBUG_USER_STATE;
+static int debug_mask = DEBUG_USER_STATE | DEBUG_SUSPEND | DEBUG_VERBOSE;
 module_param_named(debug_mask, debug_mask, int, S_IRUGO | S_IWUSR | S_IWGRP);
 
 static DEFINE_MUTEX(early_suspend_lock);
@@ -312,6 +312,8 @@ void request_suspend_state(suspend_state_t new_state)
 {
 	unsigned long irqflags;
 	int old_sleep;
+	
+	pr_info("[R] request_suspend_state: start\n");
 
 	spin_lock_irqsave(&state_lock, irqflags);
 	old_sleep = state & SUSPEND_REQUESTED;
@@ -344,6 +346,7 @@ void request_suspend_state(suspend_state_t new_state)
 	}
 	requested_suspend_state = new_state;
 	spin_unlock_irqrestore(&state_lock, irqflags);
+	pr_info("[R] request_suspend_state: end\n");
 }
 
 suspend_state_t get_suspend_state(void)
