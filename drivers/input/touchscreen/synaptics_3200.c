@@ -2225,10 +2225,10 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 					pr_info(S2W_TAG " Finger leave\n");
 
 				if (scr_suspended && s2w_allow_double_tap && finger_data[0][1] > s2w_double_tap_barrier_y){
-					cputime64_t now = ktime_to_ns(ktime_get());
+					cputime64_t now = ktime_to_ms(ktime_get());
 					cputime64_t diff = cputime64_sub(now, s2w_double_tap_start);
-					cputime64_t tapTime = s2w_double_tap_duration * 1000 * 1000;
-					cputime64_t tooLongTime = tapTime + s2w_double_tap_threshold * 1000 * 1000;
+					cputime64_t tapTime = s2w_double_tap_duration;
+					cputime64_t tooLongTime = tapTime + s2w_double_tap_threshold;
 
 					if(touchDebug){
 						pr_info(S2W_TAG "s2w_double_tap x=%d y=%d\n", finger_data[0][0], finger_data[0][1]);
