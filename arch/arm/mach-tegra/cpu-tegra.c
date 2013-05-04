@@ -401,7 +401,6 @@ module_param_cb(ril_boost, &ril_boost_ops, &ril_boost, 0644);
 static int perf_early_suspend_set(const char *arg, const struct kernel_param *kp)
 {
 	pr_info("perf_early_suspend not supported\n");
-
 	return 0;
 }
 
@@ -2685,16 +2684,17 @@ static void tegra_cpufreq_late_resume(struct early_suspend *h)
 {
 	// this is the first resume handler
     // cancel any suspend handler still in the queue
+    // else on fast suspend/resume this will run after resume
 	if (use_suspend_delay)
 		tegra_cancel_delayed_suspend_work();
 
-    // clean any ril boost
-    if (ril_boost){ 
-    	pr_info("tegra_cpufreq_late_resume: clean cpu freq boost from RIL\n");
+	// clean any ril boost
+	if (ril_boost){ 
+		pr_info("tegra_cpufreq_late_resume: clean cpu freq boost from RIL\n");
 		pm_qos_update_request(&boost_cpu_freq_req, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
 		ril_boost = 0;
-    }
-        
+	}
+
 #ifdef CONFIG_TEGRA_CPUQUIET
 	// disable LP mode asap
 	tegra_cpuquiet_force_gmode();
