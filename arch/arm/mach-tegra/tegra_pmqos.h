@@ -38,6 +38,9 @@
 // used for governors ideal or idle freq
 #define GOV_IDLE_FREQ     		475000
 
+// default without 620LP
+#define T3_LP_MAX_FREQ_DEFAULT  475000
+
 // sysfs to change available
 #define SUSPEND_CPU_NUM_MAX		2
 

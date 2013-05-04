@@ -111,7 +111,7 @@ static struct tegra_mpdec_tuners {
 	.startdelay = TEGRA_MPDEC_STARTDELAY,
 	.delay = TEGRA_MPDEC_DELAY,
 	.pause = TEGRA_MPDEC_PAUSE,
-	.idle_freq = T3_LP_MAX_FREQ,
+	.idle_freq = T3_LP_MAX_FREQ_DEFAULT,
         .lp_cpu_up_hysteresis = TEGRA_MPDEC_LPCPU_UP_HYS,
         .lp_cpu_down_hysteresis = TEGRA_MPDEC_LPCPU_DOWN_HYS,
         .max_cpus = CONFIG_NR_CPUS,

@@ -164,8 +164,6 @@ unsigned int tegra_cpu_freq_max(unsigned int cpu)
 	return T3_CPU_FREQ_MAX;
 }
 
-#define T3_LP_MAX_FREQ_DEFAULT     		475000
-
 unsigned int tegra_lpmode_freq_max(void)
 {
 	struct clk *cpu_lp_clk;
