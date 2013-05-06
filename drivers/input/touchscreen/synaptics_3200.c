@@ -2224,6 +2224,13 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 				if(touchDebug)
 					pr_info(S2W_TAG " Finger leave\n");
 
+				// always reset S2W parameters
+				if (s2w_switch){
+					exec_count = true;
+					barrier = false;
+					downx = -1;
+				}
+
 				if (scr_suspended && s2w_allow_double_tap && finger_data[0][1] > s2w_double_tap_barrier_y){
 					cputime64_t now = ktime_to_ms(ktime_get());
 					cputime64_t diff = cputime64_sub(now, s2w_double_tap_start);
@@ -2234,22 +2241,18 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 						pr_info(S2W_TAG "s2w_double_tap x=%d y=%d\n", finger_data[0][0], finger_data[0][1]);
 						pr_info(S2W_TAG "s2w_double_tap diff=%lld\n", diff);
 					}
+
+					s2w_double_tap_start = now;
 					
 					if (diff > tapTime && diff < tooLongTime){
 						pr_info(S2W_TAG "s2w_double_tap ON");
 						mode = true;
 						sweep2wake_pwrtrigger();
 						return;
-					}   	
-
-					s2w_double_tap_start = now;
+					}
 				}
 
 				if (s2w_switch){
-					exec_count = true;
-					barrier = false;
-         			downx = -1;
-
 					if(!mode){
 						if(touchDebug)
 							pr_info(S2W_TAG "suspend - ignoring last finger leave");
@@ -2451,13 +2454,13 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
                     else
                     {
                       // lock panel to s2w after this distance
-                      if(downx + s2w_register_threshold < finger_data[i][0])
+                      if(abs(downx - finger_data[i][0]) > s2w_register_threshold)
                       {
                         barrier = true;
                       }
                       
                       // unlock after distance travelled
-                      if(downx + s2w_min_distance < finger_data[i][0])
+                      if(abs(downx - finger_data[i][0]) > s2w_min_distance)
                       {
                         if (exec_count) {
                           pr_info(S2W_TAG "ON");
@@ -2490,13 +2493,13 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
                     else
                     {
                       // lock panel to s2w after this distance
-                      if(downx - s2w_register_threshold > finger_data[i][0])
+                      if(abs(downx - finger_data[i][0]) > s2w_register_threshold)
                       {
                         barrier = true;
                       }
                       
                       // unlock after distance travelled
-                      if(downx - s2w_min_distance > finger_data[i][0])
+                      if(abs(downx - finger_data[i][0]) > s2w_min_distance)
                       {
                         if (exec_count) {
                           pr_info(S2W_TAG "OFF");
