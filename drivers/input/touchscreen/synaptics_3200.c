@@ -2111,6 +2111,67 @@ if (calibration_control){
 	return ret;
 }
 
+static void synaptics_fill_finger_data(struct synaptics_ts_data *ts, uint8_t *buf, int finger_data[][4], uint16_t finger_release_changed, uint16_t finger_pressed, int base)
+{
+	uint8_t i = 0;
+	uint8_t j = 0;
+
+	for(i = 0; i < ts->finger_support; i++) {
+		if ((finger_pressed | finger_release_changed) & BIT(i)) {
+			uint32_t flip_flag = SYNAPTICS_FLIP_X;
+			uint8_t pos_mask = 0x0f;
+			for (j = 0; j < 2; j++) {
+				finger_data[i][j]
+					= (buf[base+2] & pos_mask) >> (j * 4) |
+					(uint16_t)buf[base + j] << 4;
+				if (ts->flags & flip_flag)
+					finger_data[i][j] = ts->max[j] - finger_data[i][j];
+				flip_flag <<= 1;
+				pos_mask <<= 4;
+			}
+			finger_data[i][2] = (buf[base+3] >> 4 & 0x0F) + (buf[base+3] & 0x0F);
+			finger_data[i][3] = buf[base+4];
+
+			if (ts->flags & SYNAPTICS_SWAP_XY)
+				swap(finger_data[i][0], finger_data[i][1]);
+
+			if (ts->layout[1] < finger_data[i][0])
+				finger_data[i][0] = ts->layout[1];
+		}	
+		base += 5;
+	}
+}
+
+#ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_SWEEP2WAKE
+static bool synaptics_s2w_handle_move(int downx, int finger_data_x)
+{
+	// lock panel to s2w after this distance
+	if(abs(downx - finger_data_x) > s2w_register_threshold)
+    	barrier = true;
+                      
+	// handle after distance travelled
+	if(abs(downx - finger_data_x) > s2w_min_distance)
+		return true;
+
+	return false;
+}
+
+static void synaptics_s2w_turn_on(void)
+{
+	pr_info(S2W_TAG "ON");
+	mode=true;
+	sweep2wake_pwrtrigger();
+}
+
+static void synaptics_s2w_turn_off(void)
+{
+	pr_info(S2W_TAG "OFF");
+	mode=false;
+	sweep2wake_pwrtrigger();
+}
+
+#endif
+
 static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 {
 	int ret;
@@ -2119,7 +2180,7 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
   // -1 = not touched; -2 = touched on screen; >=0 = touched on button panel
 	static int downx = -1;
 #endif
-
+	
     if(touchDebug)
         printk(KERN_INFO "[TP] Finger event\n");
 
@@ -2131,7 +2192,8 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 	} else {
 		int finger_data[ts->finger_support][4];
 		int base = (ts->finger_support + 3) / 4;
-		uint8_t i, j;
+		uint8_t i;
+		//uint8_t j;
 		uint16_t finger_press_changed = 0, finger_release_changed = 0, finger_pressed = 0;
 
 		ts->finger_count = 0;
@@ -2161,46 +2223,24 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 			ts->finger_pressed = finger_pressed;
 		}
 
-		// for double tap to wake we must prefill the values here
-		if((ts->debug_log_level & BIT(3)) || (scr_suspended && s2w_allow_double_tap)) {
+		synaptics_fill_finger_data(ts, buf, finger_data, finger_release_changed, finger_pressed, base);
+
+		if(ts->debug_log_level & BIT(3)) {
 			for(i = 0; i < ts->finger_support; i++) {
 				if ((finger_pressed | finger_release_changed) & BIT(i)) {
-					uint32_t flip_flag = SYNAPTICS_FLIP_X;
-					uint8_t pos_mask = 0x0f;
-					for (j = 0; j < 2; j++) {
-						finger_data[i][j]
-							= (buf[base+2] & pos_mask) >> (j * 4) |
-							(uint16_t)buf[base + j] << 4;
-						if (ts->flags & flip_flag)
-							finger_data[i][j] = ts->max[j] - finger_data[i][j];
-						flip_flag <<= 1;
-						pos_mask <<= 4;
-					}
-					finger_data[i][2] = (buf[base+3] >> 4 & 0x0F) + (buf[base+3] & 0x0F);
-					finger_data[i][3] = buf[base+4];
-
-					if (ts->flags & SYNAPTICS_SWAP_XY)
-						swap(finger_data[i][0], finger_data[i][1]);
-
-					if (ts->layout[1] < finger_data[i][0])
-						finger_data[i][0] = ts->layout[1];
-						
-					if(ts->debug_log_level & BIT(3)){
-						if(ts->width_factor && ts->height_factor){
-							printk(KERN_INFO
-								"[TP] Screen:F[%02d]:Up, X=%d, Y=%d, W=%d, Z=%d\n",
-								i+1, (finger_data[i][0]*ts->width_factor)>>SHIFT_BITS,
-								(finger_data[i][1]*ts->height_factor)>>SHIFT_BITS,
-								finger_data[i][2], finger_data[i][3]);
-						} else {
-							printk(KERN_INFO
-								"[TP] Raw:F[%02d]:Up, X=%d, Y=%d, W=%d, Z=%d\n",
-								i+1, finger_data[i][0], finger_data[i][1],
-								finger_data[i][2], finger_data[i][3]);
-						}
+					if(ts->width_factor && ts->height_factor){
+						printk(KERN_INFO
+							"[TP] Screen:F[%02d]:Up, X=%d, Y=%d, W=%d, Z=%d\n",
+							i+1, (finger_data[i][0]*ts->width_factor)>>SHIFT_BITS,
+							(finger_data[i][1]*ts->height_factor)>>SHIFT_BITS,
+							finger_data[i][2], finger_data[i][3]);
+					} else {
+						printk(KERN_INFO
+							"[TP] Raw:F[%02d]:Up, X=%d, Y=%d, W=%d, Z=%d\n",
+							i+1, finger_data[i][0], finger_data[i][1],
+							finger_data[i][2], finger_data[i][3]);
 					}
 				}
-				base += 5;
 			}
 		}
 
@@ -2220,7 +2260,7 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_SWEEP2WAKE
 			/* if finger released, reset count & barriers */
-			if ((((ts->finger_count > 0)?1:0) == 0) && s2w_active()) {
+			if ((ts->finger_count == 0) && s2w_active()) {
 				if(touchDebug)
 					pr_info(S2W_TAG " Finger leave\n");
 
@@ -2245,9 +2285,7 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 					s2w_double_tap_start = now;
 					
 					if (diff > tapTime && diff < tooLongTime){
-						pr_info(S2W_TAG "s2w_double_tap ON");
-						mode = true;
-						sweep2wake_pwrtrigger();
+						synaptics_s2w_turn_on();
 						return;
 					}
 				}
@@ -2301,34 +2339,15 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 		}
 
 		if (ts->pre_finger_data[0][0] < 2 || finger_pressed) {
-			base = (ts->finger_support + 3) / 4;
 			for (i = 0; i < ts->finger_support; i++) {
-				uint32_t flip_flag = SYNAPTICS_FLIP_X;
 				if ((finger_pressed | finger_release_changed) & BIT(i)) {
-					uint8_t pos_mask = 0x0f;
-					for (j = 0; j < 2; j++) {
-						finger_data[i][j]
-							= (buf[base+2] & pos_mask) >> (j * 4) |
-							(uint16_t)buf[base + j] << 4;
-						if (ts->flags & flip_flag)
-							finger_data[i][j] = ts->max[j] - finger_data[i][j];
-						flip_flag <<= 1;
-						pos_mask <<= 4;
-					}
-					finger_data[i][2] = (buf[base+3] >> 4 & 0x0F) + (buf[base+3] & 0x0F);
-					finger_data[i][3] = buf[base+4];
-					if (ts->flags & SYNAPTICS_SWAP_XY)
-						swap(finger_data[i][0], finger_data[i][1]);
-
-					if (ts->layout[1] < finger_data[i][0])
-						finger_data[i][0] = ts->layout[1];
 
 					if ((finger_release_changed & BIT(i)) && ts->pre_finger_data[0][0] < 2) {
 						if (!ts->first_pressed) {
 							if (ts->finger_count == 0)
 								ts->first_pressed = 1;
-							printk(KERN_INFO "[TP] E%d@%d, %d\n", i + 1,
-							finger_data[i][0], finger_data[i][1]);
+							/*printk(KERN_INFO "[TP] E%d@%d, %d\n", i + 1,
+								finger_data[i][0], finger_data[i][1]);*/
 						}
 					}
 #ifdef SYN_FILTER_CONTROL
@@ -2367,10 +2386,10 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 							} else {
 								finger_pressed &= ~BIT(i);
 								if (ts->debug_log_level & (BIT(1) | BIT(3)))
-							printk(KERN_INFO
-								"[TP] Filtered Finger %d=> X:%d, Y:%d w:%d, z:%d\n",
-								i + 1, finger_data[i][0], finger_data[i][1],
-								finger_data[i][2], finger_data[i][3]);
+									printk(KERN_INFO
+										"[TP] Filtered Finger %d=> X:%d, Y:%d w:%d, z:%d\n",
+										i + 1, finger_data[i][0], finger_data[i][1],
+										finger_data[i][2], finger_data[i][3]);
 							}
 						}
 					}
@@ -2379,154 +2398,76 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 						finger_pressed &= ~BIT(i);
 
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_SWEEP2WAKE
-            if(s2w_allow_stroke)
-            {
-              // stroke2wake - any direction activates
-              if((ts->finger_count == 1) && s2w_switch && (downx != -2))
-              {
-                if(finger_data[i][1] > 1780)
-                {
-                  if((downx == -1) || (abs(downx - finger_data[i][0]) > s2w_register_threshold))
-                  {
-                    // handle touch down
-                    if(downx == -1)
-                    {
-                      downx = finger_data[i][0];
-                      break;
-                    }
-                    else
-                    {
-                      // lock panel to s2w after this distance
-                      if(abs(downx - finger_data[i][0]) > s2w_register_threshold)
-                      {
-                        barrier = true;
-                      }
-                      
-                      // unlock after distance travelled
-                      if(abs(downx - finger_data[i][0]) > s2w_min_distance)
-                      {
-                        if (exec_count) {
-                          if(scr_suspended)
-                          {
-                            pr_info(S2W_TAG "ON");
-                            mode=true;
-                            sweep2wake_pwrtrigger();
-                            exec_count = false;
-                            break;
-                          }
-                          else
-                          {
-                            pr_info(S2W_TAG "OFF");
-                            mode=false;
-                            sweep2wake_pwrtrigger();
-                            exec_count = false;
-                            break;
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
-                else  // touch down on screen
-                {
-                  // this prevents swipes originating on screen and then
-                  // entering button panel to affect s2w (gaming etc.)
-                  downx = -2; 
-                }
-              }
-            }
-            else
-            {
-              // Free swipe - single direction activation
-              //left->right
-              if ((ts->finger_count == 1) && scr_suspended && s2w_switch && (downx != -2)) {
-      
-                if(finger_data[i][1] > 1780)
-                {
-                  if((downx == -1) || (finger_data[i][0] > downx))
-                  {
-                    // handle touch down
-                    if(downx == -1)
-                    {
-                      downx = finger_data[i][0];
-                      break;
-                    }
-                    else
-                    {
-                      // lock panel to s2w after this distance
-                      if(abs(downx - finger_data[i][0]) > s2w_register_threshold)
-                      {
-                        barrier = true;
-                      }
-                      
-                      // unlock after distance travelled
-                      if(abs(downx - finger_data[i][0]) > s2w_min_distance)
-                      {
-                        if (exec_count) {
-                          pr_info(S2W_TAG "ON");
-                          mode=true;
-                          sweep2wake_pwrtrigger();
-                          exec_count = false;
-                          break;
-                        }
-                      }
-                    }
-                  }
-                }
-                else // touch down on screen
-                {
-                  downx = -2;
-                }
-              //right->left
-              } else if ((ts->finger_count == 1) && !scr_suspended && s2w_switch && (downx != -2)) {
-              
-                if(finger_data[i][1] > 1780)
-                {
-                  if((downx == -1) || (finger_data[i][0] < downx))
-                  {
-                    // handle touch down
-                    if(downx == -1)
-                    {
-                      downx = finger_data[i][0];
-                      break;
-                    }
-                    else
-                    {
-                      // lock panel to s2w after this distance
-                      if(abs(downx - finger_data[i][0]) > s2w_register_threshold)
-                      {
-                        barrier = true;
-                      }
-                      
-                      // unlock after distance travelled
-                      if(abs(downx - finger_data[i][0]) > s2w_min_distance)
-                      {
-                        if (exec_count) {
-                          pr_info(S2W_TAG "OFF");
-                          mode=false;
-                          sweep2wake_pwrtrigger();
-                          exec_count = false;
-                          break;
-                        }
-                      }
-                    }
-                  }
-                }
-                else // touch down on screen
-                {
-                  downx = -2;
-                }
-              }
-						}
 
+						if (i == 0 && s2w_switch && ts->finger_count == 1 && downx != -2){
+							int finger_y = finger_data[0][1];
+							int finger_x = finger_data[0][0];
+
+							if(touchDebug)
+								pr_info(S2W_TAG "current x=%d y=%d downx=%d\n", 
+									finger_x, finger_y, downx);						
+
+							if (finger_y > 1780){
+								if(downx == -1){
+									downx = finger_x;
+								} else {
+									if (s2w_allow_stroke){
+              							// stroke2wake - any direction activates
+										if (synaptics_s2w_handle_move(downx, finger_x)){
+											if (exec_count) {
+												if (scr_suspended){
+													synaptics_s2w_turn_on();
+													exec_count = false;
+													break;
+												} else {
+													synaptics_s2w_turn_off();
+													exec_count = false;
+                            						break;
+												}
+											}
+										}
+           		 					} else {
+										// Free swipe - single direction activation
+										//left->right	
+										if (scr_suspended) {
+											if(finger_x > downx){
+												if (synaptics_s2w_handle_move(downx, finger_x)){
+													if (exec_count) {
+														synaptics_s2w_turn_on();
+														exec_count = false;
+														break;
+													}
+												}
+											}
+										//right->left
+										} else {
+											if(finger_x < downx){
+												if (synaptics_s2w_handle_move(downx, finger_x)){
+													if (exec_count) {
+														synaptics_s2w_turn_off();
+														exec_count = false;
+														break;
+													}
+												}
+											}
+										}
+									}
+								}
+							} else {
+                  				// this prevents swipes originating on screen and then
+                  				// entering button panel to affect s2w (gaming etc.)
+                  				downx = -2; 
+                			}
+						}
+						
 						if(!mode){
 							if(touchDebug)
-								pr_info(S2W_TAG "suspended - ignoring other events");						
+								pr_info(S2W_TAG "suspended - ignoring other events\n");						
 							break;
 						} else {
 							if (barrier){
 								if(touchDebug)
-									pr_info(S2W_TAG "in sweep - ignoring other events");
+									pr_info(S2W_TAG "in sweep - ignoring other events\n");
 								break;
 							}
 						}
