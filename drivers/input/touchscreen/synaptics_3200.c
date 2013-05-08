@@ -1863,11 +1863,11 @@ static ssize_t synaptics_s2w_double_tap_barrier_y_dump(struct device *dev,
         pr_info(S2W_TAG "set s2w_double_tap_barrier_y failed %s", buf);
         return count;
     }
-    if (value > 0) {
+    if (value >= 0) {
         s2w_double_tap_barrier_y = (int)value;
     	pr_info(S2W_TAG "s2w_double_tap_barrier_y=%d", s2w_double_tap_barrier_y);
     } else {
-        pr_info(S2W_TAG "set s2w_double_tap_barrier_y failed - valid values are > 0 - %s", buf);
+        pr_info(S2W_TAG "set s2w_double_tap_barrier_y failed - valid values are >= 0 - %s", buf);
     }
 	return count;
 }
