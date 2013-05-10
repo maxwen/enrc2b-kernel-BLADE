@@ -2412,7 +2412,7 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 									downx = finger_x;
 								} else {
 									if (s2w_allow_stroke){
-              							// stroke2wake - any direction activates
+										// stroke2wake - any direction activates
 										if (synaptics_s2w_handle_move(downx, finger_x)){
 											if (exec_count) {
 												if (scr_suspended){
@@ -2422,11 +2422,11 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 												} else {
 													synaptics_s2w_turn_off();
 													exec_count = false;
-                            						break;
+													break;
 												}
 											}
 										}
-           		 					} else {
+									} else {
 										// Free swipe - single direction activation
 										//left->right	
 										if (scr_suspended) {
@@ -2454,10 +2454,10 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 									}
 								}
 							} else {
-                  				// this prevents swipes originating on screen and then
-                  				// entering button panel to affect s2w (gaming etc.)
-                  				downx = -2; 
-                			}
+								// this prevents swipes originating on screen and then
+								// entering button panel to affect s2w (gaming etc.)
+								downx = -2; 
+							}
 						}
 						
 						if(!mode){
