@@ -43,13 +43,13 @@ static struct delayed_work rq_stats_work;
 static struct kobject *rq_stats_kobject;
 
 /* configurable parameters */
-static unsigned int sample_rate = 70;		/* msec */
+static unsigned int sample_rate = 50;		/* msec */
 static unsigned int start_delay = 20000;
 static RQ_STATS_STATE rq_stats_state;
 static struct workqueue_struct *rq_stats_wq;
 
-static unsigned int NwNs_Threshold[8] = {18, 14, 24, 16, 30, 18, 0, 20};
-static unsigned int TwTs_Threshold[8] = {70, 0, 70, 100, 70, 100, 0, 100};
+static unsigned int NwNs_Threshold[8] = {20, 14, 26, 16, 30, 18, 0, 20};
+static unsigned int TwTs_Threshold[8] = {50, 0, 50, 80, 50, 80, 0, 80};
 
 extern unsigned int get_rq_info(void);
 
