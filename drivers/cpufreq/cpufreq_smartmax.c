@@ -91,18 +91,18 @@ static unsigned int min_cpu_load;
  * The minimum amount of time in nsecs to spend at a frequency before we can ramp up.
  * Notice we ignore this when we are below the ideal frequency.
  */
-#define DEFAULT_UP_RATE 40000
+#define DEFAULT_UP_RATE 30000
 static unsigned int up_rate;
 
 /*
  * The minimum amount of time in nsecs to spend at a frequency before we can ramp down.
  * Notice we ignore this when we are above the ideal frequency.
  */
-#define DEFAULT_DOWN_RATE 80000
+#define DEFAULT_DOWN_RATE 60000
 static unsigned int down_rate;
 
 /* in nsecs */
-#define DEFAULT_SAMPLING_RATE 40000
+#define DEFAULT_SAMPLING_RATE 30000
 static unsigned int sampling_rate;
 
 /* in nsecs */
