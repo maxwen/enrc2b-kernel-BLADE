@@ -38,7 +38,6 @@
 #include "clock.h"
 #include "tegra_pmqos.h"
 
-#define CPUQUIET_DEBUG 0
 #define CPUQUIET_DEBUG_VERBOSE 0
 
 extern unsigned int best_core_to_turn_up(void);
@@ -52,7 +51,6 @@ static struct workqueue_struct *cpuquiet_wq;
 static struct delayed_work cpuquiet_work;
 static struct work_struct minmax_work;
 static struct work_struct cpu_core_state_work;
-
 static struct kobject *tegra_auto_sysfs_kobject;
 
 static bool is_suspended = false;
@@ -64,7 +62,7 @@ static unsigned int idle_top_freq;
 static bool manual_hotplug = false;
 // core 0 is always active
 unsigned int cpu_core_state[3] = {0, 0, 0};
-
+		
 static struct clk *cpu_clk;
 static struct clk *cpu_g_clk;
 static struct clk *cpu_lp_clk;
@@ -76,6 +74,11 @@ static unsigned int max_cpus = CONFIG_NR_CPUS;
 static DEFINE_MUTEX(hotplug_lock);
 
 #define CPUQUIET_TAG                       "[CPUQUIET]: "
+
+static bool log_hotplugging = false;
+#define hotplug_info(msg...) do { \
+	if (log_hotplugging) pr_info("[CPUQUIET]: " msg); \
+	} while (0)
 
 enum {
 	TEGRA_CPQ_DISABLED = 0,
@@ -128,22 +131,20 @@ static inline int switch_clk_to_lpmode(void)
 
 static inline void show_status(const char* extra, cputime64_t on_time, int cpu)
 {
-#if CPUQUIET_DEBUG
 	if(on_time)
-		pr_info(CPUQUIET_TAG "%s Mask=[%d.%d%d%d%d]|lp_on_time=%llu\n",
+		hotplug_info("%s Mask=[%d.%d%d%d%d]|lp_on_time=%llu\n",
     		extra, is_lp_cluster(), ((is_lp_cluster() == 1) ? 0 : cpu_online(0)),
         	cpu_online(1), cpu_online(2), cpu_online(3), on_time);
 	else		
 		if(cpu>0)
-			pr_info(CPUQUIET_TAG "%s %d Mask=[%d.%d%d%d%d]\n",
+			hotplug_info("%s %d Mask=[%d.%d%d%d%d]\n",
     			extra, cpu, is_lp_cluster(), ((is_lp_cluster() == 1) ? 0 : cpu_online(0)),
         		cpu_online(1), cpu_online(2), cpu_online(3));
 
 		else
-			pr_info(CPUQUIET_TAG "%s Mask=[%d.%d%d%d%d]\n",
+			hotplug_info("%s Mask=[%d.%d%d%d%d]\n",
     			extra, is_lp_cluster(), ((is_lp_cluster() == 1) ? 0 : cpu_online(0)),
         		cpu_online(1), cpu_online(2), cpu_online(3));
-#endif
 }
 
 static int cpq_state;
@@ -741,6 +742,30 @@ ssize_t store_cpu_core_state(struct cpuquiet_attribute *cattr,
 	return count;
 }
 
+ssize_t show_log_hotplugging(struct cpuquiet_attribute *cattr, char *buf)
+{
+	char *out = buf;
+		
+	out += sprintf(out, "%d\n", log_hotplugging);
+
+	return out - buf;
+}
+
+ssize_t store_log_hotplugging(struct cpuquiet_attribute *cattr,
+					const char *buf, size_t count)
+{
+	int ret;
+	unsigned int n;
+		
+	ret = sscanf(buf, "%d", &n);
+
+	if ((ret != 1) || n < 0 || n > 1)
+		return -EINVAL;
+
+	log_hotplugging = n;	
+	return count;
+}
+
 CPQ_BASIC_ATTRIBUTE(lp_up_delay, 0644, uint);
 CPQ_BASIC_ATTRIBUTE(lp_down_delay, 0644, uint);
 CPQ_ATTRIBUTE(enable, 0644, bool, enable_callback);
@@ -749,6 +774,7 @@ CPQ_ATTRIBUTE_CUSTOM(max_cpus, 0644, show_max_cpus, store_max_cpus);
 CPQ_ATTRIBUTE_CUSTOM(no_lp, 0644, show_no_lp, store_no_lp);
 CPQ_ATTRIBUTE_CUSTOM(manual_hotplug, 0644, show_manual_hotplug, store_manual_hotplug);
 CPQ_ATTRIBUTE_CUSTOM(cpu_core_state, 0644, show_cpu_core_state, store_cpu_core_state);
+CPQ_ATTRIBUTE_CUSTOM(log_hotplugging, 0644, show_log_hotplugging, store_log_hotplugging);
 
 static struct attribute *tegra_auto_attributes[] = {
 	&no_lp_attr.attr,
@@ -759,6 +785,7 @@ static struct attribute *tegra_auto_attributes[] = {
 	&max_cpus_attr.attr,
 	&manual_hotplug_attr.attr,
 	&cpu_core_state_attr.attr,
+	&log_hotplugging_attr.attr,
 	NULL,
 };
 
