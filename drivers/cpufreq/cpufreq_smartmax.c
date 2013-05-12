@@ -66,7 +66,7 @@ extern int tegra_input_boost (int cpu, unsigned int target_freq);
 #define DEFAULT_MAX_CPU_LOAD 80
 #define DEFAULT_MIN_CPU_LOAD 50
 #define DEFAULT_UP_RATE 30000
-#define DEFAULT_DOWN_RATE 60000
+#define DEFAULT_DOWN_RATE 30000
 #define DEFAULT_SAMPLING_RATE 30000
 #define DEFAULT_INPUT_BOOST_DURATION 50000000
 #define DEFAULT_TOUCH_POKE_FREQ 910000
@@ -83,7 +83,7 @@ extern int tegra_input_boost (int cpu, unsigned int target_freq);
 #define DEFAULT_MAX_CPU_LOAD 70
 #define DEFAULT_MIN_CPU_LOAD 40
 #define DEFAULT_UP_RATE 30000
-#define DEFAULT_DOWN_RATE 60000
+#define DEFAULT_DOWN_RATE 30000
 #define DEFAULT_SAMPLING_RATE 30000
 #define DEFAULT_INPUT_BOOST_DURATION 80000000
 #define DEFAULT_TOUCH_POKE_FREQ 1200000
@@ -100,7 +100,7 @@ extern int tegra_input_boost (int cpu, unsigned int target_freq);
 #define DEFAULT_MAX_CPU_LOAD 70
 #define DEFAULT_MIN_CPU_LOAD 40
 #define DEFAULT_UP_RATE 30000
-#define DEFAULT_DOWN_RATE 60000
+#define DEFAULT_DOWN_RATE 30000
 #define DEFAULT_SAMPLING_RATE 30000
 #define DEFAULT_INPUT_BOOST_DURATION 80000000
 #define DEFAULT_TOUCH_POKE_FREQ 1134000
@@ -149,6 +149,7 @@ static unsigned int down_rate;
 
 /* in nsecs */
 static unsigned int sampling_rate;
+static unsigned int min_sampling_rate;
 
 /* in nsecs */
 static unsigned int input_boost_duration;
@@ -832,7 +833,7 @@ static ssize_t store_sampling_rate(struct kobject *kobj, struct attribute *attr,
 	ssize_t res;
 	unsigned long input;
 	res = strict_strtoul(buf, 0, &input);
-	if (res >= 0 && input > 10000)
+	if (res >= 0 && input > 10000 && input >= min_sampling_rate)
 		sampling_rate = input;
 	else
 		return -EINVAL;
@@ -997,9 +998,23 @@ static ssize_t store_ignore_nice(struct kobject *a, struct attribute *b,
 	return count;
 }
 
+static ssize_t show_min_sampling_rate(struct kobject *kobj, struct attribute *attr,
+		char *buf) {
+	return sprintf(buf, "%d\n", min_sampling_rate);
+}
+
+static ssize_t store_min_sampling_rate(struct kobject *a, struct attribute *b,
+		const char *buf, size_t count) {
+	return -EINVAL;	
+}
+
 #define define_global_rw_attr(_name)		\
 static struct global_attr _name##_attr =	\
 	__ATTR(_name, 0644, show_##_name, store_##_name)
+
+#define define_global_ro_attr(_name)		\
+static struct global_attr _name##_attr =	\
+	__ATTR(_name, 0444, show_##_name, store_##_name)
 
 define_global_rw_attr(debug_mask);
 define_global_rw_attr(up_rate);
@@ -1018,6 +1033,7 @@ define_global_rw_attr(ignore_nice);
 define_global_rw_attr(ramp_up_during_boost);
 define_global_rw_attr(awake_ideal_freq);
 define_global_rw_attr(suspend_ideal_freq);
+define_global_ro_attr(min_sampling_rate);
 
 static struct attribute * smartmax_attributes[] = { 
 	&debug_mask_attr.attr,
@@ -1037,6 +1053,7 @@ static struct attribute * smartmax_attributes[] = {
 	&ramp_up_during_boost_attr.attr, 
 	&awake_ideal_freq_attr.attr,
 	&suspend_ideal_freq_attr.attr,		
+	&min_sampling_rate_attr.attr,
 	NULL , };
 
 static struct attribute_group smartmax_attr_group = { .attrs =
@@ -1205,7 +1222,6 @@ static int cpufreq_governor_smartmax(struct cpufreq_policy *new_policy,
 	struct smartmax_info_s *this_smartmax = &per_cpu(smartmax_info, cpu);
 	struct sched_param param = { .sched_priority = 1 };
     unsigned int latency;
-    unsigned int min_sampling_rate;
 
 	switch (event) {
 	case CPUFREQ_GOV_START:
