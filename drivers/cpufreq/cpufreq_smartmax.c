@@ -34,7 +34,6 @@
 #include <linux/workqueue.h>
 #include <linux/moduleparam.h>
 #include <linux/jiffies.h>
-#include <asm/cputime.h>
 #include <linux/earlysuspend.h>
 #include <linux/input.h>
 #include <linux/kthread.h>
@@ -186,11 +185,11 @@ struct smartmax_info_s {
 	struct cpufreq_policy *cur_policy;
 	struct cpufreq_frequency_table *freq_table;
 	struct delayed_work work;
-	cputime64_t prev_cpu_idle;
-	cputime64_t prev_cpu_iowait;
-	cputime64_t prev_cpu_wall;
-	cputime64_t prev_cpu_nice;
-	cputime64_t freq_change_time;
+	u64 prev_cpu_idle;
+	u64 prev_cpu_iowait;
+	u64 prev_cpu_wall;
+	u64 prev_cpu_nice;
+	u64 freq_change_time;
 	unsigned int cur_cpu_load;
 	unsigned int old_freq;
 	int ramp_dir;
@@ -243,7 +242,7 @@ extern int tegra_input_boost(int cpu, unsigned int target_freq);
 
 static bool boost_task_alive = false;
 static struct task_struct *boost_task;
-static cputime64_t boost_end_time = 0ULL;
+static u64 boost_end_time = 0ULL;
 static unsigned int cur_boost_freq = 0;
 static unsigned int cur_boost_duration = 0;
 static bool boost_running = false;
@@ -285,8 +284,7 @@ struct cpufreq_governor cpufreq_gov_smartmax = {
     .owner = THIS_MODULE,
     };
 
-static inline u64 get_cpu_idle_time_jiffy(unsigned int cpu,
-		u64 *wall) {
+static inline u64 get_cpu_idle_time_jiffy(unsigned int cpu, u64 *wall) {
 
 	u64 idle_time;
 	u64 cur_wall_time;
@@ -326,8 +324,7 @@ static inline u64 get_cpu_idle_time(unsigned int cpu, u64 *wall) {
 	return idle_time;
 }
 
-static inline u64 get_cpu_iowait_time(unsigned int cpu,
-		u64 *wall) {
+static inline u64 get_cpu_iowait_time(unsigned int cpu, u64 *wall) {
 	u64 iowait_time = get_cpu_iowait_time_us(cpu, wall);
 
 	if (iowait_time == -1ULL)
@@ -534,12 +531,12 @@ static void cpufreq_smartmax_timer(struct smartmax_info_s *this_smartmax) {
 
 #if SMARTMAX_STAT 
 	unsigned int cpu = this_smartmax->cpu;
-    u64 diff = 0;
-    
-    if (timer_stat[cpu])
-        diff = now - timer_stat[cpu];
-        
-    timer_stat[cpu] = now;
+	u64 diff = 0;
+
+	if (timer_stat[cpu])
+		diff = now - timer_stat[cpu];
+
+	timer_stat[cpu] = now;
 	printk(KERN_DEBUG "[smartmax]:cpu %d %lld\n", cpu, diff);
 #endif
 
@@ -636,7 +633,7 @@ static void cpufreq_smartmax_timer(struct smartmax_info_s *this_smartmax) {
 		return;
 
 	// boost - but not block ramp up steps based on load if requested
-	if (boost_running && time_before64 (now, boost_end_time)) {
+	if (boost_running && (now < boost_end_time)) {
 		dprintk(SMARTMAX_DEBUG_BOOST, "%d: boost running %llu %llu\n", cur, now, boost_end_time);
 		
 		if (this_smartmax->ramp_dir == -1)
@@ -1085,8 +1082,10 @@ static struct attribute * smartmax_attributes[] = {
 	&min_sampling_rate_attr.attr,
 	NULL , };
 
-static struct attribute_group smartmax_attr_group = { .attrs =
-		smartmax_attributes, .name = "smartmax", };
+static struct attribute_group smartmax_attr_group = { 
+	.attrs = smartmax_attributes, 
+	.name = "smartmax", 
+	};
 
 static int cpufreq_smartmax_boost_task(void *data) {
 	struct smartmax_info_s *this_smartmax;
@@ -1222,9 +1221,13 @@ static void dbs_input_disconnect(struct input_handle *handle) {
 
 static const struct input_device_id dbs_ids[] = { { .driver_info = 1 }, { }, };
 
-static struct input_handler dbs_input_handler = { .event = dbs_input_event,
-		.connect = dbs_input_connect, .disconnect = dbs_input_disconnect,
-		.name = "cpufreq_smartmax", .id_table = dbs_ids, };
+static struct input_handler dbs_input_handler = { 
+	.event = dbs_input_event,
+	.connect = dbs_input_connect, 
+	.disconnect = dbs_input_disconnect,
+	.name = "cpufreq_smartmax", 
+	.id_table = dbs_ids, 
+	};
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
 static void smartmax_early_suspend(struct early_suspend *h)
@@ -1304,12 +1307,12 @@ static int cpufreq_governor_smartmax(struct cpufreq_policy *new_policy,
 #ifdef CONFIG_HAS_EARLYSUSPEND
 			register_early_suspend(&smartmax_early_suspend_handler);
 #endif
-            /* policy latency is in nS. Convert it to uS first */
+			/* policy latency is in nS. Convert it to uS first */
 			latency = new_policy->cpuinfo.transition_latency / 1000;
 			if (latency == 0)
 				latency = 1;
-			
-            /* Bring kernel and HW constraints together */
+
+			/* Bring kernel and HW constraints together */
 			min_sampling_rate = max(min_sampling_rate, MIN_LATENCY_MULTIPLIER * latency);
 			sampling_rate = max(min_sampling_rate, sampling_rate);
 		}
