@@ -65,7 +65,7 @@ extern int tegra_input_boost (int cpu, unsigned int target_freq);
 #define DEFAULT_MAX_CPU_LOAD 80
 #define DEFAULT_MIN_CPU_LOAD 50
 #define DEFAULT_UP_RATE 30000
-#define DEFAULT_DOWN_RATE 30000
+#define DEFAULT_DOWN_RATE 60000
 #define DEFAULT_SAMPLING_RATE 30000
 #define DEFAULT_INPUT_BOOST_DURATION 90000
 #define DEFAULT_TOUCH_POKE_FREQ 910000
@@ -82,7 +82,7 @@ extern int tegra_input_boost (int cpu, unsigned int target_freq);
 #define DEFAULT_MAX_CPU_LOAD 60
 #define DEFAULT_MIN_CPU_LOAD 30
 #define DEFAULT_UP_RATE 30000
-#define DEFAULT_DOWN_RATE 30000
+#define DEFAULT_DOWN_RATE 60000
 #define DEFAULT_SAMPLING_RATE 30000
 #define DEFAULT_INPUT_BOOST_DURATION 90000
 #define DEFAULT_TOUCH_POKE_FREQ 1200000
@@ -99,7 +99,7 @@ extern int tegra_input_boost (int cpu, unsigned int target_freq);
 #define DEFAULT_MAX_CPU_LOAD 70
 #define DEFAULT_MIN_CPU_LOAD 40
 #define DEFAULT_UP_RATE 30000
-#define DEFAULT_DOWN_RATE 30000
+#define DEFAULT_DOWN_RATE 60000
 #define DEFAULT_SAMPLING_RATE 30000
 #define DEFAULT_INPUT_BOOST_DURATION 90000
 #define DEFAULT_TOUCH_POKE_FREQ 1134000
