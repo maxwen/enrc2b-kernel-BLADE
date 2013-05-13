@@ -79,8 +79,8 @@ extern int tegra_input_boost (int cpu, unsigned int target_freq);
 #define DEFAULT_AWAKE_IDEAL_FREQ 806000
 #define DEFAULT_RAMP_UP_STEP 200000
 #define DEFAULT_RAMP_DOWN_STEP 200000
-#define DEFAULT_MAX_CPU_LOAD 70
-#define DEFAULT_MIN_CPU_LOAD 40
+#define DEFAULT_MAX_CPU_LOAD 60
+#define DEFAULT_MIN_CPU_LOAD 30
 #define DEFAULT_UP_RATE 30000
 #define DEFAULT_DOWN_RATE 30000
 #define DEFAULT_SAMPLING_RATE 30000
@@ -242,7 +242,7 @@ extern int tegra_input_boost(int cpu, unsigned int target_freq);
 
 static bool boost_task_alive = false;
 static struct task_struct *boost_task;
-static u64 boost_end_time = 0ULL;
+static u64 boost_end_time = 0;
 static unsigned int cur_boost_freq = 0;
 static unsigned int cur_boost_duration = 0;
 static bool boost_running = false;
@@ -1136,7 +1136,7 @@ static int cpufreq_smartmax_boost_task(void *data) {
 		if (policy->cur < cur_boost_freq) {
 			boost_running = true;
 		
-			now = ktime_to_ns(ktime_get());
+			now = ktime_to_us(ktime_get());
 			boost_end_time = now + cur_boost_duration;
 			dprintk(SMARTMAX_DEBUG_BOOST, "%s %llu %llu\n", __func__, now, boost_end_time);
 
