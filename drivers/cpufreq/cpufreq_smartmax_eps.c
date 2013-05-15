@@ -70,7 +70,14 @@ extern int tegra_input_boost (int cpu, unsigned int target_freq);
 #define DEFAULT_INPUT_BOOST_DURATION 90000
 #define DEFAULT_TOUCH_POKE_FREQ 760000
 #define DEFAULT_BOOST_FREQ 760000
-#define DEFAULT_IO_IS_BUSY 1
+/*
+ * Not all CPUs want IO time to be accounted as busy; this dependson how
+ * efficient idling at a higher frequency/voltage is.
+ * Pavel Machek says this is not so for various generations of AMD and old
+ * Intel systems.
+ * Mike Chan (androidlcom) calis this is also not true for ARM.
+ */
+#define DEFAULT_IO_IS_BUSY 0
 #define DEFAULT_IGNORE_NICE 1
 #endif
 
@@ -87,7 +94,7 @@ extern int tegra_input_boost (int cpu, unsigned int target_freq);
 #define DEFAULT_INPUT_BOOST_DURATION 90000
 #define DEFAULT_TOUCH_POKE_FREQ 1200000
 #define DEFAULT_BOOST_FREQ 1200000
-#define DEFAULT_IO_IS_BUSY 1
+#define DEFAULT_IO_IS_BUSY 0
 #define DEFAULT_IGNORE_NICE 1
 #endif
 
@@ -104,7 +111,7 @@ extern int tegra_input_boost (int cpu, unsigned int target_freq);
 #define DEFAULT_INPUT_BOOST_DURATION 90000
 #define DEFAULT_TOUCH_POKE_FREQ 1134000
 #define DEFAULT_BOOST_FREQ 1134000
-#define DEFAULT_IO_IS_BUSY 1
+#define DEFAULT_IO_IS_BUSY 0
 #define DEFAULT_IGNORE_NICE 1
 #endif
 
@@ -596,11 +603,7 @@ static void cpufreq_smartmax_timer(struct smartmax_info_s *this_smartmax) {
 		 * the system is actually idle. So subtract the iowait time
 		 * from the cpu idle time.
 		 */
-
 		if (io_is_busy && idle_time >= iowait_time)
-			idle_time -= iowait_time;
-
-		if (idle_time >= iowait_time)
 			idle_time -= iowait_time;
 
 		if (unlikely(!wall_time || wall_time < idle_time))
