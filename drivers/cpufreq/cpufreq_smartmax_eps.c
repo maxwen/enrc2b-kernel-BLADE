@@ -67,6 +67,7 @@ extern int tegra_input_boost (int cpu, unsigned int target_freq);
 #define DEFAULT_UP_RATE 30000
 #define DEFAULT_DOWN_RATE 60000
 #define DEFAULT_SAMPLING_RATE 30000
+// default to 3 * sampling_rate
 #define DEFAULT_INPUT_BOOST_DURATION 90000
 #define DEFAULT_TOUCH_POKE_FREQ 760000
 #define DEFAULT_BOOST_FREQ 760000
@@ -636,19 +637,21 @@ static void cpufreq_smartmax_timer(struct smartmax_info_s *this_smartmax) {
 		return;
 
 	// boost - but not block ramp up steps based on load if requested
-	if (boost_running && (now < boost_end_time)) {
-		dprintk(SMARTMAX_DEBUG_BOOST, "%d: boost running %llu %llu\n", cur, now, boost_end_time);
+	if (boost_running){
+		if (now < boost_end_time) {
+			dprintk(SMARTMAX_DEBUG_BOOST, "%d: cpu %d boost running %llu %llu\n", cur, cpu, now, boost_end_time);
 		
-		if (this_smartmax->ramp_dir == -1)
-			return;
-		else {
-			if (ramp_up_during_boost)
-				dprintk(SMARTMAX_DEBUG_BOOST, "%d: boost running but ramp_up above boost freq requested\n", cur);
-			else
+			if (this_smartmax->ramp_dir == -1)
 				return;
-		}
-	} else
-		boost_running = false;
+			else {
+				if (ramp_up_during_boost)
+					dprintk(SMARTMAX_DEBUG_BOOST, "%d: cpu %d boost running but ramp_up above boost freq requested\n", cur, cpu);
+				else
+					return;
+			}
+		} else
+			boost_running = false;
+	}
 
 	cpufreq_smartmax_freq_change(this_smartmax);
 }
@@ -1095,6 +1098,8 @@ static int cpufreq_smartmax_boost_task(void *data) {
 	u64 now;
 #ifndef CONFIG_CPU_FREQ_GOV_SMARTMAX_TEGRA
 	struct cpufreq_policy *policy;
+	unsigned int cpu;
+	bool start_boost = false;
 #endif
 	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -1108,48 +1113,56 @@ static int cpufreq_smartmax_boost_task(void *data) {
 		if (boost_running)
 			continue;
 
-		/* we always boost cpu 0 */
+#ifdef CONFIG_CPU_FREQ_GOV_SMARTMAX_TEGRA
+		/* on tegra there is only one cpu clock so we only need to boost cpu 0 
+		   all others will run at the same speed */
 		this_smartmax = &per_cpu(smartmax_info, 0);
 		if (!this_smartmax)
 			continue;
 
-#ifdef CONFIG_CPU_FREQ_GOV_SMARTMAX_TEGRA
 		if (tegra_input_boost(0, cur_boost_freq) < 0) {
 			continue;
 		}
-
-		boost_running = true;
-
-		now = ktime_to_us(ktime_get());
-		boost_end_time = now + cur_boost_duration;
-		dprintk(SMARTMAX_DEBUG_BOOST, "%s %llu %llu\n", __func__, now, boost_end_time);
 	
         this_smartmax->prev_cpu_idle = get_cpu_idle_time(0,
 						&this_smartmax->prev_cpu_wall);
 #else
-		policy = this_smartmax->cur_policy;
-		if (!policy)
-			continue;
+		for_each_online_cpu(cpu){
+			this_smartmax = &per_cpu(smartmax_info, cpu);
+			if (!this_smartmax)
+				continue;
 
-		if (lock_policy_rwsem_write(0) < 0)
-			continue;
+			policy = this_smartmax->cur_policy;
+			if (!policy)
+				continue;
 
-		mutex_lock(&this_smartmax->timer_mutex);
+			if (lock_policy_rwsem_write(cpu) < 0)
+				continue;
 
-		if (policy->cur < cur_boost_freq) {
-			boost_running = true;
-		
-			now = ktime_to_us(ktime_get());
-			boost_end_time = now + cur_boost_duration;
-			dprintk(SMARTMAX_DEBUG_BOOST, "%s %llu %llu\n", __func__, now, boost_end_time);
+			mutex_lock(&this_smartmax->timer_mutex);
 
-			target_freq(policy, this_smartmax, cur_boost_freq, this_smartmax->old_freq, CPUFREQ_RELATION_H);
-			this_smartmax->prev_cpu_idle = get_cpu_idle_time(0, &this_smartmax->prev_cpu_wall);
+			if (policy->cur < cur_boost_freq) {
+				start_boost = true;
+				target_freq(policy, this_smartmax, cur_boost_freq, this_smartmax->old_freq, CPUFREQ_RELATION_H);
+				this_smartmax->prev_cpu_idle = get_cpu_idle_time(cpu, &this_smartmax->prev_cpu_wall);
+			}
+			mutex_unlock(&this_smartmax->timer_mutex);
+
+			unlock_policy_rwsem_write(cpu);
 		}
-		mutex_unlock(&this_smartmax->timer_mutex);
-				
-		unlock_policy_rwsem_write(0);
+#endif
 
+#ifndef CONFIG_CPU_FREQ_GOV_SMARTMAX_TEGRA
+		if (start_boost) {
+#endif
+
+		boost_running = true;
+		now = ktime_to_us(ktime_get());
+		boost_end_time = now + (cur_boost_duration * num_online_cpus());
+		dprintk(SMARTMAX_DEBUG_BOOST, "%s %llu %llu\n", __func__, now, boost_end_time);
+		
+#ifndef CONFIG_CPU_FREQ_GOV_SMARTMAX_TEGRA
+		}
 #endif
 	}
 
@@ -1330,12 +1343,12 @@ static int cpufreq_governor_smartmax_eps(struct cpufreq_policy *new_policy,
 		smartmax_update_min_max(this_smartmax,new_policy);
 
 		if (this_smartmax->cur_policy->cur > new_policy->max) {
-			dprintk(SMARTMAX_DEBUG_JUMPS,"jumping to new max freq: %d\n",new_policy->max);
+			dprintk(SMARTMAX_DEBUG_JUMPS,"CPUFREQ_GOV_LIMITS jumping to new max freq: %d\n",new_policy->max);
 			__cpufreq_driver_target(this_smartmax->cur_policy,
 					new_policy->max, CPUFREQ_RELATION_H);
 		}
 		else if (this_smartmax->cur_policy->cur < new_policy->min) {
-			dprintk(SMARTMAX_DEBUG_JUMPS,"jumping to new min freq: %d\n",new_policy->min);
+			dprintk(SMARTMAX_DEBUG_JUMPS,"CPUFREQ_GOV_LIMITS jumping to new min freq: %d\n",new_policy->min);
 			__cpufreq_driver_target(this_smartmax->cur_policy,
 					new_policy->min, CPUFREQ_RELATION_L);
 		}
