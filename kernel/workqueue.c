@@ -1103,11 +1103,6 @@ static void delayed_work_timer_fn(unsigned long __data)
 {
 	struct delayed_work *dwork = (struct delayed_work *)__data;
 	struct cpu_workqueue_struct *cwq = get_work_cwq(&dwork->work);
-	
-	if (cwq == NULL){
-		pr_info("maxwen: cwq == NULL");
-		return;
-	}
 
 	__queue_work(smp_processor_id(), cwq->wq, &dwork->work);
 }
