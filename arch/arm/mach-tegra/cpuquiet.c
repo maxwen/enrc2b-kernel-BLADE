@@ -60,6 +60,7 @@ static unsigned int lp_up_delay = LP_UP_DELAY_MS_DEF;
 static unsigned int lp_down_delay = LP_DOWN_DELAY_MS_DEF;
 static unsigned int idle_top_freq;
 static bool manual_hotplug = false;
+static unsigned int cpusallowed = 0;
 // core 0 is always active
 unsigned int cpu_core_state[3] = {0, 0, 0};
 		
@@ -551,7 +552,7 @@ static void enable_callback(struct cpuquiet_attribute *attr)
 	}
 }
 
-ssize_t show_min_cpus(struct cpuquiet_attribute *cattr, char *buf)
+static ssize_t show_min_cpus(struct cpuquiet_attribute *cattr, char *buf)
 {
 	char *out = buf;
 		
@@ -560,7 +561,7 @@ ssize_t show_min_cpus(struct cpuquiet_attribute *cattr, char *buf)
 	return out - buf;
 }
 
-ssize_t store_min_cpus(struct cpuquiet_attribute *cattr,
+static ssize_t store_min_cpus(struct cpuquiet_attribute *cattr,
 					const char *buf, size_t count)
 {
 	int ret;
@@ -581,7 +582,7 @@ ssize_t store_min_cpus(struct cpuquiet_attribute *cattr,
 	return count;
 }
 
-ssize_t show_max_cpus(struct cpuquiet_attribute *cattr, char *buf)
+static ssize_t show_max_cpus(struct cpuquiet_attribute *cattr, char *buf)
 {
 	char *out = buf;
 		
@@ -590,7 +591,7 @@ ssize_t show_max_cpus(struct cpuquiet_attribute *cattr, char *buf)
 	return out - buf;
 }
 
-ssize_t store_max_cpus(struct cpuquiet_attribute *cattr,
+static ssize_t store_max_cpus(struct cpuquiet_attribute *cattr,
 					const char *buf, size_t count)
 {
 	int ret;
@@ -611,7 +612,7 @@ ssize_t store_max_cpus(struct cpuquiet_attribute *cattr,
 	return count;
 }
 
-ssize_t show_no_lp(struct cpuquiet_attribute *cattr, char *buf)
+static ssize_t show_no_lp(struct cpuquiet_attribute *cattr, char *buf)
 {
 	char *out = buf;
 	
@@ -620,7 +621,7 @@ ssize_t show_no_lp(struct cpuquiet_attribute *cattr, char *buf)
 	return out - buf;
 }
 
-ssize_t store_no_lp(struct cpuquiet_attribute *cattr,
+static ssize_t store_no_lp(struct cpuquiet_attribute *cattr,
 					const char *buf, size_t count)
 {
 	int ret;
@@ -643,30 +644,17 @@ ssize_t store_no_lp(struct cpuquiet_attribute *cattr,
 	return count;
 }
 
-ssize_t show_manual_hotplug(struct cpuquiet_attribute *cattr, char *buf)
+static unsigned int tegra_cpuquiet_get_manual_hotplug(void)
 {
-	char *out = buf;
-		
-	out += sprintf(out, "%d\n", manual_hotplug);
-
-	return out - buf;
+	return manual_hotplug;
 }
 
-ssize_t store_manual_hotplug(struct cpuquiet_attribute *cattr,
-					const char *buf, size_t count)
+static void set_manual_hotplug(unsigned int mode)
 {
-	int ret;
-	unsigned int n;
-		
-	ret = sscanf(buf, "%d", &n);
-
-	if ((ret != 1) || n < 0 || n > 1)
-		return -EINVAL;
-
-	if (n == manual_hotplug)
-    	return count;
-
-	manual_hotplug = n;	
+	if (manual_hotplug == mode)
+		return;
+     
+	manual_hotplug = mode;	
 
 	pr_info(CPUQUIET_TAG "manual_hotplug=%d\n", manual_hotplug);
 		
@@ -678,6 +666,29 @@ ssize_t store_manual_hotplug(struct cpuquiet_attribute *cattr,
 	} else {
 		cpuquiet_device_free();
 	}	    
+}
+
+static ssize_t show_manual_hotplug(struct cpuquiet_attribute *cattr, char *buf)
+{
+	char *out = buf;
+		
+	out += sprintf(out, "%d\n", manual_hotplug);
+
+	return out - buf;
+}
+
+static ssize_t store_manual_hotplug(struct cpuquiet_attribute *cattr,
+					const char *buf, size_t count)
+{
+	int ret;
+	unsigned int n;
+		
+	ret = sscanf(buf, "%d", &n);
+
+	if ((ret != 1) || n < 0 || n > 1)
+		return -EINVAL;
+
+	set_manual_hotplug(n);
 	return count;
 }
 
@@ -701,7 +712,18 @@ static void cpu_core_state_workfunc(struct work_struct *work)
 	}
 }
 
-ssize_t show_cpu_core_state(struct cpuquiet_attribute *cattr, char *buf)
+static void set_cpu_core_state(unsigned int new_cpu_core_state_user[3])
+{
+	cpu_core_state[0]=new_cpu_core_state_user[0];
+	cpu_core_state[1]=new_cpu_core_state_user[1];
+	cpu_core_state[2]=new_cpu_core_state_user[2];
+
+	schedule_work(&cpu_core_state_work);
+
+	pr_info(CPUQUIET_TAG "cpu_core_state=%d %d %d\n", cpu_core_state[0], cpu_core_state[1], cpu_core_state[2]);
+}
+
+static ssize_t show_cpu_core_state(struct cpuquiet_attribute *cattr, char *buf)
 {
 	char *out = buf;
 		
@@ -710,7 +732,7 @@ ssize_t show_cpu_core_state(struct cpuquiet_attribute *cattr, char *buf)
 	return out - buf;
 }
 
-ssize_t store_cpu_core_state(struct cpuquiet_attribute *cattr,
+static ssize_t store_cpu_core_state(struct cpuquiet_attribute *cattr,
 					const char *buf, size_t count)
 {
 	int ret;
@@ -731,18 +753,12 @@ ssize_t store_cpu_core_state(struct cpuquiet_attribute *cattr,
 			return -EINVAL;
 	}
 
-	cpu_core_state[0]=cpu_core_state_user[0];
-	cpu_core_state[1]=cpu_core_state_user[1];
-	cpu_core_state[2]=cpu_core_state_user[2];
-
-	schedule_work(&cpu_core_state_work);
-
-	pr_info(CPUQUIET_TAG "cpu_core_state=%d %d %d\n", cpu_core_state[0], cpu_core_state[1], cpu_core_state[2]);
+	set_cpu_core_state(cpu_core_state_user);
 		    
 	return count;
 }
 
-ssize_t show_log_hotplugging(struct cpuquiet_attribute *cattr, char *buf)
+static ssize_t show_log_hotplugging(struct cpuquiet_attribute *cattr, char *buf)
 {
 	char *out = buf;
 		
@@ -751,7 +767,7 @@ ssize_t show_log_hotplugging(struct cpuquiet_attribute *cattr, char *buf)
 	return out - buf;
 }
 
-ssize_t store_log_hotplugging(struct cpuquiet_attribute *cattr,
+static ssize_t store_log_hotplugging(struct cpuquiet_attribute *cattr,
 					const char *buf, size_t count)
 {
 	int ret;
@@ -824,6 +840,66 @@ void tegra_lpmode_freq_max_changed(void)
 	pr_info(CPUQUIET_TAG "%s: idle_top_freq = %d\n", __func__, idle_top_freq);
 }
 
+/* cpusallowed interface in /sys/class/misc 
+   for CoreManager app */
+static ssize_t cpusallowed_status_read(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf,"%u\n", cpusallowed);
+}
+
+static ssize_t cpusallowed_status_write(struct device *dev, struct device_attribute *attr, const char *buf, size_t size)
+{
+	unsigned int data;
+	unsigned int cpu_core_state_user[3] = {0, 0, 0};
+	
+	if (sscanf(buf, "%u\n", &data) == 1){
+		cpusallowed = data;
+		
+		if (cpusallowed == 0){
+			set_manual_hotplug(0);
+			return size;
+		}
+		
+		if (!tegra_cpuquiet_get_manual_hotplug())
+			set_manual_hotplug(1);
+		
+		if (cpusallowed == 2){
+			cpu_core_state_user[0] = 0;
+			cpu_core_state_user[1] = 0;
+			cpu_core_state_user[2] = 1;
+		} else if (cpusallowed == 3){
+			cpu_core_state_user[0] = 0;
+			cpu_core_state_user[1] = 1;
+			cpu_core_state_user[2] = 1;
+		} else if (cpusallowed == 4){
+			cpu_core_state_user[0] = 1;
+			cpu_core_state_user[1] = 1;
+			cpu_core_state_user[2] = 1;
+		}
+		set_cpu_core_state(cpu_core_state_user);
+	}
+	else
+		pr_info("%s: input error\n", __FUNCTION__);
+
+	return size;
+}
+
+static DEVICE_ATTR(cpusallowed, S_IRUGO | S_IWUGO, cpusallowed_status_read, cpusallowed_status_write);
+
+static struct attribute *cpusallowed_attributes[] = {
+	&dev_attr_cpusallowed.attr,
+	NULL
+};
+
+static struct attribute_group cpusallowed_group = {
+	.attrs  = cpusallowed_attributes,
+};
+
+static struct miscdevice cpusallowed_device = {
+	.minor = MISC_DYNAMIC_MINOR,
+	.name = "cpusallowed",
+};
+
 int tegra_auto_hotplug_init(struct mutex *cpu_lock)
 {
 	int err;
@@ -874,10 +950,28 @@ int tegra_auto_hotplug_init(struct mutex *cpu_lock)
 	}
 
 	err = tegra_auto_sysfs();
+	if (err)
+		goto error;
+
+	// sysfs interface for misc cpusallowed
+	err = misc_register(&cpusallowed_device);
 	if (err) {
-		cpuquiet_unregister_driver(&tegra_cpuquiet_driver);
-		destroy_workqueue(cpuquiet_wq);
+		pr_err(CPUQUIET_TAG "%s: misc_register(%s) fail\n", __func__,
+				cpusallowed_device.name);
+		goto error;
 	}
+	if (sysfs_create_group(&cpusallowed_device.this_device->kobj,
+				&cpusallowed_group) < 0) {
+		pr_err(CPUQUIET_TAG "%s: Failed to create sysfs group for device (%s)!\n",
+				__func__, cpusallowed_device.name);
+		goto error;
+	}
+
+	return err;
+	
+error:
+	cpuquiet_unregister_driver(&tegra_cpuquiet_driver);
+	destroy_workqueue(cpuquiet_wq);
 
 	return err;
 }
