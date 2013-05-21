@@ -755,7 +755,7 @@ void tegra_cpu_mvs_init()
 
 struct mv_struct {
 	unsigned long mhz;
-	int mv_table[MAX_DVFS_FREQS];
+	unsigned int mv_table[MAX_DVFS_FREQS];
 	int min_pos;
 	int max_pos;
 };
@@ -803,7 +803,7 @@ ssize_t show_cpu_mv_table(char *buf)
 	num = cpu_mv_init();
 
 	for (i = 0; i < num; i++) {
-		out += sprintf(out, "%lumhz: %i mV\n", mv_list[i].mhz, mv_list[i].mv_table[0]);
+		out += sprintf(out, "%lumhz: %u mV\n", mv_list[i].mhz, mv_list[i].mv_table[0]);
 	}
 	return out - buf;
 }
@@ -812,8 +812,8 @@ ssize_t store_cpu_mv_table(const char *buf, size_t count)
 {
 	int i = 0, j = 0;
 	int ret;
-	long temp;
-	int uv;
+	unsigned int temp;
+	unsigned int uv;
 	char size_cur[16];
 	const int num = cpu_mv_init();
 	int user_cpu_millivolts[MAX_DVFS_FREQS] = CPU_MILLIVOLTS;
@@ -827,7 +827,7 @@ ssize_t store_cpu_mv_table(const char *buf, size_t count)
 	
 	for (i = 0; i < num; i++) {
 		if (mv_list[i].mhz != 0) {
-			ret = sscanf(buf, "%ld", &(temp));
+			ret = sscanf(buf, "%u", &temp);
 			if (ret == 1) {
 				if (temp < VDD_CPU_MIN)
 					temp = VDD_CPU_MIN;

@@ -721,14 +721,14 @@ static void set_cpu_core_state(unsigned int new_cpu_core_state_user[3])
 	if (manual_hotplug)
 		schedule_work(&cpu_core_state_work);
 
-	pr_info(CPUQUIET_TAG "cpu_core_state=%d %d %d\n", cpu_core_state[0], cpu_core_state[1], cpu_core_state[2]);
+	pr_info(CPUQUIET_TAG "cpu_core_state=%u %u %u\n", cpu_core_state[0], cpu_core_state[1], cpu_core_state[2]);
 }
 
 static ssize_t show_cpu_core_state(struct cpuquiet_attribute *cattr, char *buf)
 {
 	char *out = buf;
 		
-	out += sprintf(out, "%d %d %d\n", cpu_core_state[0], cpu_core_state[1], cpu_core_state[2]);
+	out += sprintf(out, "%u %u %u\n", cpu_core_state[0], cpu_core_state[1], cpu_core_state[2]);
 
 	return out - buf;
 }
@@ -740,7 +740,7 @@ static ssize_t store_cpu_core_state(struct cpuquiet_attribute *cattr,
 	unsigned int cpu_core_state_user[3] = {0, 0, 0};
 	int i = 0;
 
-	ret = sscanf(buf, "%d %d %d", &cpu_core_state_user[0], &cpu_core_state_user[1],
+	ret = sscanf(buf, "%u %u %u", &cpu_core_state_user[0], &cpu_core_state_user[1],
 		&cpu_core_state_user[2]);
 
 	if (ret < 3)
