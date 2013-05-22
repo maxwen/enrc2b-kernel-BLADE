@@ -114,7 +114,7 @@ const int dma_req_sel_brcm[] = {
 #define T_HIGH 1
 
 #define USE_BCM_BT_CHIP
-#define BCM_BT_DEBUG
+#undef BCM_BT_DEBUG
 
 #define TX_EMPTY_TIMEOUT_CNT	10000
 
@@ -1037,7 +1037,9 @@ static irqreturn_t bluesleep_hostwake_isr(int irq, void *dev)
 
 		/* release rx wake lock */
 		if (t->is_brcm_rx_wake_locked == 1) {
+#ifdef BCM_BT_DEBUG
 			dev_info(t->uport.dev, "[SER_BRCM]release brcm_rx_wake_lock\n");
+#endif
 			wake_unlock(&t->brcm_rx_wake_lock);
 			t->is_brcm_rx_wake_locked = 0;
 		}
@@ -1718,7 +1720,9 @@ static int tegra_ioctl(struct uart_port *u, unsigned int cmd, unsigned long arg)
 				gpio_set_value(tegra_uport->bt_wakeup_pin, T_LOW);
 				tegra_uport->bt_wakeup_level = 0;
 				tegra_uport->host_want_sleep = 0;
+#ifdef BCM_BT_DEBUG
 				dev_info(u->dev, "[BT]-- HOST BT_WAKE=LOW --\n");
+#endif
 			}
 			spin_unlock_irqrestore(&u->lock, tflags);
 			break;
@@ -1730,7 +1734,9 @@ static int tegra_ioctl(struct uart_port *u, unsigned int cmd, unsigned long arg)
 						gpio_set_value(tegra_uport->bt_wakeup_pin, T_HIGH);
 						tegra_uport->bt_wakeup_level = 1;
 						tegra_uport->bt_wakeup_assert_inadvance = 0;
+#ifdef BCM_BT_DEBUG
 						dev_info(u->dev, "[SER_BRCM] BT_WAKE=HIGH\n");
+#endif
 				}
 			}
 
@@ -2261,7 +2267,9 @@ void tegra_lpm_on_locked(struct uart_port *u)
 
 	/* release rx wake lock */
 	if (tegra_uport->is_brcm_rx_wake_locked == 1) {
+#ifdef BCM_BT_DEBUG
 		dev_info(tegra_uport->uport.dev, "[SER_BRCM]release brcm_rx_wake_lock\n");
+#endif
 		wake_unlock(&tegra_uport->brcm_rx_wake_lock);
 		tegra_uport->is_brcm_rx_wake_locked = 0;
 	}
