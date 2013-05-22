@@ -339,7 +339,17 @@ static ssize_t cmu_enable_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(cmu_enable, S_IRUGO|S_IWUSR, NULL, cmu_enable_store);
+static ssize_t cmu_enable_show(struct device *device,
+	struct device_attribute *attr, char  *buf)
+{
+	struct nvhost_device *ndev = to_nvhost_device(device);
+	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
+
+	return snprintf(buf, PAGE_SIZE, "%d\n", dc->pdata->cmu_enable);
+}
+
+
+static DEVICE_ATTR(cmu_enable, S_IRUGO|S_IWUSR, cmu_enable_show, cmu_enable_store);
 #endif
 
 void __devexit tegra_dc_remove_sysfs(struct device *dev)
