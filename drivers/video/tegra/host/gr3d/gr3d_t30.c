@@ -26,10 +26,14 @@
 #include "gr3d.h"
 #include "chip_support.h"
 #include "nvhost_memmgr.h"
+#include "nvhost_job.h"
+#include "nvhost_acm.h"
+#include "class_ids.h"
 
 #include <mach/gpufuse.h>
 #include <mach/hardware.h>
 #include <linux/slab.h>
+#include <linux/scatterlist.h>
 
 static const struct hwctx_reginfo ctxsave_regs_3d_global[] = {
 	HWCTX_REGINFO(0xe00,    4, DIRECT),
@@ -176,8 +180,9 @@ static void save_direct_v1(u32 *ptr, u32 start_reg, u32 count)
 	ptr += RESTORE_DIRECT_SIZE;
 	ptr[1] = nvhost_opcode_setclass(NV_HOST1X_CLASS_ID,
 					host1x_uclass_indoff_r(), 1);
-	ptr[2] = nvhost_class_host_indoff_reg_read(NV_HOST_MODULE_GR3D,
-						start_reg, true);
+	ptr[2] = nvhost_class_host_indoff_reg_read(
+			host1x_uclass_indoff_indmodid_gr3d_v(),
+			start_reg, true);
 	/* TODO could do this in the setclass if count < 6 */
 	ptr[3] = nvhost_opcode_nonincr(host1x_uclass_inddata_r(), count);
 }
@@ -194,8 +199,9 @@ static void save_indirect_v1(u32 *ptr, u32 offset_reg, u32 offset,
 	ptr[2] = nvhost_opcode_imm(offset_reg, offset);
 	ptr[3] = nvhost_opcode_setclass(NV_HOST1X_CLASS_ID,
 					host1x_uclass_indoff_r(), 1);
-	ptr[4] = nvhost_class_host_indoff_reg_read(NV_HOST_MODULE_GR3D,
-						data_reg, false);
+	ptr[4] = nvhost_class_host_indoff_reg_read(
+			host1x_uclass_indoff_indmodid_gr3d_v(),
+			data_reg, false);
 	ptr[5] = nvhost_opcode_nonincr(host1x_uclass_inddata_r(), count);
 }
 
@@ -409,26 +415,24 @@ struct nvhost_hwctx_handler *nvhost_gr3d_t30_ctxhandler_init(
 
 	p->save_buf = mem_op().alloc(memmgr, p->save_size * 4, 32,
 				mem_mgr_flag_write_combine);
-	if (IS_ERR_OR_NULL(p->save_buf)) {
-		p->save_buf = NULL;
-		return NULL;
-	}
+	if (IS_ERR_OR_NULL(p->save_buf))
+		goto fail_alloc;
 
-	p->save_slots = 8;
 
 	save_ptr = mem_op().mmap(p->save_buf);
-	if (!save_ptr) {
-		mem_op().put(memmgr, p->save_buf);
-		p->save_buf = NULL;
-		return NULL;
-	}
+	if (IS_ERR_OR_NULL(save_ptr))
+		goto fail_mmap;
 
-	p->save_phys = mem_op().pin(memmgr, p->save_buf);
+	p->save_sgt = mem_op().pin(memmgr, p->save_buf);
+	if (IS_ERR_OR_NULL(p->save_sgt))
+		goto fail_pin;
+	p->save_phys = sg_dma_address(p->save_sgt->sgl);
 
 	setup_save(p, save_ptr);
 
 	mem_op().munmap(p->save_buf, save_ptr);
 
+	p->save_slots = 8;
 	p->h.alloc = ctx3d_alloc_v1;
 	p->h.save_push = save_push_v1;
 	p->h.save_service = NULL;
@@ -436,4 +440,219 @@ struct nvhost_hwctx_handler *nvhost_gr3d_t30_ctxhandler_init(
 	p->h.put = nvhost_3dctx_put;
 
 	return &p->h;
+
+fail_pin:
+	mem_op().munmap(p->save_buf, save_ptr);
+fail_mmap:
+	mem_op().put(memmgr, p->save_buf);
+fail_alloc:
+	kfree(p);
+	return NULL;
+}
+
+int nvhost_gr3d_t30_read_reg(
+	struct nvhost_device *dev,
+	struct nvhost_channel *channel,
+	struct nvhost_hwctx *hwctx,
+	u32 offset,
+	u32 *value)
+{
+	struct host1x_hwctx *hwctx_to_save = NULL;
+	struct nvhost_hwctx_handler *h = hwctx->h;
+	struct host1x_hwctx_handler *p = to_host1x_hwctx_handler(h);
+	bool need_restore = false;
+	u32 syncpt_incrs = 1;
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wq);
+	void *ref;
+	void *ctx_waiter = NULL, *read_waiter = NULL, *completed_waiter = NULL;
+	struct nvhost_job *job;
+	u32 syncval;
+	int err;
+	struct mem_mgr *memmgr = NULL;
+	struct mem_handle *mem = NULL;
+	u32 *mem_ptr = NULL;
+	struct sg_table *mem_sgt = NULL;
+	dma_addr_t mem_dma = 0;
+
+	if (hwctx && hwctx->has_timedout)
+		return -ETIMEDOUT;
+
+	memmgr = nvhost_get_host(dev)->memmgr;
+
+	mem = mem_op().alloc(memmgr, 16, 32, mem_mgr_flag_uncacheable);
+	if (IS_ERR_OR_NULL(mem))
+		return -ENOMEM;
+
+	mem_ptr = mem_op().mmap(mem);
+	if (IS_ERR_OR_NULL(mem_ptr)) {
+		err = -ENOMEM;
+		goto done;
+	}
+
+	mem_sgt = mem_op().pin(memmgr, mem);
+	if (IS_ERR_VALUE(mem_dma)) {
+		err = mem_dma;
+		goto done;
+	}
+	mem_dma = sg_dma_address(mem_sgt->sgl);
+
+	ctx_waiter = nvhost_intr_alloc_waiter();
+	read_waiter = nvhost_intr_alloc_waiter();
+	completed_waiter = nvhost_intr_alloc_waiter();
+	if (!ctx_waiter || !read_waiter || !completed_waiter) {
+		err = -ENOMEM;
+		goto done;
+	}
+
+	job = nvhost_job_alloc(channel, hwctx,
+			NULL,
+			nvhost_get_host(dev)->memmgr, 0, 0);
+	if (!job) {
+		err = -ENOMEM;
+		goto done;
+	}
+
+	/* keep module powered */
+	nvhost_module_busy(dev);
+
+	/* get submit lock */
+	err = mutex_lock_interruptible(&channel->submitlock);
+	if (err) {
+		nvhost_module_idle(dev);
+		return err;
+	}
+
+	/* context switch */
+	if (channel->cur_ctx != hwctx) {
+		hwctx_to_save = channel->cur_ctx ?
+			to_host1x_hwctx(channel->cur_ctx) : NULL;
+		if (hwctx_to_save) {
+			syncpt_incrs += hwctx_to_save->save_incrs;
+			hwctx_to_save->hwctx.valid = true;
+			nvhost_job_get_hwctx(job, &hwctx_to_save->hwctx);
+		}
+		channel->cur_ctx = hwctx;
+		if (channel->cur_ctx && channel->cur_ctx->valid) {
+			need_restore = true;
+			syncpt_incrs += to_host1x_hwctx(channel->cur_ctx)
+				->restore_incrs;
+		}
+	}
+
+	syncval = nvhost_syncpt_incr_max(&nvhost_get_host(dev)->syncpt,
+		p->syncpt, syncpt_incrs);
+
+	job->syncpt_id = p->syncpt;
+	job->syncpt_incrs = syncpt_incrs;
+	job->syncpt_end = syncval;
+
+	/* begin a CDMA submit */
+	nvhost_cdma_begin(&channel->cdma, job);
+
+	/* push save buffer (pre-gather setup depends on unit) */
+	if (hwctx_to_save)
+		h->save_push(&hwctx_to_save->hwctx, &channel->cdma);
+
+	/* gather restore buffer */
+	if (need_restore)
+		nvhost_cdma_push(&channel->cdma,
+			nvhost_opcode_gather(to_host1x_hwctx(channel->cur_ctx)
+				->restore_size),
+			to_host1x_hwctx(channel->cur_ctx)->restore_phys);
+
+	/* Switch to 3D - set up output to memory */
+	nvhost_cdma_push(&channel->cdma,
+		nvhost_opcode_setclass(NV_GRAPHICS_3D_CLASS_ID, 0, 0),
+		nvhost_opcode_imm(AR3D_GLOBAL_MEMORY_OUTPUT_READS, 1));
+	nvhost_cdma_push(&channel->cdma,
+		nvhost_opcode_nonincr(AR3D_DW_MEMORY_OUTPUT_ADDRESS, 1),
+		mem_dma);
+	/* Get host1x to request a register read */
+	nvhost_cdma_push(&channel->cdma,
+		nvhost_opcode_setclass(NV_HOST1X_CLASS_ID,
+			host1x_uclass_indoff_r(), 1),
+		nvhost_class_host_indoff_reg_read(
+			host1x_uclass_indoff_indmodid_gr3d_v(),
+			offset, false));
+	nvhost_cdma_push(&channel->cdma,
+		nvhost_opcode_imm(host1x_uclass_inddata_r(), 0),
+		NVHOST_OPCODE_NOOP);
+	/* send reg reads back to host */
+	nvhost_cdma_push(&channel->cdma,
+		nvhost_opcode_setclass(NV_GRAPHICS_3D_CLASS_ID, 0, 0),
+		nvhost_opcode_imm(AR3D_GLOBAL_MEMORY_OUTPUT_READS, 0));
+	/* Finalize with syncpt increment */
+	nvhost_cdma_push(&channel->cdma,
+		nvhost_opcode_setclass(NV_HOST1X_CLASS_ID,
+			host1x_uclass_incr_syncpt_base_r(), 1),
+		nvhost_class_host_incr_syncpt_base(p->waitbase,
+			1));
+	nvhost_cdma_push(&channel->cdma,
+		nvhost_opcode_imm_incr_syncpt(
+			host1x_uclass_incr_syncpt_cond_immediate_v(),
+			p->syncpt),
+		NVHOST_OPCODE_NOOP);
+
+	/* end CDMA submit  */
+	nvhost_cdma_end(&channel->cdma, job);
+	nvhost_job_put(job);
+	job = NULL;
+
+	/*
+	 * schedule a context save interrupt (to drain the host FIFO
+	 * if necessary, and to release the restore buffer)
+	 */
+	if (hwctx_to_save) {
+		err = nvhost_intr_add_action(
+			&nvhost_get_host(dev)->intr,
+			p->syncpt,
+			syncval - syncpt_incrs
+				+ hwctx_to_save->save_incrs
+				- 1,
+			NVHOST_INTR_ACTION_CTXSAVE, hwctx_to_save,
+			ctx_waiter,
+			NULL);
+		ctx_waiter = NULL;
+		WARN(err, "Failed to set context save interrupt");
+	}
+
+	/* Schedule a submit complete interrupt */
+	err = nvhost_intr_add_action(&nvhost_get_host(dev)->intr,
+			p->syncpt, syncval,
+			NVHOST_INTR_ACTION_SUBMIT_COMPLETE, channel,
+			completed_waiter, NULL);
+	completed_waiter = NULL;
+	WARN(err, "Failed to set submit complete interrupt");
+
+	/* Wait for read to be ready */
+	err = nvhost_intr_add_action(&nvhost_get_host(dev)->intr,
+			p->syncpt, syncval,
+			NVHOST_INTR_ACTION_WAKEUP, &wq,
+			read_waiter,
+			&ref);
+	read_waiter = NULL;
+	WARN(err, "Failed to set wakeup interrupt");
+	trace_printk("Start waiting for %d\n", syncval);
+	wait_event(wq,
+		nvhost_syncpt_is_expired(&nvhost_get_host(dev)->syncpt,
+				p->syncpt, syncval));
+	trace_printk("Ended waiting for %d\n", syncval);
+	nvhost_intr_put_ref(&nvhost_get_host(dev)->intr, p->syncpt,
+			ref);
+
+	mutex_unlock(&channel->submitlock);
+
+	*value = *mem_ptr;
+
+done:
+	kfree(ctx_waiter);
+	kfree(read_waiter);
+	kfree(completed_waiter);
+	if (mem_ptr)
+		mem_op().munmap(mem, mem_ptr);
+	if (mem_sgt)
+		mem_op().unpin(memmgr, mem, mem_sgt);
+	if (mem)
+		mem_op().put(memmgr, mem);
+	return err;
 }

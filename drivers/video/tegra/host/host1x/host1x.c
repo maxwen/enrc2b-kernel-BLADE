@@ -235,6 +235,15 @@ static int nvhost_ioctl_ctrl_get_version(struct nvhost_ctrl_userctx *ctx,
 	return 0;
 }
 
+static int nvhost_ioctl_ctrl_syncpt_read_max(struct nvhost_ctrl_userctx *ctx,
+	struct nvhost_ctrl_syncpt_read_args *args)
+{
+	if (args->id >= nvhost_syncpt_nb_pts(&ctx->dev->syncpt))
+		return -EINVAL;
+	args->value = nvhost_syncpt_read_max(&ctx->dev->syncpt, args->id);
+	return 0;
+}
+
 static long nvhost_ctrlctl(struct file *filp,
 	unsigned int cmd, unsigned long arg)
 {
@@ -275,6 +284,9 @@ static long nvhost_ctrlctl(struct file *filp,
 	case NVHOST_IOCTL_CTRL_GET_VERSION:
 		err = nvhost_ioctl_ctrl_get_version(priv, (void *)buf);
 		break;
+	case NVHOST_IOCTL_CTRL_SYNCPT_READ_MAX:
+		err = nvhost_ioctl_ctrl_syncpt_read_max(priv, (void *)buf);
+		break;
 	default:
 		err = -ENOTTY;
 		break;
@@ -304,19 +316,6 @@ static int power_off_host(struct nvhost_device *dev)
 {
 	struct nvhost_master *host = nvhost_get_drvdata(dev);
 	nvhost_syncpt_save(&host->syncpt);
-	nvhost_intr_stop(&host->intr);
-	return 0;
-}
-
-static void clock_on_host(struct nvhost_device *dev)
-{
-	struct nvhost_master *host = nvhost_get_drvdata(dev);
-	nvhost_intr_start(&host->intr, clk_get_rate(dev->clk[0]));
-}
-
-static int clock_off_host(struct nvhost_device *dev)
-{
-	struct nvhost_master *host = nvhost_get_drvdata(dev);
 	nvhost_intr_stop(&host->intr);
 	return 0;
 }
@@ -529,8 +528,6 @@ static struct nvhost_driver nvhost_driver = {
 	},
 	.finalize_poweron = power_on_host,
 	.prepare_poweroff = power_off_host,
-	.finalize_clockon = clock_on_host,
-	.prepare_clockoff = clock_off_host,
 };
 
 static int __init nvhost_mod_init(void)

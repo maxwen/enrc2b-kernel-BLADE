@@ -19,6 +19,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/scatterlist.h>
 #include "nvhost_acm.h"
 #include "nvhost_cdma.h"
 #include "nvhost_channel.h"
@@ -59,6 +60,7 @@ static void push_buffer_reset(struct push_buffer *pb)
 /**
  * Init push buffer resources
  */
+static void push_buffer_destroy(struct push_buffer *pb);
 static int push_buffer_init(struct push_buffer *pb)
 {
 	struct nvhost_cdma *cdma = pb_to_cdma(pb);
@@ -79,15 +81,18 @@ static int push_buffer_init(struct push_buffer *pb)
 		goto fail;
 	}
 	pb->mapped = mem_op().mmap(pb->mem);
-	if (pb->mapped == NULL)
-		goto fail;
-
-	/* pin pushbuffer and get physical address */
-	pb->phys = mem_op().pin(mgr, pb->mem);
-	if (pb->phys >= 0xfffff000) {
-		pb->phys = 0;
+	if (IS_ERR_OR_NULL(pb->mapped)) {
+		pb->mapped = NULL;
 		goto fail;
 	}
+
+	/* pin pushbuffer and get physical address */
+	pb->sgt = mem_op().pin(mgr, pb->mem);
+	if (IS_ERR(pb->sgt)) {
+		pb->sgt = 0;
+		goto fail;
+	}
+	pb->phys = sg_dma_address(pb->sgt->sgl);
 
 	/* memory for storing nvmap client and handles for each opcode pair */
 	pb->client_handle = kzalloc(NVHOST_GATHER_QUEUE_SIZE *
@@ -103,7 +108,7 @@ static int push_buffer_init(struct push_buffer *pb)
 	return 0;
 
 fail:
-	cdma_pb_op().destroy(pb);
+	push_buffer_destroy(pb);
 	return -ENOMEM;
 }
 
@@ -118,7 +123,7 @@ static void push_buffer_destroy(struct push_buffer *pb)
 		mem_op().munmap(pb->mem, pb->mapped);
 
 	if (pb->phys != 0)
-		mem_op().unpin(mgr, pb->mem);
+		mem_op().unpin(mgr, pb->mem, pb->sgt);
 
 	if (pb->mem)
 		mem_op().put(mgr, pb->mem);

@@ -66,6 +66,22 @@ static inline u32 host1x_sync_hintstatus_r(void)
 {
 	return 0x20;
 }
+static inline u32 host1x_sync_hintstatus_gr3d_actmon_intr_s(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_hintstatus_gr3d_actmon_intr_f(u32 v)
+{
+	return (v & 0x1) << 9;
+}
+static inline u32 host1x_sync_hintstatus_gr3d_actmon_intr_m(void)
+{
+	return 0x1 << 9;
+}
+static inline u32 host1x_sync_hintstatus_gr3d_actmon_intr_v(u32 r)
+{
+	return (r >> 9) & 0x1;
+}
 static inline u32 host1x_sync_hintmask_r(void)
 {
 	return 0x24;
@@ -132,35 +148,35 @@ static inline u32 host1x_sync_cf0_setup_r(void)
 }
 static inline u32 host1x_sync_cf0_setup_cf0_base_s(void)
 {
-	return 9;
+	return 10;
 }
 static inline u32 host1x_sync_cf0_setup_cf0_base_f(u32 v)
 {
-	return (v & 0x1ff) << 0;
+	return (v & 0x3ff) << 0;
 }
 static inline u32 host1x_sync_cf0_setup_cf0_base_m(void)
 {
-	return 0x1ff << 0;
+	return 0x3ff << 0;
 }
 static inline u32 host1x_sync_cf0_setup_cf0_base_v(u32 r)
 {
-	return (r >> 0) & 0x1ff;
+	return (r >> 0) & 0x3ff;
 }
 static inline u32 host1x_sync_cf0_setup_cf0_limit_s(void)
 {
-	return 9;
+	return 10;
 }
 static inline u32 host1x_sync_cf0_setup_cf0_limit_f(u32 v)
 {
-	return (v & 0x1ff) << 16;
+	return (v & 0x3ff) << 16;
 }
 static inline u32 host1x_sync_cf0_setup_cf0_limit_m(void)
 {
-	return 0x1ff << 16;
+	return 0x3ff << 16;
 }
 static inline u32 host1x_sync_cf0_setup_cf0_limit_v(u32 r)
 {
-	return (r >> 16) & 0x1ff;
+	return (r >> 16) & 0x3ff;
 }
 static inline u32 host1x_sync_cmdproc_stop_r(void)
 {
@@ -294,54 +310,6 @@ static inline u32 host1x_sync_mod_teardown_isp_teardown_teardown_v(void)
 {
 	return 1;
 }
-static inline u32 host1x_sync_mod_teardown_mpe_teardown_s(void)
-{
-	return 1;
-}
-static inline u32 host1x_sync_mod_teardown_mpe_teardown_f(u32 v)
-{
-	return (v & 0x1) << 1;
-}
-static inline u32 host1x_sync_mod_teardown_mpe_teardown_m(void)
-{
-	return 0x1 << 1;
-}
-static inline u32 host1x_sync_mod_teardown_mpe_teardown_v(u32 r)
-{
-	return (r >> 1) & 0x1;
-}
-static inline u32 host1x_sync_mod_teardown_mpe_teardown_no_action_v(void)
-{
-	return 0;
-}
-static inline u32 host1x_sync_mod_teardown_mpe_teardown_teardown_v(void)
-{
-	return 1;
-}
-static inline u32 host1x_sync_mod_teardown_tvo_teardown_s(void)
-{
-	return 1;
-}
-static inline u32 host1x_sync_mod_teardown_tvo_teardown_f(u32 v)
-{
-	return (v & 0x1) << 11;
-}
-static inline u32 host1x_sync_mod_teardown_tvo_teardown_m(void)
-{
-	return 0x1 << 11;
-}
-static inline u32 host1x_sync_mod_teardown_tvo_teardown_v(u32 r)
-{
-	return (r >> 11) & 0x1;
-}
-static inline u32 host1x_sync_mod_teardown_tvo_teardown_no_action_v(void)
-{
-	return 0;
-}
-static inline u32 host1x_sync_mod_teardown_tvo_teardown_teardown_v(void)
-{
-	return 1;
-}
 static inline u32 host1x_sync_mod_teardown_dsi_teardown_s(void)
 {
 	return 1;
@@ -462,6 +430,54 @@ static inline u32 host1x_sync_mod_teardown_dsib_teardown_teardown_v(void)
 {
 	return 1;
 }
+static inline u32 host1x_sync_mod_teardown_msenc_teardown_s(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_mod_teardown_msenc_teardown_f(u32 v)
+{
+	return (v & 0x1) << 19;
+}
+static inline u32 host1x_sync_mod_teardown_msenc_teardown_m(void)
+{
+	return 0x1 << 19;
+}
+static inline u32 host1x_sync_mod_teardown_msenc_teardown_v(u32 r)
+{
+	return (r >> 19) & 0x1;
+}
+static inline u32 host1x_sync_mod_teardown_msenc_teardown_no_action_v(void)
+{
+	return 0;
+}
+static inline u32 host1x_sync_mod_teardown_msenc_teardown_teardown_v(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_mod_teardown_tsec_teardown_s(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_mod_teardown_tsec_teardown_f(u32 v)
+{
+	return (v & 0x1) << 20;
+}
+static inline u32 host1x_sync_mod_teardown_tsec_teardown_m(void)
+{
+	return 0x1 << 20;
+}
+static inline u32 host1x_sync_mod_teardown_tsec_teardown_v(u32 r)
+{
+	return (r >> 20) & 0x1;
+}
+static inline u32 host1x_sync_mod_teardown_tsec_teardown_no_action_v(void)
+{
+	return 0;
+}
+static inline u32 host1x_sync_mod_teardown_tsec_teardown_teardown_v(void)
+{
+	return 1;
+}
 static inline u32 host1x_sync_usec_clk_r(void)
 {
 	return 0x1a4;
@@ -564,35 +580,35 @@ static inline u32 host1x_sync_cfpeek_ctrl_r(void)
 }
 static inline u32 host1x_sync_cfpeek_ctrl_cfpeek_addr_s(void)
 {
-	return 9;
+	return 10;
 }
 static inline u32 host1x_sync_cfpeek_ctrl_cfpeek_addr_f(u32 v)
 {
-	return (v & 0x1ff) << 0;
+	return (v & 0x3ff) << 0;
 }
 static inline u32 host1x_sync_cfpeek_ctrl_cfpeek_addr_m(void)
 {
-	return 0x1ff << 0;
+	return 0x3ff << 0;
 }
 static inline u32 host1x_sync_cfpeek_ctrl_cfpeek_addr_v(u32 r)
 {
-	return (r >> 0) & 0x1ff;
+	return (r >> 0) & 0x3ff;
 }
 static inline u32 host1x_sync_cfpeek_ctrl_cfpeek_channr_s(void)
 {
-	return 3;
+	return 4;
 }
 static inline u32 host1x_sync_cfpeek_ctrl_cfpeek_channr_f(u32 v)
 {
-	return (v & 0x7) << 16;
+	return (v & 0xf) << 16;
 }
 static inline u32 host1x_sync_cfpeek_ctrl_cfpeek_channr_m(void)
 {
-	return 0x7 << 16;
+	return 0xf << 16;
 }
 static inline u32 host1x_sync_cfpeek_ctrl_cfpeek_channr_v(u32 r)
 {
-	return (r >> 16) & 0x7;
+	return (r >> 16) & 0xf;
 }
 static inline u32 host1x_sync_cfpeek_ctrl_cfpeek_ena_s(void)
 {
@@ -620,35 +636,35 @@ static inline u32 host1x_sync_cfpeek_ptrs_r(void)
 }
 static inline u32 host1x_sync_cfpeek_ptrs_cf_rd_ptr_s(void)
 {
-	return 9;
+	return 10;
 }
 static inline u32 host1x_sync_cfpeek_ptrs_cf_rd_ptr_f(u32 v)
 {
-	return (v & 0x1ff) << 0;
+	return (v & 0x3ff) << 0;
 }
 static inline u32 host1x_sync_cfpeek_ptrs_cf_rd_ptr_m(void)
 {
-	return 0x1ff << 0;
+	return 0x3ff << 0;
 }
 static inline u32 host1x_sync_cfpeek_ptrs_cf_rd_ptr_v(u32 r)
 {
-	return (r >> 0) & 0x1ff;
+	return (r >> 0) & 0x3ff;
 }
 static inline u32 host1x_sync_cfpeek_ptrs_cf_wr_ptr_s(void)
 {
-	return 9;
+	return 10;
 }
 static inline u32 host1x_sync_cfpeek_ptrs_cf_wr_ptr_f(u32 v)
 {
-	return (v & 0x1ff) << 16;
+	return (v & 0x3ff) << 16;
 }
 static inline u32 host1x_sync_cfpeek_ptrs_cf_wr_ptr_m(void)
 {
-	return 0x1ff << 16;
+	return 0x3ff << 16;
 }
 static inline u32 host1x_sync_cfpeek_ptrs_cf_wr_ptr_v(u32 r)
 {
-	return (r >> 16) & 0x1ff;
+	return (r >> 16) & 0x3ff;
 }
 static inline u32 host1x_sync_cbstat_0_r(void)
 {
@@ -685,6 +701,374 @@ static inline u32 host1x_sync_cbstat_0_cbclass0_m(void)
 static inline u32 host1x_sync_cbstat_0_cbclass0_v(u32 r)
 {
 	return (r >> 16) & 0x3ff;
+}
+static inline u32 host1x_sync_actmon_ctrl_r(void)
+{
+	return 0x9d0;
+}
+static inline u32 host1x_sync_actmon_ctrl_enb_s(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_actmon_ctrl_enb_f(u32 v)
+{
+	return (v & 0x1) << 31;
+}
+static inline u32 host1x_sync_actmon_ctrl_enb_m(void)
+{
+	return 0x1 << 31;
+}
+static inline u32 host1x_sync_actmon_ctrl_enb_v(u32 r)
+{
+	return (r >> 31) & 0x1;
+}
+static inline u32 host1x_sync_actmon_ctrl_consecutive_above_wmark_en_s(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_actmon_ctrl_consecutive_above_wmark_en_f(u32 v)
+{
+	return (v & 0x1) << 30;
+}
+static inline u32 host1x_sync_actmon_ctrl_consecutive_above_wmark_en_m(void)
+{
+	return 0x1 << 30;
+}
+static inline u32 host1x_sync_actmon_ctrl_consecutive_above_wmark_en_v(u32 r)
+{
+	return (r >> 30) & 0x1;
+}
+static inline u32 host1x_sync_actmon_ctrl_consecutive_below_wmark_en_s(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_actmon_ctrl_consecutive_below_wmark_en_f(u32 v)
+{
+	return (v & 0x1) << 29;
+}
+static inline u32 host1x_sync_actmon_ctrl_consecutive_below_wmark_en_m(void)
+{
+	return 0x1 << 29;
+}
+static inline u32 host1x_sync_actmon_ctrl_consecutive_below_wmark_en_v(u32 r)
+{
+	return (r >> 29) & 0x1;
+}
+static inline u32 host1x_sync_actmon_ctrl_consecutive_above_wmark_num_s(void)
+{
+	return 3;
+}
+static inline u32 host1x_sync_actmon_ctrl_consecutive_above_wmark_num_f(u32 v)
+{
+	return (v & 0x7) << 26;
+}
+static inline u32 host1x_sync_actmon_ctrl_consecutive_above_wmark_num_m(void)
+{
+	return 0x7 << 26;
+}
+static inline u32 host1x_sync_actmon_ctrl_consecutive_above_wmark_num_v(u32 r)
+{
+	return (r >> 26) & 0x7;
+}
+static inline u32 host1x_sync_actmon_ctrl_consecutive_below_wmark_num_s(void)
+{
+	return 3;
+}
+static inline u32 host1x_sync_actmon_ctrl_consecutive_below_wmark_num_f(u32 v)
+{
+	return (v & 0x7) << 23;
+}
+static inline u32 host1x_sync_actmon_ctrl_consecutive_below_wmark_num_m(void)
+{
+	return 0x7 << 23;
+}
+static inline u32 host1x_sync_actmon_ctrl_consecutive_below_wmark_num_v(u32 r)
+{
+	return (r >> 23) & 0x7;
+}
+static inline u32 host1x_sync_actmon_ctrl_when_overflow_en_s(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_actmon_ctrl_when_overflow_en_f(u32 v)
+{
+	return (v & 0x1) << 22;
+}
+static inline u32 host1x_sync_actmon_ctrl_when_overflow_en_m(void)
+{
+	return 0x1 << 22;
+}
+static inline u32 host1x_sync_actmon_ctrl_when_overflow_en_v(u32 r)
+{
+	return (r >> 22) & 0x1;
+}
+static inline u32 host1x_sync_actmon_ctrl_avg_above_wmark_en_s(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_actmon_ctrl_avg_above_wmark_en_f(u32 v)
+{
+	return (v & 0x1) << 21;
+}
+static inline u32 host1x_sync_actmon_ctrl_avg_above_wmark_en_m(void)
+{
+	return 0x1 << 21;
+}
+static inline u32 host1x_sync_actmon_ctrl_avg_above_wmark_en_v(u32 r)
+{
+	return (r >> 21) & 0x1;
+}
+static inline u32 host1x_sync_actmon_ctrl_avg_below_wmark_en_s(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_actmon_ctrl_avg_below_wmark_en_f(u32 v)
+{
+	return (v & 0x1) << 20;
+}
+static inline u32 host1x_sync_actmon_ctrl_avg_below_wmark_en_m(void)
+{
+	return 0x1 << 20;
+}
+static inline u32 host1x_sync_actmon_ctrl_avg_below_wmark_en_v(u32 r)
+{
+	return (r >> 20) & 0x1;
+}
+static inline u32 host1x_sync_actmon_ctrl_at_end_en_s(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_actmon_ctrl_at_end_en_f(u32 v)
+{
+	return (v & 0x1) << 19;
+}
+static inline u32 host1x_sync_actmon_ctrl_at_end_en_m(void)
+{
+	return 0x1 << 19;
+}
+static inline u32 host1x_sync_actmon_ctrl_at_end_en_v(u32 r)
+{
+	return (r >> 19) & 0x1;
+}
+static inline u32 host1x_sync_actmon_ctrl_enb_periodic_s(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_actmon_ctrl_enb_periodic_f(u32 v)
+{
+	return (v & 0x1) << 18;
+}
+static inline u32 host1x_sync_actmon_ctrl_enb_periodic_m(void)
+{
+	return 0x1 << 18;
+}
+static inline u32 host1x_sync_actmon_ctrl_enb_periodic_v(u32 r)
+{
+	return (r >> 18) & 0x1;
+}
+static inline u32 host1x_sync_actmon_ctrl_k_val_s(void)
+{
+	return 3;
+}
+static inline u32 host1x_sync_actmon_ctrl_k_val_f(u32 v)
+{
+	return (v & 0x7) << 10;
+}
+static inline u32 host1x_sync_actmon_ctrl_k_val_m(void)
+{
+	return 0x7 << 10;
+}
+static inline u32 host1x_sync_actmon_ctrl_k_val_v(u32 r)
+{
+	return (r >> 10) & 0x7;
+}
+static inline u32 host1x_sync_actmon_init_avg_r(void)
+{
+	return 0x9dc;
+}
+static inline u32 host1x_sync_actmon_avg_upper_wmark_r(void)
+{
+	return 0x9e0;
+}
+static inline u32 host1x_sync_actmon_avg_lower_wmark_r(void)
+{
+	return 0x9e4;
+}
+static inline u32 host1x_sync_actmon_count_weight_r(void)
+{
+	return 0x9e8;
+}
+static inline u32 host1x_sync_actmon_avg_count_r(void)
+{
+	return 0x9f0;
+}
+static inline u32 host1x_sync_actmon_status_r(void)
+{
+	return 0x9f4;
+}
+static inline u32 host1x_sync_actmon_status_sample_period_s(void)
+{
+	return 8;
+}
+static inline u32 host1x_sync_actmon_status_sample_period_f(u32 v)
+{
+	return (v & 0xff) << 3;
+}
+static inline u32 host1x_sync_actmon_status_sample_period_m(void)
+{
+	return 0xff << 3;
+}
+static inline u32 host1x_sync_actmon_status_sample_period_v(u32 r)
+{
+	return (r >> 3) & 0xff;
+}
+static inline u32 host1x_sync_actmon_status_status_source_s(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_actmon_status_status_source_f(u32 v)
+{
+	return (v & 0x1) << 2;
+}
+static inline u32 host1x_sync_actmon_status_status_source_m(void)
+{
+	return 0x1 << 2;
+}
+static inline u32 host1x_sync_actmon_status_status_source_v(u32 r)
+{
+	return (r >> 2) & 0x1;
+}
+static inline u32 host1x_sync_actmon_status_status_source_msec_v(void)
+{
+	return 0;
+}
+static inline u32 host1x_sync_actmon_status_status_source_usec_v(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_actmon_status_gr3d_mon_act_s(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_actmon_status_gr3d_mon_act_f(u32 v)
+{
+	return (v & 0x1) << 0;
+}
+static inline u32 host1x_sync_actmon_status_gr3d_mon_act_m(void)
+{
+	return 0x1 << 0;
+}
+static inline u32 host1x_sync_actmon_status_gr3d_mon_act_v(u32 r)
+{
+	return (r >> 0) & 0x1;
+}
+static inline u32 host1x_sync_actmon_status_gr3d_mon_act_inactive_v(void)
+{
+	return 0;
+}
+static inline u32 host1x_sync_actmon_status_gr3d_mon_act_active_v(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_actmon_intr_status_r(void)
+{
+	return 0x9f8;
+}
+static inline u32 host1x_sync_actmon_intr_status_consecutive_upper_s(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_actmon_intr_status_consecutive_upper_f(u32 v)
+{
+	return (v & 0x1) << 31;
+}
+static inline u32 host1x_sync_actmon_intr_status_consecutive_upper_m(void)
+{
+	return 0x1 << 31;
+}
+static inline u32 host1x_sync_actmon_intr_status_consecutive_upper_v(u32 r)
+{
+	return (r >> 31) & 0x1;
+}
+static inline u32 host1x_sync_actmon_intr_status_consecutive_lower_s(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_actmon_intr_status_consecutive_lower_f(u32 v)
+{
+	return (v & 0x1) << 30;
+}
+static inline u32 host1x_sync_actmon_intr_status_consecutive_lower_m(void)
+{
+	return 0x1 << 30;
+}
+static inline u32 host1x_sync_actmon_intr_status_consecutive_lower_v(u32 r)
+{
+	return (r >> 30) & 0x1;
+}
+static inline u32 host1x_sync_actmon_intr_status_at_end_s(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_actmon_intr_status_at_end_f(u32 v)
+{
+	return (v & 0x1) << 29;
+}
+static inline u32 host1x_sync_actmon_intr_status_at_end_m(void)
+{
+	return 0x1 << 29;
+}
+static inline u32 host1x_sync_actmon_intr_status_at_end_v(u32 r)
+{
+	return (r >> 29) & 0x1;
+}
+static inline u32 host1x_sync_actmon_intr_status_when_overflow_s(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_actmon_intr_status_when_overflow_f(u32 v)
+{
+	return (v & 0x1) << 26;
+}
+static inline u32 host1x_sync_actmon_intr_status_when_overflow_m(void)
+{
+	return 0x1 << 26;
+}
+static inline u32 host1x_sync_actmon_intr_status_when_overflow_v(u32 r)
+{
+	return (r >> 26) & 0x1;
+}
+static inline u32 host1x_sync_actmon_intr_status_avg_below_wmark_s(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_actmon_intr_status_avg_below_wmark_f(u32 v)
+{
+	return (v & 0x1) << 25;
+}
+static inline u32 host1x_sync_actmon_intr_status_avg_below_wmark_m(void)
+{
+	return 0x1 << 25;
+}
+static inline u32 host1x_sync_actmon_intr_status_avg_below_wmark_v(u32 r)
+{
+	return (r >> 25) & 0x1;
+}
+static inline u32 host1x_sync_actmon_intr_status_avg_above_wmark_s(void)
+{
+	return 1;
+}
+static inline u32 host1x_sync_actmon_intr_status_avg_above_wmark_f(u32 v)
+{
+	return (v & 0x1) << 24;
+}
+static inline u32 host1x_sync_actmon_intr_status_avg_above_wmark_m(void)
+{
+	return 0x1 << 24;
+}
+static inline u32 host1x_sync_actmon_intr_status_avg_above_wmark_v(u32 r)
+{
+	return (r >> 24) & 0x1;
 }
 
 #endif /* __hw_host1x_sync_host1x_h__ */

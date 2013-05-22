@@ -22,10 +22,12 @@
 #include "nvhost_channel.h"
 #include "dev.h"
 #include "host1x/host1x01_hardware.h"
+#include <linux/scatterlist.h>
 #include "host1x/host1x_hwctx.h"
 #include "t20/t20.h"
 #include "chip_support.h"
 #include "nvhost_memmgr.h"
+#include "class_ids.h"
 
 #include <linux/slab.h>
 
@@ -233,8 +235,9 @@ static void save_direct(u32 *ptr, u32 start_reg, u32 count)
 {
 	ptr[0] = nvhost_opcode_setclass(NV_HOST1X_CLASS_ID,
 					host1x_uclass_indoff_r(), 1);
-	ptr[1] = nvhost_class_host_indoff_reg_read(NV_HOST_MODULE_MPE,
-						start_reg, true);
+	ptr[1] = nvhost_class_host_indoff_reg_read(
+			host1x_uclass_indoff_indmodid_mpe_v(),
+			start_reg, true);
 	ptr[2] = nvhost_opcode_nonincr(host1x_uclass_inddata_r(), count);
 }
 #define SAVE_DIRECT_SIZE 3
@@ -251,8 +254,9 @@ static void save_read_ram_data_nasty(u32 *ptr, u32 data_reg)
 {
 	ptr[0] = nvhost_opcode_setclass(NV_HOST1X_CLASS_ID,
 					host1x_uclass_indoff_r(), 1);
-	ptr[1] = nvhost_class_host_indoff_reg_read(NV_HOST_MODULE_MPE,
-						data_reg, false);
+	ptr[1] = nvhost_class_host_indoff_reg_read(
+			host1x_uclass_indoff_indmodid_mpe_v(),
+			data_reg, false);
 	ptr[2] = nvhost_opcode_imm(host1x_uclass_inddata_r(), 0);
 	/* write junk data to avoid 'cached problem with register memory' */
 	ptr[3] = nvhost_opcode_setclass(NV_VIDEO_ENCODE_MPEG_CLASS_ID,
@@ -441,19 +445,20 @@ static struct nvhost_hwctx *ctxmpe_alloc(struct nvhost_hwctx_handler *h,
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
 		return NULL;
+
 	ctx->restore = mem_op().alloc(memmgr, restore_size * 4, 32,
 				mem_mgr_flag_write_combine);
-	if (IS_ERR_OR_NULL(ctx->restore)) {
-		kfree(ctx);
-		return NULL;
-	}
+	if (IS_ERR_OR_NULL(ctx->restore))
+		goto fail_alloc;
 
 	ctx->restore_virt = mem_op().mmap(ctx->restore);
-	if (!ctx->restore_virt) {
-		mem_op().put(memmgr, ctx->restore);
-		kfree(ctx);
-		return NULL;
-	}
+	if (IS_ERR_OR_NULL(ctx->restore_virt))
+		goto fail_mmap;
+
+	ctx->restore_sgt = mem_op().pin(memmgr, ctx->restore);
+	if (IS_ERR_OR_NULL(ctx->restore_sgt))
+		goto fail_pin;
+	ctx->restore_phys = sg_dma_address(ctx->restore_sgt->sgl);
 
 	kref_init(&ctx->hwctx.ref);
 	ctx->hwctx.h = &p->h;
@@ -462,13 +467,20 @@ static struct nvhost_hwctx *ctxmpe_alloc(struct nvhost_hwctx_handler *h,
 	ctx->save_incrs = 3;
 	ctx->save_thresh = 2;
 	ctx->save_slots = p->save_slots;
-	ctx->restore_phys = mem_op().pin(memmgr, ctx->restore);
 	ctx->restore_size = restore_size;
 	ctx->restore_incrs = 1;
 
 	setup_restore(p, ctx->restore_virt);
 
 	return &ctx->hwctx;
+
+fail_pin:
+	mem_op().munmap(ctx->restore, ctx->restore_virt);
+fail_mmap:
+	mem_op().put(memmgr, ctx->restore);
+fail_alloc:
+	kfree(ctx);
+	return NULL;
 }
 
 static void ctxmpe_get(struct nvhost_hwctx *ctx)
@@ -484,7 +496,7 @@ static void ctxmpe_free(struct kref *ref)
 
 	if (ctx->restore_virt)
 		mem_op().munmap(ctx->restore, ctx->restore_virt);
-	mem_op().unpin(memmgr, ctx->restore);
+	mem_op().unpin(memmgr, ctx->restore, ctx->restore_sgt);
 	mem_op().put(memmgr, ctx->restore);
 	kfree(ctx);
 }
@@ -553,23 +565,23 @@ struct nvhost_hwctx_handler *nvhost_mpe_ctxhandler_init(u32 syncpt,
 
 	p->save_buf = mem_op().alloc(memmgr, p->save_size * 4, 32,
 				mem_mgr_flag_write_combine);
-	if (IS_ERR_OR_NULL(p->save_buf)) {
-		p->save_buf = NULL;
-		return NULL;
-	}
+	if (IS_ERR_OR_NULL(p->save_buf))
+		goto fail_alloc;
 
 	save_ptr = mem_op().mmap(p->save_buf);
-	if (!save_ptr) {
-		mem_op().put(memmgr, p->save_buf);
-		p->save_buf = NULL;
-		return NULL;
-	}
+	if (IS_ERR_OR_NULL(save_ptr))
+		goto fail_mmap;
 
-	p->save_phys = mem_op().pin(memmgr, p->save_buf);
-	p->save_slots = 1;
+	p->save_sgt = mem_op().pin(memmgr, p->save_buf);
+	if (IS_ERR_OR_NULL(p->save_sgt))
+		goto fail_pin;
+	p->save_phys = sg_dma_address(p->save_sgt->sgl);
 
 	setup_save(p, save_ptr);
 
+	mem_op().munmap(p->save_buf, save_ptr);
+
+	p->save_slots = 1;
 	p->h.alloc = ctxmpe_alloc;
 	p->h.save_push = ctxmpe_save_push;
 	p->h.save_service = ctxmpe_save_service;
@@ -577,6 +589,14 @@ struct nvhost_hwctx_handler *nvhost_mpe_ctxhandler_init(u32 syncpt,
 	p->h.put = ctxmpe_put;
 
 	return &p->h;
+
+fail_pin:
+	mem_op().munmap(p->save_buf, save_ptr);
+fail_mmap:
+	mem_op().put(memmgr, p->save_buf);
+fail_alloc:
+	kfree(p);
+	return NULL;
 }
 
 int nvhost_mpe_prepare_power_off(struct nvhost_device *dev)

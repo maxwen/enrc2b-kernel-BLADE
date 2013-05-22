@@ -979,12 +979,14 @@ unsigned long tegra_hdmi_readl(struct tegra_dc_hdmi_data *hdmi,
 {
 	unsigned long ret;
 	ret = readl(hdmi->base + reg * 4);
+	trace_printk("readl %p=%#08lx\n", hdmi->base + reg * 4, ret);
 	return ret;
 }
 
 void tegra_hdmi_writel(struct tegra_dc_hdmi_data *hdmi,
 				     unsigned long val, unsigned long reg)
 {
+	trace_printk("writel %p=%#08lx\n", hdmi->base + reg * 4, val);
 	writel(val, hdmi->base + reg * 4);
 }
 
@@ -1544,9 +1546,6 @@ void hdmi_hdcp_early_suspend(void)
 
 void hdmi_set_hdmi_uevent (int value)
 {
-	//struct tegra_dc *dc_hdmi = tegra_dc_get_dc(1);
-	//struct tegra_dc_hdmi_data *hdmi = tegra_dc_get_outdata(dc_hdmi);
-	//switch_set_state(&hdmi->hpd_switch, value);
 }
 
 void hdmi_hdcp_late_resume(void)
@@ -1956,6 +1955,11 @@ static int tegra_dc_hdmi_setup_audio(struct tegra_dc *dc, unsigned audio_freq,
 			  AUDIO_CNTRL0_ERROR_TOLERANCE(6) |
 			  AUDIO_CNTRL0_FRAMES_PER_BLOCK(0xc0),
 			  HDMI_NV_PDISP_AUDIO_CNTRL0);
+#if !defined(CONFIG_ARCH_TEGRA_3x_SOC)
+	tegra_hdmi_writel(hdmi, (1 << HDMI_AUDIO_HBR_ENABLE_SHIFT) |
+	   tegra_hdmi_readl(hdmi, HDMI_NV_PDISP_SOR_AUDIO_SPARE0_0),
+	   HDMI_NV_PDISP_SOR_AUDIO_SPARE0_0);
+#endif
 #else
 	tegra_hdmi_writel(hdmi,
 			  AUDIO_CNTRL0_ERROR_TOLERANCE(6) |

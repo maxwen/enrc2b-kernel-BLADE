@@ -1,9 +1,9 @@
 /*
- * drivers/video/tegra/host/gr3d/gr3d_t20.h
+ * drivers/video/tegra/host/class_ids.h
  *
- * Tegra Graphics Host 3D for Tegra2
+ * Tegra Host Module Class IDs
  *
- * Copyright (c) 2011-2012, NVIDIA Corporation.
+ * Copyright (c) 2012, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -18,25 +18,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __NVHOST_GR3D_GR3D_T20_H
-#define __NVHOST_GR3D_GR3D_T20_H
+#ifndef __NVHOST_CLASS_IDS_H
+#define __NVHOST_CLASS_IDS_H
 
-#include <linux/types.h>
 
-struct nvhost_hwctx_handler;
-struct nvhost_hwctx;
-struct nvhost_channel;
-struct nvhost_device;
+enum {
+	NV_HOST1X_CLASS_ID		= 0x1,
+	NV_VIDEO_ENCODE_MPEG_CLASS_ID	= 0x20,
+	NV_VIDEO_ENCODE_MSENC_CLASS_ID	= 0x21,
+	NV_GRAPHICS_3D_CLASS_ID		= 0x60,
+	NV_TSEC_CLASS_ID		= 0xE0,
+};
 
-struct nvhost_hwctx_handler *nvhost_gr3d_t20_ctxhandler_init(
-		u32 syncpt, u32 waitbase,
-		struct nvhost_channel *ch);
-
-int nvhost_gr3d_t20_read_reg(
-	struct nvhost_device *dev,
-	struct nvhost_channel *channel,
-	struct nvhost_hwctx *hwctx,
-	u32 offset,
-	u32 *value);
-
-#endif
+#endif /*__NVHOST_CLASS_IDS_H */

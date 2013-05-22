@@ -27,14 +27,6 @@
 #include "hw_host1x01_sync.h"
 #include "hw_host1x01_uclass.h"
 
-/* class ids */
-enum {
-	NV_HOST1X_CLASS_ID = 0x1,
-	NV_VIDEO_ENCODE_MPEG_CLASS_ID = 0x20,
-	NV_GRAPHICS_3D_CLASS_ID = 0x60
-};
-
-
 /* channel registers */
 #define NV_HOST1X_CHANNEL_MAP_SIZE_BYTES 16384
 #define NV_HOST1X_SYNC_MLOCK_NUM 16
@@ -46,14 +38,15 @@ enum {
 static inline u32 nvhost_class_host_wait_syncpt(
 	unsigned indx, unsigned threshold)
 {
-	return (indx << 24) | (threshold & 0xffffff);
+	return host1x_uclass_wait_syncpt_indx_f(indx)
+		| host1x_uclass_wait_syncpt_thresh_f(threshold);
 }
 
 static inline u32 nvhost_class_host_load_syncpt_base(
 	unsigned indx, unsigned threshold)
 {
-	return host1x_uclass_wait_syncpt_indx_f(indx)
-		| host1x_uclass_wait_syncpt_thresh_f(threshold);
+	return host1x_uclass_load_syncpt_base_base_indx_f(indx)
+		| host1x_uclass_load_syncpt_base_value_f(threshold);
 }
 
 static inline u32 nvhost_class_host_wait_syncpt_base(
@@ -77,12 +70,6 @@ static inline u32 nvhost_class_host_incr_syncpt(
 	return host1x_uclass_incr_syncpt_cond_f(cond)
 		| host1x_uclass_incr_syncpt_indx_f(indx);
 }
-
-enum {
-	NV_HOST_MODULE_HOST1X = 0,
-	NV_HOST_MODULE_MPE = 1,
-	NV_HOST_MODULE_GR3D = 6
-};
 
 static inline u32 nvhost_class_host_indoff_reg_write(
 	unsigned mod_id, unsigned offset, bool auto_inc)

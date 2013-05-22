@@ -1,9 +1,9 @@
 /*
- * drivers/video/tegra/host/gr3d/gr3d_t20.h
+ * drivers/video/tegra/host/gr2d/gr2d_t30.c
  *
- * Tegra Graphics Host 3D for Tegra2
+ * Tegra Graphics 2D Tegra3 specific parts
  *
- * Copyright (c) 2011-2012, NVIDIA Corporation.
+ * Copyright (c) 2012, NVIDIA Corporation.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms and conditions of the GNU General Public License,
@@ -18,25 +18,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef __NVHOST_GR3D_GR3D_T20_H
-#define __NVHOST_GR3D_GR3D_T20_H
+#include <linux/nvhost.h>
+#include <linux/io.h>
+#include "host1x/host1x.h"
+#include "host1x/hw_host1x02_sync.h"
 
-#include <linux/types.h>
+void nvhost_gr2d_t30_finalize_poweron(struct nvhost_device *dev)
+{
+	void __iomem *sync_aperture = nvhost_get_host(dev)->sync_aperture;
 
-struct nvhost_hwctx_handler;
-struct nvhost_hwctx;
-struct nvhost_channel;
-struct nvhost_device;
-
-struct nvhost_hwctx_handler *nvhost_gr3d_t20_ctxhandler_init(
-		u32 syncpt, u32 waitbase,
-		struct nvhost_channel *ch);
-
-int nvhost_gr3d_t20_read_reg(
-	struct nvhost_device *dev,
-	struct nvhost_channel *channel,
-	struct nvhost_hwctx *hwctx,
-	u32 offset,
-	u32 *value);
-
-#endif
+	writel(host1x_sync_mod_teardown_epp_teardown_f(1)
+			+ host1x_sync_mod_teardown_gr2d_teardown_f(1),
+			sync_aperture + host1x_sync_mod_teardown_r());
+}

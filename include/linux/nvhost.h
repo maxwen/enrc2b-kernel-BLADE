@@ -27,7 +27,7 @@
 #include <linux/types.h>
 
 struct nvhost_master;
-
+struct nvhost_hwctx;
 struct nvhost_device_power_attr;
 
 #define NVHOST_MODULE_MAX_CLOCKS		3
@@ -69,7 +69,8 @@ struct nvhost_device_id {
 
 struct nvhost_clock {
 	char *name;
-	long default_rate;
+	unsigned long default_rate;
+	u32 moduleid;
 };
 
 enum nvhost_device_powerstate_t {
@@ -173,9 +174,12 @@ struct nvhost_driver {
 	struct nvhost_hwctx_handler *(*alloc_hwctx_handler)(u32 syncpt,
 			u32 waitbase, struct nvhost_channel *ch);
 
-	/* Clock gating callbacks */
-	int (*prepare_clockoff)(struct nvhost_device *dev);
-	void (*finalize_clockon)(struct nvhost_device *dev);
+	/* Read module register into memory */
+	int (*read_reg)(struct nvhost_device *dev,
+			struct nvhost_channel *ch,
+			struct nvhost_hwctx *hwctx,
+			u32 offset,
+			u32 *value);
 };
 
 extern int nvhost_driver_register(struct nvhost_driver *);

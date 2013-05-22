@@ -28,7 +28,7 @@
 #include <linux/clk.h>
 #include <linux/hrtimer.h>
 
-#include <trace/events/nvhost.h>
+//#include <trace/events/nvhost.h>
 
 #include <linux/io.h>
 #include <linux/string.h>
@@ -123,7 +123,7 @@ static int nvhost_channelrelease(struct inode *inode, struct file *filp)
 {
 	struct nvhost_channel_userctx *priv = filp->private_data;
 
-	trace_nvhost_channel_release(priv->ch->dev->name);
+	//trace_nvhost_channel_release(priv->ch->dev->name);
 
 	filp->private_data = NULL;
 
@@ -150,7 +150,7 @@ static int nvhost_channelopen(struct inode *inode, struct file *filp)
 	ch = nvhost_getchannel(ch);
 	if (!ch)
 		return -ENOMEM;
-	trace_nvhost_channel_open(ch->dev->name);
+	//trace_nvhost_channel_open(ch->dev->name);
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
@@ -231,7 +231,7 @@ static ssize_t nvhost_channelwrite(struct file *filp, const char __user *buf,
 	int err = 0;
 	struct nvhost_job *job = priv->job;
 	struct nvhost_submit_hdr_ext *hdr = &priv->hdr;
-	const char *chname = priv->ch->dev->name;
+	//const char *chname = priv->ch->dev->name;
 
 	if (!job)
 		return -EIO;
@@ -253,9 +253,9 @@ static ssize_t nvhost_channelwrite(struct file *filp, const char __user *buf,
 			err = set_submit(priv);
 			if (err)
 				break;
-			trace_nvhost_channel_write_submit(chname,
-			  count, hdr->num_cmdbufs, hdr->num_relocs,
-			  hdr->syncpt_id, hdr->syncpt_incrs);
+			//trace_nvhost_channel_write_submit(chname,
+			//  count, hdr->num_cmdbufs, hdr->num_relocs,
+			//  hdr->syncpt_id, hdr->syncpt_incrs);
 		} else if (hdr->num_cmdbufs) {
 			struct nvhost_cmdbuf cmdbuf;
 			consumed = sizeof(cmdbuf);
@@ -265,8 +265,8 @@ static ssize_t nvhost_channelwrite(struct file *filp, const char __user *buf,
 				err = -EFAULT;
 				break;
 			}
-			trace_nvhost_channel_write_cmdbuf(chname,
-				cmdbuf.mem, cmdbuf.words, cmdbuf.offset);
+			//trace_nvhost_channel_write_cmdbuf(chname,
+			//	cmdbuf.mem, cmdbuf.words, cmdbuf.offset);
 			nvhost_job_add_gather(job,
 				cmdbuf.mem, cmdbuf.words, cmdbuf.offset);
 			hdr->num_cmdbufs--;
@@ -282,13 +282,13 @@ static ssize_t nvhost_channelwrite(struct file *filp, const char __user *buf,
 				break;
 			}
 			while (numrelocs) {
-				struct nvhost_reloc *reloc =
-					&job->relocarray[job->num_relocs];
-				trace_nvhost_channel_write_reloc(chname,
+				/*struct nvhost_reloc *reloc =
+					&job->relocarray[job->num_relocs];*/
+				/*trace_nvhost_channel_write_reloc(chname,
 					reloc->cmdbuf_mem,
 					reloc->cmdbuf_offset,
 					reloc->target,
-					reloc->target_offset);
+					reloc->target_offset);*/
 				job->num_relocs++;
 				hdr->num_relocs--;
 				numrelocs--;
@@ -306,9 +306,9 @@ static ssize_t nvhost_channelwrite(struct file *filp, const char __user *buf,
 				err = -EFAULT;
 				break;
 			}
-			trace_nvhost_channel_write_waitchks(
+			/*trace_nvhost_channel_write_waitchks(
 			  chname, numwaitchks,
-			  hdr->waitchk_mask);
+			  hdr->waitchk_mask);*/
 			job->num_waitchk += numwaitchks;
 			hdr->num_waitchks -= numwaitchks;
 		} else if (priv->num_relocshifts) {
@@ -351,7 +351,7 @@ static int nvhost_ioctl_channel_flush(
 	struct nvhost_device *ndev = to_nvhost_device(&ctx->ch->dev->dev);
 	int err;
 
-	trace_nvhost_ioctl_channel_flush(ctx->ch->dev->name);
+	//trace_nvhost_ioctl_channel_flush(ctx->ch->dev->name);
 
 	if (!ctx->job ||
 	    ctx->hdr.num_relocs ||
@@ -392,9 +392,100 @@ static int nvhost_ioctl_channel_flush(
 static int nvhost_ioctl_channel_read_3d_reg(struct nvhost_channel_userctx *ctx,
 	struct nvhost_read_3d_reg_args *args)
 {
-	BUG_ON(!channel_op().read3dreg);
-	return channel_op().read3dreg(ctx->ch, ctx->hwctx,
+	return nvhost_channel_read_reg(ctx->ch, ctx->hwctx,
 			args->offset, &args->value);
+}
+
+static int moduleid_to_index(struct nvhost_device *dev, u32 moduleid)
+{
+	int i;
+
+	for (i = 0; i < NVHOST_MODULE_MAX_CLOCKS; i++) {
+		if (dev->clocks[i].moduleid == moduleid)
+			return i;
+	}
+
+	/* Old user space is sending a random number in args. Return clock
+	 * zero in these cases. */
+	return 0;
+}
+
+static int nvhost_ioctl_channel_set_rate(struct nvhost_channel_userctx *ctx,
+	u32 moduleid, u32 rate)
+{
+	int index = moduleid ? moduleid_to_index(ctx->ch->dev, moduleid) : 0;
+
+	return nvhost_module_set_rate(ctx->ch->dev, ctx, rate, index);
+}
+
+static int nvhost_ioctl_channel_get_rate(struct nvhost_channel_userctx *ctx,
+	u32 moduleid, u32 *rate)
+{
+	int index = moduleid ? moduleid_to_index(ctx->ch->dev, moduleid) : 0;
+
+	return nvhost_module_get_rate(ctx->ch->dev,
+			(unsigned long *)rate, index);
+}
+
+static int nvhost_ioctl_channel_module_regrdwr(
+	struct nvhost_channel_userctx *ctx,
+	struct nvhost_ctrl_module_regrdwr_args *args)
+{
+	u32 num_offsets = args->num_offsets;
+	u32 *offsets = args->offsets;
+	u32 *values = args->values;
+	u32 vals[64];
+	struct nvhost_device *ndev;
+
+	//trace_nvhost_ioctl_channel_module_regrdwr(args->id,
+	//	args->num_offsets, args->write);
+
+	/* Check that there is something to read and that block size is
+	 * u32 aligned */
+	if (num_offsets == 0 || args->block_size & 3)
+		return -EINVAL;
+
+	ndev = ctx->ch->dev;
+	BUG_ON(!ndev);
+
+	while (num_offsets--) {
+		int err;
+		u32 offs;
+		int remaining = args->block_size >> 2;
+
+		if (get_user(offs, offsets))
+			return -EFAULT;
+
+		offsets++;
+		while (remaining) {
+			int batch = min(remaining, 64);
+			if (args->write) {
+				if (copy_from_user(vals, values,
+						batch * sizeof(u32)))
+					return -EFAULT;
+
+				err = nvhost_write_module_regs(ndev,
+					offs, batch, vals);
+				if (err)
+					return err;
+			} else {
+				err = nvhost_read_module_regs(ndev,
+						offs, batch, vals);
+				if (err)
+					return err;
+
+				if (copy_to_user(values, vals,
+						batch * sizeof(u32)))
+					return -EFAULT;
+			}
+
+			remaining -= batch;
+			offs += batch * sizeof(u32);
+			values += batch;
+		}
+	}
+
+	return 0;
 }
 
 static long nvhost_channelctl(struct file *filp,
@@ -448,11 +539,11 @@ static long nvhost_channelctl(struct file *filp,
 		}
 		memcpy(&priv->hdr, hdr, sizeof(struct nvhost_submit_hdr_ext));
 		err = set_submit(priv);
-		trace_nvhost_ioctl_channel_submit(priv->ch->dev->name,
+		/*trace_nvhost_ioctl_channel_submit(priv->ch->dev->name,
 			priv->hdr.submit_version,
 			priv->hdr.num_cmdbufs, priv->hdr.num_relocs,
 			priv->hdr.num_waitchks,
-			priv->hdr.syncpt_id, priv->hdr.syncpt_incrs);
+			priv->hdr.syncpt_id, priv->hdr.syncpt_incrs);*/
 		break;
 	}
 	case NVHOST_IOCTL_CHANNEL_GET_SYNCPOINTS:
@@ -490,22 +581,20 @@ static long nvhost_channelctl(struct file *filp,
 		break;
 	case NVHOST_IOCTL_CHANNEL_GET_CLK_RATE:
 	{
-		unsigned long rate;
 		struct nvhost_clk_rate_args *arg =
 				(struct nvhost_clk_rate_args *)buf;
 
-		err = nvhost_module_get_rate(priv->ch->dev, &rate, 0);
-		if (err == 0)
-			arg->rate = rate;
+		err = nvhost_ioctl_channel_get_rate(priv,
+				arg->moduleid, &arg->rate);
 		break;
 	}
 	case NVHOST_IOCTL_CHANNEL_SET_CLK_RATE:
 	{
 		struct nvhost_clk_rate_args *arg =
 				(struct nvhost_clk_rate_args *)buf;
-		unsigned long rate = (unsigned long)arg->rate;
 
-		err = nvhost_module_set_rate(priv->ch->dev, priv, rate, 0);
+		err = nvhost_ioctl_channel_set_rate(priv,
+			arg->moduleid, arg->rate);
 		break;
 	}
 	case NVHOST_IOCTL_CHANNEL_SET_TIMEOUT:
@@ -522,6 +611,9 @@ static long nvhost_channelctl(struct file *filp,
 	case NVHOST_IOCTL_CHANNEL_SET_PRIORITY:
 		priv->priority =
 			(u32)((struct nvhost_set_priority_args *)buf)->priority;
+		break;
+	case NVHOST_IOCTL_CHANNEL_MODULE_REGRDWR:
+		err = nvhost_ioctl_channel_module_regrdwr(priv, (void *)buf);
 		break;
 	default:
 		err = -ENOTTY;
@@ -658,3 +750,16 @@ fail:
 
 	return -ENXIO;
 }
+
+void nvhost_client_device_put_resources(struct nvhost_device *dev)
+{
+	struct resource *r;
+
+	r = nvhost_get_resource(dev, IORESOURCE_MEM, 0);
+	BUG_ON(!r);
+
+	iounmap(dev->aperture);
+
+	release_mem_region(r->start, resource_size(r));
+}
+

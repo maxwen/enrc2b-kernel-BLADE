@@ -21,6 +21,7 @@
 #include <linux/slab.h>
 #include <mach/gpufuse.h>
 
+#include <linux/scatterlist.h>
 #include "t20/t20.h"
 #include "host1x/host1x01_hardware.h"
 #include "nvhost_hwctx.h"
@@ -37,6 +38,7 @@
 void nvhost_3dctx_restore_begin(struct host1x_hwctx_handler *p, u32 *ptr)
 {
 	/* set class to host */
+#include "class_ids.h"
 	ptr[0] = nvhost_opcode_setclass(NV_HOST1X_CLASS_ID,
 					host1x_uclass_incr_syncpt_base_r(), 1);
 	/* increment sync point base */
@@ -80,17 +82,20 @@ struct host1x_hwctx *nvhost_3dctx_alloc_common(struct host1x_hwctx_handler *p,
 	ctx->restore = mem_op().alloc(memmgr, p->restore_size * 4, 32,
 		map_restore ? mem_mgr_flag_write_combine
 			    : mem_mgr_flag_uncacheable);
-	if (IS_ERR_OR_NULL(ctx->restore)) {
-		ctx->restore = NULL;
-		goto fail;
-	}
+	if (IS_ERR_OR_NULL(ctx->restore))
+		goto fail_alloc;
 
 	if (map_restore) {
 		ctx->restore_virt = mem_op().mmap(ctx->restore);
-		if (!ctx->restore_virt)
-			goto fail;
+		if (IS_ERR_OR_NULL(ctx->restore_virt))
+			goto fail_mmap;
 	} else
 		ctx->restore_virt = NULL;
+
+	ctx->restore_sgt = mem_op().pin(memmgr, ctx->restore);
+	if (IS_ERR_OR_NULL(ctx->restore_sgt))
+		goto fail_pin;
+	ctx->restore_phys = sg_dma_address(ctx->restore_sgt->sgl);
 
 	kref_init(&ctx->hwctx.ref);
 	ctx->hwctx.h = &p->h;
@@ -99,21 +104,17 @@ struct host1x_hwctx *nvhost_3dctx_alloc_common(struct host1x_hwctx_handler *p,
 	ctx->save_incrs = p->save_incrs;
 	ctx->save_thresh = p->save_thresh;
 	ctx->save_slots = p->save_slots;
-	ctx->restore_phys = mem_op().pin(memmgr, ctx->restore);
-	if (IS_ERR_VALUE(ctx->restore_phys))
-		goto fail;
 
 	ctx->restore_size = p->restore_size;
 	ctx->restore_incrs = p->restore_incrs;
 	return ctx;
 
-fail:
-	if (map_restore && ctx->restore_virt) {
+fail_pin:
+	if (map_restore)
 		mem_op().munmap(ctx->restore, ctx->restore_virt);
-		ctx->restore_virt = NULL;
-	}
+fail_mmap:
 	mem_op().put(memmgr, ctx->restore);
-	ctx->restore = NULL;
+fail_alloc:
 	kfree(ctx);
 	return NULL;
 }
@@ -129,14 +130,11 @@ void nvhost_3dctx_free(struct kref *ref)
 	struct host1x_hwctx *ctx = to_host1x_hwctx(nctx);
 	struct mem_mgr *memmgr = nvhost_get_host(nctx->channel->dev)->memmgr;
 
-	if (ctx->restore_virt) {
+	if (ctx->restore_virt)
 		mem_op().munmap(ctx->restore, ctx->restore_virt);
-		ctx->restore_virt = NULL;
-	}
-	mem_op().unpin(memmgr, ctx->restore);
-	ctx->restore_phys = 0;
+
+	mem_op().unpin(memmgr, ctx->restore, ctx->restore_sgt);
 	mem_op().put(memmgr, ctx->restore);
-	ctx->restore = NULL;
 	kfree(ctx);
 }
 
@@ -165,6 +163,8 @@ struct gr3d_desc {
 	int (*prepare_poweroff)(struct nvhost_device *dev);
 	struct nvhost_hwctx_handler *(*alloc_hwctx_handler)(u32 syncpt,
 			u32 waitbase, struct nvhost_channel *ch);
+	int (*read_reg)(struct nvhost_device *dev, struct nvhost_channel *ch,
+			struct nvhost_hwctx *hwctx, u32 offset, u32 *value);
 };
 
 static const struct gr3d_desc gr3d[] = {
@@ -177,6 +177,7 @@ static const struct gr3d_desc gr3d[] = {
 		.deinit = NULL,
 		.prepare_poweroff = nvhost_gr3d_prepare_power_off,
 		.alloc_hwctx_handler = nvhost_gr3d_t20_ctxhandler_init,
+		.read_reg = nvhost_gr3d_t20_read_reg,
 	},
 	[gr3d_02] = {
 		.finalize_poweron = NULL,
@@ -187,6 +188,7 @@ static const struct gr3d_desc gr3d[] = {
 		.deinit = nvhost_scale3d_deinit,
 		.prepare_poweroff = nvhost_gr3d_prepare_power_off,
 		.alloc_hwctx_handler = nvhost_gr3d_t30_ctxhandler_init,
+		.read_reg = nvhost_gr3d_t30_read_reg,
 	},
 };
 
@@ -214,6 +216,7 @@ static int __devinit gr3d_probe(struct nvhost_device *dev,
 	drv->deinit			= gr3d[index].deinit;
 	drv->prepare_poweroff		= gr3d[index].prepare_poweroff;
 	drv->alloc_hwctx_handler	= gr3d[index].alloc_hwctx_handler;
+	drv->read_reg			= gr3d[index].read_reg;
 
 	return nvhost_client_device_init(dev);
 }
