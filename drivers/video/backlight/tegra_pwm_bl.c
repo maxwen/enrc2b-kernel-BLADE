@@ -31,6 +31,7 @@ extern unsigned long g_panel_id;
 
 static u8 enhance_on[]={0x55,0x83};
 static u8 enhance_off[]={0x55,0x03};
+static int last_brightness = -1;
 
 static ssize_t store(struct device *dev,
 					struct device_attribute *attr,
@@ -90,6 +91,7 @@ static int tegra_pwm_backlight_update_status(struct backlight_device *bl)
 {
 	struct tegra_pwm_bl_data *tbl = dev_get_drvdata(&bl->dev);
 	int brightness = bl->props.brightness;
+	int brightness_orig = brightness;
 	int max = bl->props.max_brightness;
 	struct tegra_dc *dc;
 	u8 pdata[]={0x53,0x2C,0x51,0xFF};
@@ -107,10 +109,17 @@ static int tegra_pwm_backlight_update_status(struct backlight_device *bl)
 	if (tbl->notify)
 		brightness = tbl->notify(tbl->dev, brightness);
 
-	if (brightness > max)
+	if (brightness > max){
 		dev_err(&bl->dev, "Invalid brightness value: %d max: %d\n",
 		brightness, max);
+		brightness = max;
+	}
 
+	if (last_brightness != -1 && last_brightness == brightness){
+		//printk(KERN_INFO "[DISP]%s brightness=%d brightness_orig=%d ,unchanged\n",__func__, brightness, brightness_orig);
+		return 0;
+	}
+	
 #if defined(CONFIG_ARCH_TEGRA_2x_SOC)
 	/* map API brightness range from (0~255) to hw range (0~128) */
 	tbl->params.duty_cycle = (brightness * 128) / 255;
@@ -118,12 +127,12 @@ static int tegra_pwm_backlight_update_status(struct backlight_device *bl)
 	tbl->params.duty_cycle = brightness & 0xFF;
 #endif
 	if (brightness == 0) {
-		bkl_debug = true;
-		printk(KERN_INFO "[DISP] %s brightness=%d ,duty_cycle=%d\n",__FUNCTION__,brightness,tbl->params.duty_cycle);
+		//bkl_debug = true;
+		printk(KERN_INFO "[DISP]%s brightness=%d brightness_orig=%d ,duty_cycle=%d\n",__func__, brightness, brightness_orig, tbl->params.duty_cycle);
 	}
 	else if (bkl_debug && (brightness > 0)) {
-		bkl_debug = false;
-		printk(KERN_INFO "[DISP] %s brightness=%d ,duty_cycle=%d\n",__FUNCTION__,brightness,tbl->params.duty_cycle);
+		//bkl_debug = false;
+		printk(KERN_INFO "[DISP]%s brightness=%d brightness_orig=%d ,duty_cycle=%d\n",__func__, brightness, brightness_orig, tbl->params.duty_cycle);
 	}
 	pdata[3]=tbl->params.duty_cycle;
 	/* Call tegra display controller function to update backlight */
@@ -139,6 +148,7 @@ static int tegra_pwm_backlight_update_status(struct backlight_device *bl)
 	else
 		dev_err(&bl->dev, "tegra display controller not available\n");
 
+	last_brightness = brightness;
 	return 0;
 }
 
