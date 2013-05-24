@@ -214,7 +214,7 @@ static unsigned char shrink_pwm(int val)
 	shrink_br = def_pwm +
 	(val-ORIG_PWM_DEF)*(max_pwm-def_pwm)/(ORIG_PWM_MAX-ORIG_PWM_DEF);
 
-	//pr_info("brightness orig = %d, transformed=%d\n", val, shrink_br);
+	//pr_info("[DISP]brightness orig = %d, transformed=%d\n", val, shrink_br);
 
 	return shrink_br;
 }
@@ -4258,7 +4258,7 @@ static void bkl_do_work(struct work_struct *work)
 {
 	struct backlight_device *bl = platform_get_drvdata(&enrc2b_disp1_backlight_device);
 	if (bl) {
-		DISP_DEBUG_LN("set backlight after resume");
+		DISP_DEBUG_LN("set backlight after resume %d", bl->props.brightness);
 		bl->props.bkl_on = 1;
 		backlight_update_status(bl);
 	}
