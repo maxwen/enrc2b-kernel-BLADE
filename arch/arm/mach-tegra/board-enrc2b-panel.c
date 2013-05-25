@@ -187,13 +187,13 @@ static p_tegra_dc_bl_output bl_output;
 
 #define ORIG_PWM_MAX 255
 #define ORIG_PWM_DEF 78
-#define ORIG_PWM_MIN 30
+#define ORIG_PWM_MIN 10
 
 #define MAP_PWM_MAX     255
 #define MAP_PWM_DEF     78
-#define MAP_PWM_MIN     7
+#define MAP_PWM_MIN     5
 
-#define MAP_PWM_LOW_DEF         79
+#define MAP_PWM_LOW_DEF         50
 #define MAP_PWM_HIGH_DEF        102
 
 static int max_pwm = MAP_PWM_MAX;
@@ -4324,7 +4324,7 @@ static struct dentry *bkl_debugfs_root;
 
 static int bkl_calibration_get(void *data, u64 *val)
 {
-	DISP_INFO_LN("def_pwm = %d\n",def_pwm);
+	*val = (u64)def_pwm;
 	return 0;
 }
 
