@@ -127,11 +127,11 @@ static int tegra_pwm_backlight_update_status(struct backlight_device *bl)
 	tbl->params.duty_cycle = brightness & 0xFF;
 #endif
 	if (brightness == 0) {
-		//bkl_debug = true;
+		bkl_debug = true;
 		printk(KERN_INFO "[DISP]%s brightness=%d brightness_orig=%d ,duty_cycle=%d\n",__func__, brightness, brightness_orig, tbl->params.duty_cycle);
 	}
 	else if (bkl_debug && (brightness > 0)) {
-		//bkl_debug = false;
+		bkl_debug = false;
 		printk(KERN_INFO "[DISP]%s brightness=%d brightness_orig=%d ,duty_cycle=%d\n",__func__, brightness, brightness_orig, tbl->params.duty_cycle);
 	}
 	pdata[3]=tbl->params.duty_cycle;
