@@ -246,7 +246,10 @@ irqreturn_t nvhost_syncpt_thresh_fn(int irq, void *dev_id)
  */
 static void free_syncpt_irq(struct nvhost_intr_syncpt *syncpt)
 {
-	syncpt->irq_requested = 0;
+	if (syncpt->irq_requested) {
+		free_irq(syncpt->irq, syncpt);
+		syncpt->irq_requested = 0;
+	}
 }
 
 
@@ -355,7 +358,6 @@ int nvhost_intr_init(struct nvhost_intr *intr, u32 irq_gen, u32 irq_sync)
 
 	mutex_init(&intr->mutex);
 	intr->host_syncpt_irq_base = irq_sync;
-	intr->wq = create_workqueue("host_syncpt");
 	intr_op().init_host_sync(intr);
 	intr->host_general_irq = irq_gen;
 	intr->host_general_irq_requested = false;
@@ -381,7 +383,6 @@ int nvhost_intr_init(struct nvhost_intr *intr, u32 irq_gen, u32 irq_sync)
 void nvhost_intr_deinit(struct nvhost_intr *intr)
 {
 	nvhost_intr_stop(intr);
-	destroy_workqueue(intr->wq);
 }
 
 void nvhost_intr_start(struct nvhost_intr *intr, u32 hz)
@@ -435,7 +436,6 @@ void nvhost_intr_stop(struct nvhost_intr *intr)
 	}
 
 	intr_op().free_host_general_irq(intr);
-	intr_op().free_syncpt_irq(intr);
 
 	mutex_unlock(&intr->mutex);
 }

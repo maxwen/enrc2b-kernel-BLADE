@@ -486,9 +486,6 @@ static struct tegra_dc_platform_data enrc2b_disp2_pdata = {
 	.default_out	= &enrc2b_disp2_out,
 	.fb		= &enrc2b_hdmi_fb_data,
 	.emc_clk_rate	= 300000000,
-#ifdef CONFIG_TEGRA_DC_CMU
-	.cmu_enable	= 0,
-#endif
 };
 
 static int enrc2b_dsi_panel_enable(void)
@@ -4186,9 +4183,6 @@ static struct tegra_dc_platform_data enrc2b_disp1_pdata = {
 	.default_out	= &enrc2b_disp1_out,
 	.emc_clk_rate	= 204000000,
 	.fb		= &enrc2b_dsi_fb_data,
-#ifdef CONFIG_TEGRA_DC_CMU
-    .cmu_enable = 1,
-#endif
 };
 
 static struct nvhost_device enrc2b_disp1_device = {

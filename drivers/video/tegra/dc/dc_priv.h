@@ -119,9 +119,7 @@ struct tegra_dc {
 	struct tegra_dc_win		windows[DC_N_WINDOWS];
 	struct tegra_dc_blend		blend;
 	int				n_windows;
-#ifdef CONFIG_TEGRA_DC_CMU
-	struct tegra_dc_cmu		cmu;
-#endif
+
 	wait_queue_head_t		wq;
 
 	struct mutex			lock;
@@ -173,6 +171,7 @@ struct tegra_dc {
 	u32 suspend_status;
 };
 
+#if 0
 #define print_mode_info(dc, mode) do {					\
 	trace_printk("%s:Mode settings: "				\
 			"ref_to_sync: H = %d V = %d, "			\
@@ -188,6 +187,10 @@ struct tegra_dc {
 			mode.h_active, mode.v_active,			\
 			mode.h_front_porch, mode.v_front_porch,		\
 			mode.pclk, mode.stereo_mode);			\
+	} while (0)
+#endif
+
+#define print_mode_info(dc, mode) do {					\
 	} while (0)
 
 static inline void tegra_dc_io_start(struct tegra_dc *dc)
@@ -210,7 +213,6 @@ static inline unsigned long tegra_dc_readl(struct tegra_dc *dc,
 		WARN(1, "DC is clock-gated.\n");
 
 	ret = readl(dc->base + reg * 4);
-	trace_printk("readl %p=%#08lx\n", dc->base + reg * 4, ret);
 	return ret;
 }
 
@@ -221,7 +223,6 @@ static inline void tegra_dc_writel(struct tegra_dc *dc, unsigned long val,
 	if (!tegra_is_clk_enabled(dc->clk))
 		WARN(1, "DC is clock-gated.\n");
 
-	trace_printk("writel %p=%#08lx\n", dc->base + reg * 4, val);
 	writel(val, dc->base + reg * 4);
 }
 
@@ -257,7 +258,6 @@ static inline int tegra_dc_fmt_bpp(int fmt)
 {
 	switch (fmt) {
 	case TEGRA_WIN_FMT_P1:
-
 		return 1;
 
 	case TEGRA_WIN_FMT_P2:
@@ -415,10 +415,4 @@ void tegra_dc_set_csc(struct tegra_dc *dc, struct tegra_dc_csc *csc);
 
 /* defined in window.c, used in dc.c */
 void tegra_dc_trigger_windows(struct tegra_dc *dc);
-
-void tegra_dc_set_color_control(struct tegra_dc *dc);
-#ifdef CONFIG_TEGRA_DC_CMU
-void tegra_dc_cmu_enable(struct tegra_dc *dc, bool cmu_enable);
-#endif
-
 #endif

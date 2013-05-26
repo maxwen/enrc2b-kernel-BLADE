@@ -30,7 +30,6 @@
 #include <linux/sched.h>
 #include <linux/wait.h>
 #include <linux/atomic.h>
-#include <linux/dma-buf.h>
 #include <linux/nvmap.h>
 #include "nvmap_heap.h"
 
@@ -76,12 +75,6 @@ struct nvmap_handle {
 	size_t orig_size;	/* original (as-requested) size */
 	size_t align;
 	struct nvmap_client *owner;
-	struct nvmap_handle_ref *owner_ref; /* use this ref to avoid spending
-			time on validation in some cases.
-			if handle was duplicated by other client and
-			original client destroy ref, this field
-			has to be set to zero. In this case ref should be
-			obtained through validation */
 	struct nvmap_device *dev;
 	union {
 		struct nvmap_pgalloc pgalloc;
@@ -219,8 +212,6 @@ pte_t **nvmap_alloc_pte(struct nvmap_device *dev, void **vaddr);
 pte_t **nvmap_alloc_pte_irq(struct nvmap_device *dev, void **vaddr);
 
 void nvmap_free_pte(struct nvmap_device *dev, pte_t **pte);
-
-pte_t **nvmap_vaddr_to_pte(struct nvmap_device *dev, unsigned long vaddr);
 
 void nvmap_usecount_inc(struct nvmap_handle *h);
 void nvmap_usecount_dec(struct nvmap_handle *h);

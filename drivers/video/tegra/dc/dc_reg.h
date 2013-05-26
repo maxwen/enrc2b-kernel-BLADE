@@ -188,31 +188,6 @@
 #define DC_COM_GPIO_DEBOUNCE_COUNTER		0x328
 #define DC_COM_CRC_CHECKSUM_LATCHED		0x329
 
-#define DC_COM_CMU_CSC_KRR			0x32a
-#define DC_COM_CMU_CSC_KGR			0x32b
-#define DC_COM_CMU_CSC_KBR			0x32c
-#define DC_COM_CMU_CSC_KRG			0x32d
-#define DC_COM_CMU_CSC_KGG			0x32e
-#define DC_COM_CMU_CSC_KBG			0x32f
-#define DC_COM_CMU_CSC_KRB			0x330
-#define DC_COM_CMU_CSC_KGB			0x331
-#define DC_COM_CMU_CSC_KBB			0x332
-#define DC_COM_CMU_LUT1				0x336
-#define  LUT1_ADDR(x)			(((x) & 0x0ff) << 0)
-#define  LUT1_DATA(x)			(((x) & 0xfff) << 16)
-#define  LUT1_READ_DATA(x)		(((x) >> 16) & 0xfff)
-#define DC_COM_CMU_LUT2				0x337
-#define  LUT2_ADDR(x)			(((x) & 0x3ff) << 0)
-#define  LUT2_DATA(x)			(((x) & 0x0ff) << 16)
-#define  LUT2_READ_DATA(x)		(((x) >> 16) & 0x0ff)
-#define DC_COM_CMU_LUT1_READ			0x338
-#define  LUT1_READ_ADDR(x)		(((x) & 0x0ff) << 8)
-#define  LUT1_READ_EN			(1 << 0)
-#define DC_COM_CMU_LUT2_READ			0x339
-#define  LUT2_READ_ADDR(x)		(((x) & 0x3ff) << 8)
-#define  LUT2_READ_EN			(1 << 0)
-
-
 #define DC_DISP_DISP_SIGNAL_OPTIONS0		0x400
 #define  H_PULSE_0_ENABLE		(1 << 8)
 #define  H_PULSE_1_ENABLE		(1 << 10)
@@ -340,11 +315,10 @@
 #define  BASE_COLOR_SIZE565		(6 << 0)
 #define  BASE_COLOR_SIZE332		(7 << 0)
 #define  BASE_COLOR_SIZE888		(8 << 0)
+
 #define  DITHER_CONTROL_DISABLE		(0 << 8)
 #define  DITHER_CONTROL_ORDERED		(2 << 8)
 #define  DITHER_CONTROL_ERRDIFF		(3 << 8)
-#define  CMU_DISABLE			(0 << 20)
-#define  CMU_ENABLE			(1 << 20)
 
 #define DC_DISP_SHIFT_CLOCK_OPTIONS		0x431
 #define DC_DISP_DATA_ENABLE_OPTIONS		0x432
@@ -409,12 +383,13 @@
 #define DC_WIN_CSC_KVB				0x618
 #define DC_WIN_V_FILTER_P(x)			(0x619 + (x))
 #define DC_WIN_WIN_OPTIONS			0x700
-#define  H_DIRECTION_DECREMENT(x)	((x) << 0)
-#define  V_DIRECTION_DECREMENT(x)	((x) << 2)
-#define  WIN_SCAN_COLUMN		(1 << 4)
+#define  H_DIRECTION_INCREMENT		(0 << 0)
+#define  H_DIRECTION_DECREMENT		(1 << 0)
+#define  V_DIRECTION_INCREMENT		(0 << 2)
+#define  V_DIRECTION_DECREMENT		(1 << 2)
 #define  COLOR_EXPAND			(1 << 6)
-#define  H_FILTER_ENABLE(x)		((x) << 8)
-#define  V_FILTER_ENABLE(x)		((x) << 10)
+#define  H_FILTER_ENABLE		(1 << 8)
+#define  V_FILTER_ENABLE		(1 << 10)
 #define  CP_ENABLE			(1 << 16)
 #define  CSC_ENABLE			(1 << 18)
 #define  DV_ENABLE			(1 << 20)
@@ -488,7 +463,7 @@
 
 #define DC_WIN_HP_FETCH_CONTROL			0x714
 
-#if defined(CONFIG_ARCH_TEGRA_3x_SOC)
+#ifdef CONFIG_ARCH_TEGRA_3x_SOC
 #define DC_WIN_GLOBAL_ALPHA			0x715
 #define  GLOBAL_ALPHA_ENABLE		0x10000
 #endif

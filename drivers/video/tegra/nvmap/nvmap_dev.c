@@ -204,17 +204,6 @@ void nvmap_free_pte(struct nvmap_device *dev, pte_t **pte)
 	wake_up(&dev->pte_wait);
 }
 
-/* get pte for the virtual address */
-pte_t **nvmap_vaddr_to_pte(struct nvmap_device *dev, unsigned long vaddr)
-{
-	unsigned int bit;
-
-	BUG_ON(vaddr < (unsigned long)dev->vm_rgn->addr);
-	bit = (vaddr - (unsigned long)dev->vm_rgn->addr) >> PAGE_SHIFT;
-	BUG_ON(bit >= NVMAP_NUM_PTES);
-	return &(dev->ptes[bit]);
-}
-
 /* verifies that the handle ref value "ref" is a valid handle ref for the
  * file. caller must hold the file's ref_lock prior to calling this function */
 struct nvmap_handle_ref *_nvmap_validate_id_locked(struct nvmap_client *c,
@@ -301,7 +290,7 @@ int nvmap_flush_heap_block(struct nvmap_client *client,
 	if (prot == NVMAP_HANDLE_UNCACHEABLE || prot == NVMAP_HANDLE_WRITE_COMBINE)
 		goto out;
 
-	if (len >= FLUSH_CLEAN_BY_SET_WAY_THRESHOLD_INNER) {
+	if (len >= FLUSH_CLEAN_BY_SET_WAY_THRESHOLD) {
 		inner_flush_cache_all();
 		if (prot != NVMAP_HANDLE_INNER_CACHEABLE)
 			outer_flush_range(block->base, block->base + len);
@@ -693,10 +682,8 @@ static void destroy_client(struct nvmap_client *client)
 		smp_rmb();
 		pins = atomic_read(&ref->pin);
 
-		if (ref->handle->owner == client) {
+		if (ref->handle->owner == client)
 			ref->handle->owner = NULL;
-			ref->handle->owner_ref = NULL;
-		}
 
 		while (pins--)
 			nvmap_unpin_handles(client, &ref->handle, 1);
@@ -884,10 +871,6 @@ static long nvmap_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		err = nvmap_ioctl_cache_maint(filp, uarg);
 		break;
 
-	case NVMAP_IOC_SHARE:
-		err = nvmap_ioctl_share_dmabuf(filp, uarg);
-		break;
-
 	default:
 		return -ENOTTY;
 	}
@@ -904,11 +887,10 @@ static void nvmap_vma_open(struct vm_area_struct *vma)
 	struct nvmap_vma_priv *priv;
 
 	priv = vma->vm_private_data;
+
 	BUG_ON(!priv);
 
 	atomic_inc(&priv->count);
-	if(priv->handle)
-		nvmap_usecount_inc(priv->handle);
 }
 
 static void nvmap_vma_close(struct vm_area_struct *vma)
@@ -917,8 +899,8 @@ static void nvmap_vma_close(struct vm_area_struct *vma)
 
 	if (priv) {
 		if (priv->handle) {
-			BUG_ON(priv->handle->usecount == 0);
 			nvmap_usecount_dec(priv->handle);
+			BUG_ON(priv->handle->usecount < 0);
 		}
 		if (!atomic_dec_return(&priv->count)) {
 			if (priv->handle)

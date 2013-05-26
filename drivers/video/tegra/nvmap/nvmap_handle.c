@@ -88,7 +88,6 @@ static struct page *nvmap_page_pool_alloc_locked(struct nvmap_page_pool *pool)
 
 	if (pool->npages > 0) {
 		page = pool->page_array[--pool->npages];
-		pool->page_array[pool->npages] = NULL;
 		atomic_dec(&page->_count);
 		BUG_ON(atomic_read(&page->_count) != 1);
 	}
@@ -112,10 +111,9 @@ static bool nvmap_page_pool_release_locked(struct nvmap_page_pool *pool,
 {
 	int ret = false;
 
+	BUG_ON(atomic_read(&page->_count) != 1);
 	if (enable_pp && pool->npages < pool->max_pages) {
 		atomic_inc(&page->_count);
-		BUG_ON(atomic_read(&page->_count) != 2);
-		BUG_ON(pool->page_array[pool->npages] != NULL);
 		pool->page_array[pool->npages++] = page;
 		ret = true;
 	}
@@ -208,8 +206,8 @@ repeat:
 		goto out;
 	}
 
-	page_array = vzalloc(sizeof(struct page *) * size);
-	shrink_array = vzalloc(sizeof(struct page *) * size);
+	page_array = vmalloc(sizeof(struct page *) * size);
+	shrink_array = vmalloc(sizeof(struct page *) * size);
 	if (!page_array || !shrink_array)
 		goto fail;
 
@@ -380,12 +378,11 @@ POOL_SIZE_MOUDLE_PARAM_CB(wb, NVMAP_HANDLE_CACHEABLE);
 
 int nvmap_page_pool_init(struct nvmap_page_pool *pool, int flags)
 {
-	static int reg = 1;
-	struct sysinfo info;
-#ifdef CONFIG_NVMAP_PAGE_POOLS_INIT_FILLUP
 	int i;
 	int err;
 	struct page *page;
+	static int reg = 1;
+	struct sysinfo info;
 	int highmem_pages = 0;
 	typedef int (*set_pages_array) (struct page **pages, int addrinarray);
 	set_pages_array s_cpa[] = {
@@ -394,7 +391,6 @@ int nvmap_page_pool_init(struct nvmap_page_pool *pool, int flags)
 		set_pages_array_iwb,
 		set_pages_array_wb
 	};
-#endif
 
 	BUG_ON(flags >= NVMAP_NUM_POOLS);
 	memset(pool, 0x0, sizeof(*pool));
@@ -419,8 +415,8 @@ int nvmap_page_pool_init(struct nvmap_page_pool *pool, int flags)
 	pool_size[flags] = pool->max_pages;
 	pr_info("nvmap %s page pool size=%d pages",
 		s_memtype_str[flags], pool->max_pages);
-	pool->page_array = vzalloc(sizeof(void *) * pool->max_pages);
-	pool->shrink_array = vzalloc(sizeof(struct page *) * pool->max_pages);
+	pool->page_array = vmalloc(sizeof(void *) * pool->max_pages);
+	pool->shrink_array = vmalloc(sizeof(struct page *) * pool->max_pages);
 	if (!pool->page_array || !pool->shrink_array)
 		goto fail;
 
@@ -429,7 +425,6 @@ int nvmap_page_pool_init(struct nvmap_page_pool *pool, int flags)
 		register_shrinker(&nvmap_page_pool_shrinker);
 	}
 
-#ifdef CONFIG_NVMAP_PAGE_POOLS_INIT_FILLUP
 	nvmap_page_pool_lock(pool);
 	for (i = 0; i < pool->max_pages; i++) {
 		page = alloc_page(GFP_NVMAP);
@@ -451,7 +446,6 @@ do_cpa:
 	err = (*s_cpa[flags])(pool->page_array, pool->npages);
 	BUG_ON(err);
 	nvmap_page_pool_unlock(pool);
-#endif
 	return 0;
 fail:
 	pool->max_pages = 0;
@@ -866,25 +860,6 @@ out:
 	return err;
 }
 
-/*
- * Free handle without slow validation step
- */
-void _nvmap_free(struct nvmap_client *client, struct nvmap_handle_ref *r)
-{
-	nvmap_ref_lock(client);
-	if (r->handle->owner == client && atomic_read(&r->dupes) > 1) {
-		atomic_dec(&r->dupes);
-		nvmap_ref_unlock(client);
-		nvmap_handle_put(r->handle);
-		return;
-	} else {
-		/* slow path */
-		nvmap_ref_unlock(client);
-		nvmap_free(client, r);
-		return;
-	}
-}
-
 void nvmap_free_handle_id(struct nvmap_client *client, unsigned long id)
 {
 	struct nvmap_handle_ref *ref;
@@ -932,10 +907,8 @@ void nvmap_free_handle_id(struct nvmap_client *client, unsigned long id)
 	while (pins--)
 		nvmap_unpin_handles(client, &ref->handle, 1);
 
-	if (h->owner == client) {
+	if (h->owner == client)
 		h->owner = NULL;
-		h->owner_ref = NULL;
-	}
 
 	NVMAP_MAGIC_FREE(ref);
 	kfree(ref);
@@ -991,7 +964,6 @@ struct nvmap_handle_ref *nvmap_create_handle(struct nvmap_client *client,
 	atomic_set(&h->ref, 1);
 	atomic_set(&h->pin, 0);
 	h->owner = client;
-	h->owner_ref = ref;
 	h->dev = client->dev;
 	BUG_ON(!h->owner);
 	h->size = h->orig_size = size;
@@ -1007,29 +979,6 @@ struct nvmap_handle_ref *nvmap_create_handle(struct nvmap_client *client,
 	NVMAP_MAGIC_ALLOC(ref);
         trace_nvmap_create_handle(client, h, size, ref);
 	return ref;
-}
-
-/*
- * Duplicate handle without slow validation step.
- */
-struct nvmap_handle_ref *_nvmap_duplicate_handle_id(struct nvmap_client *client,
-						   unsigned long id)
-{
-	struct nvmap_handle *h = (struct nvmap_handle *)id;
-	struct nvmap_handle_ref *ref = h->owner_ref;
-
-	nvmap_ref_lock(client);
-	if (client == h->owner) {
-		/* handle already duplicated in client; just increment
-		 * the reference count rather than re-duplicating it */
-		atomic_inc(&ref->dupes);
-		nvmap_handle_get(h);
-		nvmap_ref_unlock(client);
-		return ref;
-	} else {
-		nvmap_ref_unlock(client);
-		return nvmap_duplicate_handle_id(client, id);
-	}
 }
 
 struct nvmap_handle_ref *nvmap_duplicate_handle_id(struct nvmap_client *client,

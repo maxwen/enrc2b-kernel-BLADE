@@ -101,8 +101,7 @@ struct nvhost_read_3d_reg_args {
 };
 
 struct nvhost_clk_rate_args {
-	__u32 rate;
-	__u32 moduleid;
+	__u64 rate;
 };
 
 struct nvhost_set_timeout_args {
@@ -111,15 +110,6 @@ struct nvhost_set_timeout_args {
 
 struct nvhost_set_priority_args {
 	__u32 priority;
-};
-
-struct nvhost_ctrl_module_regrdwr_args {
-	__u32 id;
-	__u32 num_offsets;
-	__u32 block_size;
-	__u32 *offsets;
-	__u32 *values;
-	__u32 write;
 };
 
 #define NVHOST_IOCTL_CHANNEL_FLUSH		\
@@ -148,10 +138,8 @@ struct nvhost_ctrl_module_regrdwr_args {
 	_IOR(NVHOST_IOCTL_MAGIC, 12, struct nvhost_get_param_args)
 #define NVHOST_IOCTL_CHANNEL_SET_PRIORITY	\
 	_IOW(NVHOST_IOCTL_MAGIC, 13, struct nvhost_set_priority_args)
-#define NVHOST_IOCTL_CHANNEL_MODULE_REGRDWR	\
-	_IOWR(NVHOST_IOCTL_MAGIC, 14, struct nvhost_ctrl_module_regrdwr_args)
 #define NVHOST_IOCTL_CHANNEL_LAST		\
-	_IOC_NR(NVHOST_IOCTL_CHANNEL_MODULE_REGRDWR)
+	_IOC_NR(NVHOST_IOCTL_CHANNEL_SET_PRIORITY)
 #define NVHOST_IOCTL_CHANNEL_MAX_ARG_SIZE sizeof(struct nvhost_submit_hdr_ext)
 
 struct nvhost_ctrl_syncpt_read_args {
@@ -190,6 +178,15 @@ enum nvhost_module_id {
 	NVHOST_MODULE_MPE,
 };
 
+struct nvhost_ctrl_module_regrdwr_args {
+	__u32 id;
+	__u32 num_offsets;
+	__u32 block_size;
+	__u32 *offsets;
+	__u32 *values;
+	__u32 write;
+};
+
 #define NVHOST_IOCTL_CTRL_SYNCPT_READ		\
 	_IOWR(NVHOST_IOCTL_MAGIC, 1, struct nvhost_ctrl_syncpt_read_args)
 #define NVHOST_IOCTL_CTRL_SYNCPT_INCR		\
@@ -208,11 +205,8 @@ enum nvhost_module_id {
 #define NVHOST_IOCTL_CTRL_GET_VERSION	\
 	_IOR(NVHOST_IOCTL_MAGIC, 7, struct nvhost_get_param_args)
 
-#define NVHOST_IOCTL_CTRL_SYNCPT_READ_MAX	\
-	_IOWR(NVHOST_IOCTL_MAGIC, 8, struct nvhost_ctrl_syncpt_read_args)
-
 #define NVHOST_IOCTL_CTRL_LAST			\
-	_IOC_NR(NVHOST_IOCTL_CTRL_SYNCPT_READ_MAX)
+	_IOC_NR(NVHOST_IOCTL_CTRL_GET_VERSION)
 #define NVHOST_IOCTL_CTRL_MAX_ARG_SIZE	\
 	sizeof(struct nvhost_ctrl_module_regrdwr_args)
 

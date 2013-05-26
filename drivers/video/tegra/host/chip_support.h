@@ -37,7 +37,6 @@ struct push_buffer;
 struct nvhost_syncpt;
 struct dentry;
 struct nvhost_job;
-struct nvhost_job_unpin;
 struct nvhost_intr_syncpt;
 struct mem_handle;
 struct mem_mgr;
@@ -48,6 +47,10 @@ struct nvhost_channel_ops {
 		    struct nvhost_master *,
 		    int chid);
 	int (*submit)(struct nvhost_job *job);
+	int (*read3dreg)(struct nvhost_channel *channel,
+			struct nvhost_hwctx *hwctx,
+			u32 offset,
+			u32 *value);
 	int (*save_context)(struct nvhost_channel *channel);
 	int (*drain_read_fifo)(struct nvhost_channel *ch,
 		u32 *ptr, unsigned int count, unsigned int *pending);
@@ -127,7 +130,6 @@ struct nvhost_intr_ops {
 	int  (*request_host_general_irq)(struct nvhost_intr *);
 	void (*free_host_general_irq)(struct nvhost_intr *);
 	int (*request_syncpt_irq)(struct nvhost_intr_syncpt *syncpt);
-	int (*free_syncpt_irq)(struct nvhost_intr *);
 };
 
 struct nvhost_dev_ops {
@@ -144,21 +146,12 @@ struct nvhost_mem_ops {
 	struct mem_handle *(*alloc)(struct mem_mgr *,
 			size_t size, size_t align,
 			int flags);
-	struct mem_handle *(*get)(struct mem_mgr *,
-			u32 id, struct nvhost_device *);
+	struct mem_handle *(*get)(struct mem_mgr *, u32 id);
 	void (*put)(struct mem_mgr *, struct mem_handle *);
-	struct sg_table *(*pin)(struct mem_mgr *, struct mem_handle *);
-	void (*unpin)(struct mem_mgr *, struct mem_handle *, struct sg_table *);
+	phys_addr_t (*pin)(struct mem_mgr *, struct mem_handle *);
+	void (*unpin)(struct mem_mgr *, struct mem_handle *);
 	void *(*mmap)(struct mem_handle *);
 	void (*munmap)(struct mem_handle *, void *);
-	void *(*kmap)(struct mem_handle *, unsigned int);
-	void (*kunmap)(struct mem_handle *, unsigned int, void *);
-	int (*pin_array_ids)(struct mem_mgr *,
-			struct nvhost_device *,
-			long unsigned *,
-			dma_addr_t *,
-			u32,
-			struct nvhost_job_unpin *);
 };
 
 struct nvhost_chip_support {

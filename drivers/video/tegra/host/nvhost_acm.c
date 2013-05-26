@@ -101,8 +101,17 @@ void nvhost_module_reset(struct nvhost_device *dev)
 
 static void to_state_clockgated_locked(struct nvhost_device *dev)
 {
+	struct nvhost_driver *drv = to_nvhost_driver(dev->dev.driver);
+
 	if (dev->powerstate == NVHOST_POWER_STATE_RUNNING) {
-		int i;
+		int i, err;
+		if (drv->prepare_clockoff) {
+			err = drv->prepare_clockoff(dev);
+			if (err) {
+				dev_err(&dev->dev, "error clock gating");
+				return;
+			}
+		}
 		for (i = 0; i < dev->num_clks; i++)
 			clk_disable(dev->clk[i]);
 		if (dev->dev.parent)
@@ -141,6 +150,14 @@ static void to_state_running_locked(struct nvhost_device *dev)
 			}
 		}
 
+		/* Invoke callback after enabling clock. This is used for
+		 * re-enabling host1x interrupts. */
+		if (prev_state == NVHOST_POWER_STATE_CLOCKGATED
+				&& drv->finalize_clockon)
+			drv->finalize_clockon(dev);
+
+		/* Invoke callback after power un-gating. This is used for
+		 * restoring context. */
 		if (prev_state == NVHOST_POWER_STATE_POWERGATED
 				&& drv->finalize_poweron)
 			drv->finalize_poweron(dev);
@@ -294,16 +311,22 @@ int nvhost_module_set_rate(struct nvhost_device *dev, void *priv,
 		unsigned long rate, int index)
 {
 	struct nvhost_module_client *m;
-	int ret = 0;
+	int i, ret = 0;
 
 	mutex_lock(&client_list_lock);
 	list_for_each_entry(m, &dev->client_list, node) {
-		if (m->priv == priv)
-			m->rate[index] = clk_round_rate(dev->clk[index], rate);
+		if (m->priv == priv) {
+			for (i = 0; i < dev->num_clks; i++)
+				m->rate[i] = clk_round_rate(dev->clk[i], rate);
+			break;
+		}
 	}
 
-	ret = nvhost_module_update_rate(dev, index);
-
+	for (i = 0; i < dev->num_clks; i++) {
+		ret = nvhost_module_update_rate(dev, i);
+		if (ret < 0)
+			break;
+	}
 	mutex_unlock(&client_list_lock);
 	return ret;
 

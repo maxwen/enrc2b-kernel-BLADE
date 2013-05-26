@@ -9,22 +9,16 @@ config TEGRA_GRHOST
 
 config TEGRA_GRHOST_USE_NVMAP
 	bool "Use nvmap as graphics memory manager"
-	default y if TEGRA_NVMAP
-	help
-	  Use nvmap as the graphics memory manager.
-
-config TEGRA_GRHOST_USE_DMABUF
-	bool "Support dmabuf buffers"
 	default y
-	select DMA_SHARED_BUFFER
 	help
-	  Support dmabuf buffers.
+	  Use nvmap as the graphics memory manager. This is the only
+	  choice at the moment.
 
 config TEGRA_GRHOST_DEFAULT_TIMEOUT
 	depends on TEGRA_GRHOST
 	int "Default timeout for submits"
 	default 0 if TEGRA_SIMULATION_PLATFORM
-	default 10000
+	default 30000
 	help
 	  Default timeout for jobs in milliseconds. Set to zero for no timeout.
 
@@ -35,18 +29,6 @@ config TEGRA_DC
 	select I2C
 	help
 	  Tegra display controller support.
-
-config TEGRA_DC_SCAN_COLUMN
-	bool "Tegra DC scan column support"
-	default n
-	help
-	  backported from Tegra4 (tripndroid)
-
-config TEGRA_DC_CMU
-	bool "Tegra CMU support"
-	default n
-	help
-	  backported from Tegra4 (tripndroid)
 
 config FB_TEGRA
 	tristate "Tegra Framebuffer driver"
@@ -132,16 +114,6 @@ config NVMAP_PAGE_POOLS
 	  when system is low on memory and acquired back during release of
 	  memory.
 
-config NVMAP_PAGE_POOLS_INIT_FILLUP
-	bool "Fill up page pools during page pools init"
-	depends on NVMAP_PAGE_POOLS
-	default y
-	help
-	  Say Y here to fill up the page pools during page pool init time.
-	  This helps in faster alloctions right from the early alloction
-	  requests. Page pools fill up during init would increase the boot time.
-	  If increase in boot time is not acceptable, keep this option disabled.
-
 config NVMAP_PAGE_POOL_SIZE
 	hex
 	default 0x0
@@ -154,14 +126,6 @@ config NVMAP_CACHE_MAINT_BY_SET_WAYS
 	 This helps in reducing cache maintenance overhead in the systems,
 	 where inner cache includes only L1. For the systems, where inner cache
 	 includes L1 and L2, keep this option disabled.
-
-config NVMAP_OUTER_CACHE_MAINT_BY_SET_WAYS
-	bool "Enable outer cache maintenance by set/ways"
-	depends on TEGRA_NVMAP
-	help
-	  Say Y here if you want to optimize cache maintenance for ranges
-	  bigger than size of outer cache. This option has no effect on
-	  system without outer cache.
 
 config NVMAP_VPR
 	bool "Enable VPR Heap."

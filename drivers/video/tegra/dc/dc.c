@@ -123,193 +123,13 @@ void tegra_dc_release_dc_out(struct tegra_dc *dc)
 		dc->out_ops->release(dc);
 }
 
-static const struct {
-	bool h;
-	bool v;
-} can_filter[] = {
-	/* Window A has no filtering */
-	{ false, false },
-	/* Window B has both H and V filtering */
-	{ true,  true  },
-	/* Window C has only H filtering */
-	{ false, true  },
-};
-
-#ifdef CONFIG_TEGRA_DC_CMU
-static struct tegra_dc_cmu default_cmu = {
-	/* lut1 maps sRGB to linear space. */
-	{
-		0,    1,    2,    4,    5,    6,    7,    9,
-		10,   11,   12,   14,   15,   16,   18,   20,
-		21,   23,   25,   27,   29,   31,   33,   35,
-		37,   40,   42,   45,   48,   50,   53,   56,
-		59,   62,   66,   69,   72,   76,   79,   83,
-		87,   91,   95,   99,   103,  107,  112,  116,
-		121,  126,  131,  136,  141,  146,  151,  156,
-		162,  168,  173,  179,  185,  191,  197,  204,
-		210,  216,  223,  230,  237,  244,  251,  258,
-		265,  273,  280,  288,  296,  304,  312,  320,
-		329,  337,  346,  354,  363,  372,  381,  390,
-		400,  409,  419,  428,  438,  448,  458,  469,
-		479,  490,  500,  511,  522,  533,  544,  555,
-		567,  578,  590,  602,  614,  626,  639,  651,
-		664,  676,  689,  702,  715,  728,  742,  755,
-		769,  783,  797,  811,  825,  840,  854,  869,
-		884,  899,  914,  929,  945,  960,  976,  992,
-		1008, 1024, 1041, 1057, 1074, 1091, 1108, 1125,
-		1142, 1159, 1177, 1195, 1213, 1231, 1249, 1267,
-		1286, 1304, 1323, 1342, 1361, 1381, 1400, 1420,
-		1440, 1459, 1480, 1500, 1520, 1541, 1562, 1582,
-		1603, 1625, 1646, 1668, 1689, 1711, 1733, 1755,
-		1778, 1800, 1823, 1846, 1869, 1892, 1916, 1939,
-		1963, 1987, 2011, 2035, 2059, 2084, 2109, 2133,
-		2159, 2184, 2209, 2235, 2260, 2286, 2312, 2339,
-		2365, 2392, 2419, 2446, 2473, 2500, 2527, 2555,
-		2583, 2611, 2639, 2668, 2696, 2725, 2754, 2783,
-		2812, 2841, 2871, 2901, 2931, 2961, 2991, 3022,
-		3052, 3083, 3114, 3146, 3177, 3209, 3240, 3272,
-		3304, 3337, 3369, 3402, 3435, 3468, 3501, 3535,
-		3568, 3602, 3636, 3670, 3705, 3739, 3774, 3809,
-		3844, 3879, 3915, 3950, 3986, 4022, 4059, 4095,
-	},
-	/* csc */
-	{
-		0x100, 0x0,   0x0,
-		0x0,   0x100, 0x0,
-		0x0,   0x0,   0x100,
-	},
-	/* lut2 maps linear space to sRGB*/
-	{
-		0,    1,    2,    2,    3,    4,    5,    6,
-		6,    7,    8,    9,    10,   10,   11,   12,
-		13,   13,   14,   15,   15,   16,   16,   17,
-		18,   18,   19,   19,   20,   20,   21,   21,
-		22,   22,   23,   23,   23,   24,   24,   25,
-		25,   25,   26,   26,   27,   27,   27,   28,
-		28,   29,   29,   29,   30,   30,   30,   31,
-		31,   31,   32,   32,   32,   33,   33,   33,
-		34,   34,   34,   34,   35,   35,   35,   36,
-		36,   36,   37,   37,   37,   37,   38,   38,
-		38,   38,   39,   39,   39,   40,   40,   40,
-		40,   41,   41,   41,   41,   42,   42,   42,
-		42,   43,   43,   43,   43,   43,   44,   44,
-		44,   44,   45,   45,   45,   45,   46,   46,
-		46,   46,   46,   47,   47,   47,   47,   48,
-		48,   48,   48,   48,   49,   49,   49,   49,
-		49,   50,   50,   50,   50,   50,   51,   51,
-		51,   51,   51,   52,   52,   52,   52,   52,
-		53,   53,   53,   53,   53,   54,   54,   54,
-		54,   54,   55,   55,   55,   55,   55,   55,
-		56,   56,   56,   56,   56,   57,   57,   57,
-		57,   57,   57,   58,   58,   58,   58,   58,
-		58,   59,   59,   59,   59,   59,   59,   60,
-		60,   60,   60,   60,   60,   61,   61,   61,
-		61,   61,   61,   62,   62,   62,   62,   62,
-		62,   63,   63,   63,   63,   63,   63,   64,
-		64,   64,   64,   64,   64,   64,   65,   65,
-		65,   65,   65,   65,   66,   66,   66,   66,
-		66,   66,   66,   67,   67,   67,   67,   67,
-		67,   67,   68,   68,   68,   68,   68,   68,
-		68,   69,   69,   69,   69,   69,   69,   69,
-		70,   70,   70,   70,   70,   70,   70,   71,
-		71,   71,   71,   71,   71,   71,   72,   72,
-		72,   72,   72,   72,   72,   72,   73,   73,
-		73,   73,   73,   73,   73,   74,   74,   74,
-		74,   74,   74,   74,   74,   75,   75,   75,
-		75,   75,   75,   75,   75,   76,   76,   76,
-		76,   76,   76,   76,   77,   77,   77,   77,
-		77,   77,   77,   77,   78,   78,   78,   78,
-		78,   78,   78,   78,   78,   79,   79,   79,
-		79,   79,   79,   79,   79,   80,   80,   80,
-		80,   80,   80,   80,   80,   81,   81,   81,
-		81,   81,   81,   81,   81,   81,   82,   82,
-		82,   82,   82,   82,   82,   82,   83,   83,
-		83,   83,   83,   83,   83,   83,   83,   84,
-		84,   84,   84,   84,   84,   84,   84,   84,
-		85,   85,   85,   85,   85,   85,   85,   85,
-		85,   86,   86,   86,   86,   86,   86,   86,
-		86,   86,   87,   87,   87,   87,   87,   87,
-		87,   87,   87,   88,   88,   88,   88,   88,
-		88,   88,   88,   88,   88,   89,   89,   89,
-		89,   89,   89,   89,   89,   89,   90,   90,
-		90,   90,   90,   90,   90,   90,   90,   90,
-		91,   91,   91,   91,   91,   91,   91,   91,
-		91,   91,   92,   92,   92,   92,   92,   92,
-		92,   92,   92,   92,   93,   93,   93,   93,
-		93,   93,   93,   93,   93,   93,   94,   94,
-		94,   94,   94,   94,   94,   94,   94,   94,
-		95,   95,   95,   95,   95,   95,   95,   95,
-		95,   95,   96,   96,   96,   96,   96,   96,
-		96,   96,   96,   96,   96,   97,   97,   97,
-		97,   97,   97,   97,   97,   97,   97,   98,
-		98,   98,   98,   98,   98,   98,   98,   98,
-		98,   98,   99,   99,   99,   99,   99,   99,
-		99,   100,  101,  101,  102,  103,  103,  104,
-		105,  105,  106,  107,  107,  108,  109,  109,
-		110,  111,  111,  112,  113,  113,  114,  115,
-		115,  116,  116,  117,  118,  118,  119,  119,
-		120,  120,  121,  122,  122,  123,  123,  124,
-		124,  125,  126,  126,  127,  127,  128,  128,
-		129,  129,  130,  130,  131,  131,  132,  132,
-		133,  133,  134,  134,  135,  135,  136,  136,
-		137,  137,  138,  138,  139,  139,  140,  140,
-		141,  141,  142,  142,  143,  143,  144,  144,
-		145,  145,  145,  146,  146,  147,  147,  148,
-		148,  149,  149,  150,  150,  150,  151,  151,
-		152,  152,  153,  153,  153,  154,  154,  155,
-		155,  156,  156,  156,  157,  157,  158,  158,
-		158,  159,  159,  160,  160,  160,  161,  161,
-		162,  162,  162,  163,  163,  164,  164,  164,
-		165,  165,  166,  166,  166,  167,  167,  167,
-		168,  168,  169,  169,  169,  170,  170,  170,
-		171,  171,  172,  172,  172,  173,  173,  173,
-		174,  174,  174,  175,  175,  176,  176,  176,
-		177,  177,  177,  178,  178,  178,  179,  179,
-		179,  180,  180,  180,  181,  181,  182,  182,
-		182,  183,  183,  183,  184,  184,  184,  185,
-		185,  185,  186,  186,  186,  187,  187,  187,
-		188,  188,  188,  189,  189,  189,  189,  190,
-		190,  190,  191,  191,  191,  192,  192,  192,
-		193,  193,  193,  194,  194,  194,  195,  195,
-		195,  196,  196,  196,  196,  197,  197,  197,
-		198,  198,  198,  199,  199,  199,  200,  200,
-		200,  200,  201,  201,  201,  202,  202,  202,
-		202,  203,  203,  203,  204,  204,  204,  205,
-		205,  205,  205,  206,  206,  206,  207,  207,
-		207,  207,  208,  208,  208,  209,  209,  209,
-		209,  210,  210,  210,  211,  211,  211,  211,
-		212,  212,  212,  213,  213,  213,  213,  214,
-		214,  214,  214,  215,  215,  215,  216,  216,
-		216,  216,  217,  217,  217,  217,  218,  218,
-		218,  219,  219,  219,  219,  220,  220,  220,
-		220,  221,  221,  221,  221,  222,  222,  222,
-		223,  223,  223,  223,  224,  224,  224,  224,
-		225,  225,  225,  225,  226,  226,  226,  226,
-		227,  227,  227,  227,  228,  228,  228,  228,
-		229,  229,  229,  229,  230,  230,  230,  230,
-		231,  231,  231,  231,  232,  232,  232,  232,
-		233,  233,  233,  233,  234,  234,  234,  234,
-		235,  235,  235,  235,  236,  236,  236,  236,
-		237,  237,  237,  237,  238,  238,  238,  238,
-		239,  239,  239,  239,  240,  240,  240,  240,
-		240,  241,  241,  241,  241,  242,  242,  242,
-		242,  243,  243,  243,  243,  244,  244,  244,
-		244,  244,  245,  245,  245,  245,  246,  246,
-		246,  246,  247,  247,  247,  247,  247,  248,
-		248,  248,  248,  249,  249,  249,  249,  249,
-		250,  250,  250,  250,  251,  251,  251,  251,
-		251,  252,  252,  252,  252,  253,  253,  253,
-		253,  253,  254,  254,  254,  254,  255,  255,
-	},
-};
-#endif
-
 #define DUMP_REG(a) do {			\
 	snprintf(buff, sizeof(buff), "%-32s\t%03x\t%08lx\n", \
 		 #a, a, tegra_dc_readl(dc, a));		      \
 	print(data, buff);				      \
 	} while (0)
 
+#if 0
 #define print_underflow_info(dc) do {                 \
 	trace_printk("%s:Underflow stats: underflows : %llu, "      \
 			"undeflows_a : %llu, "                          \
@@ -319,6 +139,10 @@ static struct tegra_dc_cmu default_cmu = {
 			dc->stats.underflows,                           \
 			dc->stats.underflows_a, dc->stats.underflows_b, \
 			dc->stats.underflows_c);                        \
+	} while (0)
+#endif
+
+#define print_underflow_info(dc) do {                 \
 	} while (0)
 
 static void _dump_regs(struct tegra_dc *dc, void *data,
@@ -1003,128 +827,6 @@ unsigned tegra_dc_get_out_max_pixclock(const struct tegra_dc *dc)
 }
 EXPORT_SYMBOL(tegra_dc_get_out_max_pixclock);
 
-#ifdef CONFIG_TEGRA_DC_CMU
-static void tegra_dc_cache_cmu(struct tegra_dc_cmu *dst_cmu,
-					struct tegra_dc_cmu *src_cmu)
-{
-	memcpy(dst_cmu, src_cmu, sizeof(struct tegra_dc_cmu));
-}
-
-static void tegra_dc_set_cmu(struct tegra_dc *dc, struct tegra_dc_cmu *cmu)
-{
-	u32 val;
-	u32 i;
-
-	for (i = 0; i < 256; i++) {
-		val = LUT1_ADDR(i) | LUT1_DATA(cmu->lut1[i]);
-		tegra_dc_writel(dc, val, DC_COM_CMU_LUT1);
-	}
-
-	tegra_dc_writel(dc, cmu->csc.krr, DC_COM_CMU_CSC_KRR);
-	tegra_dc_writel(dc, cmu->csc.kgr, DC_COM_CMU_CSC_KGR);
-	tegra_dc_writel(dc, cmu->csc.kbr, DC_COM_CMU_CSC_KBR);
-	tegra_dc_writel(dc, cmu->csc.krg, DC_COM_CMU_CSC_KRG);
-	tegra_dc_writel(dc, cmu->csc.kgg, DC_COM_CMU_CSC_KGG);
-	tegra_dc_writel(dc, cmu->csc.kbg, DC_COM_CMU_CSC_KBG);
-	tegra_dc_writel(dc, cmu->csc.krb, DC_COM_CMU_CSC_KRB);
-	tegra_dc_writel(dc, cmu->csc.kgb, DC_COM_CMU_CSC_KGB);
-	tegra_dc_writel(dc, cmu->csc.kbb, DC_COM_CMU_CSC_KBB);
-
-	for (i = 0; i < 960; i++) {
-		val = LUT2_ADDR(i) | LUT1_DATA(cmu->lut2[i]);
-		tegra_dc_writel(dc, val, DC_COM_CMU_LUT2);
-	}
-}
-
-void tegra_dc_get_cmu(struct tegra_dc *dc, struct tegra_dc_cmu *cmu)
-{
-	u32 val;
-	u32 i;
-	bool flags;
-
-	val = tegra_dc_readl(dc, DC_DISP_DISP_COLOR_CONTROL);
-	if (val & CMU_ENABLE)
-		flags = true;
-
-	val &= ~CMU_ENABLE;
-	tegra_dc_writel(dc, val, DC_DISP_DISP_COLOR_CONTROL);
-	tegra_dc_writel(dc, GENERAL_UPDATE, DC_CMD_STATE_CONTROL);
-	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
-
-	/*TODO: Sync up with frame end */
-	mdelay(20);
-
-	for (i = 0; i < 256; i++) {
-		val = LUT1_READ_EN | LUT1_READ_ADDR(i);
-		tegra_dc_writel(dc, val, DC_COM_CMU_LUT1_READ);
-		val = tegra_dc_readl(dc, DC_COM_CMU_LUT1);
-		cmu->lut1[i] = LUT1_READ_DATA(val);
-	}
-
-	cmu->csc.krr = tegra_dc_readl(dc, DC_COM_CMU_CSC_KRR);
-	cmu->csc.kgr = tegra_dc_readl(dc, DC_COM_CMU_CSC_KGR);
-	cmu->csc.kbr = tegra_dc_readl(dc, DC_COM_CMU_CSC_KBR);
-	cmu->csc.krg = tegra_dc_readl(dc, DC_COM_CMU_CSC_KRG);
-	cmu->csc.kgg = tegra_dc_readl(dc, DC_COM_CMU_CSC_KGG);
-	cmu->csc.kbg = tegra_dc_readl(dc, DC_COM_CMU_CSC_KBG);
-	cmu->csc.krb = tegra_dc_readl(dc, DC_COM_CMU_CSC_KRB);
-	cmu->csc.kgb = tegra_dc_readl(dc, DC_COM_CMU_CSC_KGB);
-	cmu->csc.kbb = tegra_dc_readl(dc, DC_COM_CMU_CSC_KBB);
-
-	for (i = 0; i < 960; i++) {
-		val = LUT2_READ_EN | LUT2_READ_ADDR(i);
-		tegra_dc_writel(dc, val, DC_COM_CMU_LUT2_READ);
-		val = tegra_dc_readl(dc, DC_COM_CMU_LUT2);
-		cmu->lut2[i] = LUT2_READ_DATA(val);
-	}
-}
-
-int tegra_dc_update_cmu(struct tegra_dc *dc, struct tegra_dc_cmu *cmu)
-{
-	u32 val;
-
-	if (dc->pdata->cmu_enable) {
-		dc->pdata->flags |= TEGRA_DC_FLAG_CMU_ENABLE;
-	} else {
-		dc->pdata->flags &= ~TEGRA_DC_FLAG_CMU_ENABLE;
-		return 0;
-	}
-
-	if (cmu != &dc->cmu) {
-		tegra_dc_cache_cmu(&dc->cmu, cmu);
-
-		/* Disable CMU */
-		val = tegra_dc_readl(dc, DC_DISP_DISP_COLOR_CONTROL);
-		if (val & CMU_ENABLE) {
-			val &= ~CMU_ENABLE;
-			tegra_dc_writel(dc, val, DC_DISP_DISP_COLOR_CONTROL);
-			val = GENERAL_UPDATE;
-			tegra_dc_writel(dc, val, DC_CMD_STATE_CONTROL);
-			val = GENERAL_ACT_REQ;
-			tegra_dc_writel(dc, val, DC_CMD_STATE_CONTROL);
-			/*TODO: Sync up with vsync */
-			mdelay(20);
-		}
-
-		tegra_dc_set_cmu(dc, &dc->cmu);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(tegra_dc_update_cmu);
-
-void tegra_dc_cmu_enable(struct tegra_dc *dc, bool cmu_enable)
-{
-	dc->pdata->cmu_enable = cmu_enable;
-	tegra_dc_update_cmu(dc, &dc->cmu);
-	tegra_dc_set_color_control(dc);
-}
-#else
-#define tegra_dc_cache_cmu(dst_cmu, src_cmu)
-#define tegra_dc_set_cmu(dc, cmu)
-#define tegra_dc_update_cmu(dc, cmu)
-#endif
-
 void tegra_dc_enable_crc(struct tegra_dc *dc)
 {
 	u32 val;
@@ -1164,11 +866,9 @@ u32 tegra_dc_read_checksum_latched(struct tegra_dc *dc)
 		goto crc_error;
 	}
 
-#ifndef CONFIG_TEGRA_SIMULATION_PLATFORM
 	/* TODO: Replace mdelay with code to sync VBlANK, since
 	 * DC_COM_CRC_CHECKSUM_LATCHED is available after VBLANK */
 	mdelay(TEGRA_CRC_LATCHED_DELAY);
-#endif
 
 	mutex_lock(&dc->lock);
 	tegra_dc_hold_dc_out(dc);
@@ -1392,9 +1092,6 @@ static void tegra_dc_underflow_handler(struct tegra_dc *dc)
 				schedule_work(&dc->reset_work);
 				/* reset counter */
 				dc->windows[i].underflows = 0;
-				trace_printk("%s:Reset work scheduled for "
-						"window %c\n",
-						dc->ndev->name, (65 + i));
 			}
 #endif
 #ifdef CONFIG_ARCH_TEGRA_3x_SOC
@@ -1406,9 +1103,6 @@ static void tegra_dc_underflow_handler(struct tegra_dc *dc)
 #endif
 #ifdef CONFIG_ARCH_TEGRA_3x_SOC
 			if (dc->windows[i].underflows > 4) {
-				trace_printk("%s:window %c in underflow state."
-					" enable UF_LINE_FLUSH to clear up\n",
-					dc->ndev->name, (65 + i));
 				tegra_dc_writel(dc, UF_LINE_FLUSH,
 						DC_DISP_DISP_MISC_CONTROL);
 				tegra_dc_writel(dc, GENERAL_UPDATE,
@@ -1570,7 +1264,7 @@ static irqreturn_t tegra_dc_irq(int irq, void *ptr)
 #endif /* !CONFIG_TEGRA_FPGA_PLATFORM */
 }
 
-void tegra_dc_set_color_control(struct tegra_dc *dc)
+static void tegra_dc_set_color_control(struct tegra_dc *dc)
 {
 	u32 color_control;
 
@@ -1629,11 +1323,6 @@ void tegra_dc_set_color_control(struct tegra_dc *dc)
 		color_control |= DITHER_CONTROL_ERRDIFF;
 		break;
 	}
-
-#ifdef CONFIG_TEGRA_DC_CMU
-	if (dc->pdata->flags & TEGRA_DC_FLAG_CMU_ENABLE)
-		color_control |= CMU_ENABLE;
-#endif
 
 	tegra_dc_writel(dc, color_control, DC_DISP_DISP_COLOR_CONTROL);
 }
@@ -1732,13 +1421,6 @@ static int tegra_dc_init(struct tegra_dc *dc)
 
 	tegra_dc_writel(dc, 0x00000000, DC_DISP_BORDER_COLOR);
 
-#ifdef CONFIG_TEGRA_DC_CMU
-	if (dc->pdata->cmu)
-		tegra_dc_update_cmu(dc, dc->pdata->cmu);
-	else
-		tegra_dc_update_cmu(dc, &default_cmu);
-#endif
-
 	tegra_dc_set_color_control(dc);
 	for (i = 0; i < DC_N_WINDOWS; i++) {
 		struct tegra_dc_win *win = &dc->windows[i];
@@ -1748,6 +1430,7 @@ static int tegra_dc_init(struct tegra_dc *dc)
 		tegra_dc_set_lut(dc, win);
 		tegra_dc_set_scaling_filter(dc);
 	}
+
 
 	for (i = 0; i < dc->n_windows; i++) {
 		u32 syncpt = get_syncpt(dc, i);
@@ -1804,8 +1487,6 @@ static bool _tegra_dc_controller_enable(struct tegra_dc *dc)
 	dc->blend.z[0] = -1;
 
 	tegra_dc_ext_enable(dc->ext);
-
-	trace_printk("%s:enable\n", dc->ndev->name);
 
 	tegra_dc_writel(dc, GENERAL_UPDATE, DC_CMD_STATE_CONTROL);
 	tegra_dc_writel(dc, GENERAL_ACT_REQ, DC_CMD_STATE_CONTROL);
@@ -1874,7 +1555,6 @@ static bool _tegra_dc_controller_reset_enable(struct tegra_dc *dc)
 		_tegra_dc_controller_disable(dc);
 	}
 
-	trace_printk("%s:reset enable\n", dc->ndev->name);
 	return ret;
 }
 #endif
@@ -1967,13 +1647,10 @@ static void _tegra_dc_controller_disable(struct tegra_dc *dc)
 
 		/* flush any pending syncpt waits */
 		while (dc->syncpt[i].min < dc->syncpt[i].max) {
-			trace_printk("%s:syncpt flush id=%d\n", dc->ndev->name,
-				dc->syncpt[i].id);
 			dc->syncpt[i].min++;
 			nvhost_syncpt_cpu_incr_ext(dc->ndev, dc->syncpt[i].id);
 		}
 	}
-	trace_printk("%s:disabled\n", dc->ndev->name);
 }
 
 void tegra_dc_stats_enable(struct tegra_dc *dc, bool enable)
@@ -2126,7 +1803,6 @@ static void tegra_dc_reset_worker(struct work_struct *work)
 unlock:
 	mutex_unlock(&dc->lock);
 	mutex_unlock(&shared_lock);
-	trace_printk("%s:reset complete\n", dc->ndev->name);
 }
 #endif
 
@@ -2306,8 +1982,8 @@ static int tegra_dc_probe(struct nvhost_device *ndev,
 
 	mutex_lock(&dc->lock);
 	if (dc->pdata->flags & TEGRA_DC_FLAG_ENABLED) {
-		dc->enabled = _tegra_dc_enable(dc);
 		_tegra_dc_set_default_videomode(dc);
+		dc->enabled = _tegra_dc_enable(dc);
 	}
 	mutex_unlock(&dc->lock);
 
@@ -2417,7 +2093,6 @@ static int tegra_dc_suspend(struct nvhost_device *ndev, pm_message_t state)
 {
 	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
 
-	trace_printk("%s:suspend\n", dc->ndev->name);
 	dev_info(&ndev->dev, "suspend\n");
 
 	tegra_dc_ext_disable(dc->ext);
@@ -2458,15 +2133,14 @@ static int tegra_dc_resume(struct nvhost_device *ndev)
 {
 	struct tegra_dc *dc = nvhost_get_drvdata(ndev);
 
-	trace_printk("%s:resume\n", dc->ndev->name);
 	dev_info(&ndev->dev, "resume\n");
 
 	mutex_lock(&dc->lock);
 	dc->suspended = false;
 
 	if (dc->enabled) {
-		_tegra_dc_enable(dc);
 		_tegra_dc_set_default_videomode(dc);
+		_tegra_dc_enable(dc);
 	}
 
 	if (dc->out && dc->out->hotplug_init)
