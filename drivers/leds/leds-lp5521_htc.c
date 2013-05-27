@@ -1327,7 +1327,7 @@ static ssize_t lp5521_led_currents_store(struct device *dev,
 
 	ret = sscanf(buf, "%d", &val);
 
-	if (ret!=1 || val < 0 || val > 3)
+	if (ret!=1 || val < 0)
 		return -EINVAL;
 
 	D("%s , val = %d\n" , __func__, val);
@@ -1346,14 +1346,11 @@ static ssize_t lp5521_led_currents_store(struct device *dev,
 	udelay(500);
 	/* === set pwm to all === */
 	data = (u8)val;
-	// maxwen TODO disable green and amber currents
-	// interface - writing e.g. 255 to it will create
-	// an extreme bright led
-	/*if(!strcmp(ldata->cdev.name, "green"))	 {
+	if(!strcmp(ldata->cdev.name, "green"))	 {
 		ret = i2c_write_block(client, 0x06, &data, 1);
 	} else if (!strcmp(ldata->cdev.name, "amber")) {
 		ret = i2c_write_block(client, 0x05, &data, 1);
-	} else*/ if (!strcmp(ldata->cdev.name, "button-backlight")) {
+	} else if (!strcmp(ldata->cdev.name, "button-backlight")) {
 		ret = i2c_write_block(client, 0x07, &data, 1);
 	}
 	mutex_unlock(&led_mutex);
