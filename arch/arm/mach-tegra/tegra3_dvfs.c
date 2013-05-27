@@ -35,6 +35,8 @@
 static bool tegra_dvfs_cpu_disabled;
 static bool tegra_dvfs_core_disabled;
 static struct dvfs *cpu_dvfs;
+static int core_nominal_mv_index;
+static int cpu_nominal_mv_index;
 
 static int cpu_millivolts[MAX_DVFS_FREQS] = CPU_MILLIVOLTS;
 
@@ -68,7 +70,12 @@ static int cpu_below_core = VDD_CPU_BELOW_VDD_CORE;
 #define VDD_CORE_MIN			950
 #define VDD_CORE_MAX			1350
 
-#define GPU_MAX_FREQ			533
+#define GPU_MAX_FREQ			600
+
+static bool gpu_quick_oc_enabled = false;
+static const char* gpu_default="200 267 304 361 408 446 484 520 600";
+static const char* gpu_quick_oc="200 267 380 492 528 564 600 600 600";
+static const unsigned long pll_c_default[MAX_DVFS_FREQS] = { 533000, 667000, 667000, 800000, 800000, 1066000, 1066000, 1066000, 1200000 };
 
 static int curr_cpu_vdd_change = 0;
 extern struct mutex dvfs_lock;
@@ -116,12 +123,14 @@ static int tegra3_get_core_floor_mv(int cpu_mv)
 	
 	for (i=0; i<ARRAY_SIZE(core_millivolts) && core_millivolts[i] < cpu_mv; i++);
 	if (i<ARRAY_SIZE(core_millivolts)){
+		if (core_millivolts[i] > 1300)
+			return 1300;
 		return core_millivolts[i];
 	}
 	
 	/* fail-safe */
 	if (cpu_mv <= VDD_CPU_MAX)
-		return 1300;
+		return VDD_CORE_MAX;
 
 	BUG();
 }
@@ -310,15 +319,6 @@ static struct dvfs core_dvfs_table[] = {
 	CORE_DVFS("3d2",    1, 1, KHZ,   200000, 234000, 285000, 332000, 380000,  416000,  416000,  416000,  416000),
 	CORE_DVFS("se",     1, 1, KHZ,   200000, 267000, 285000, 332000, 380000,  416000,  416000,  416000,  416000),
 
-#ifdef CONFIG_TEGRA_GPU_OC
-	CORE_DVFS("vde",    2, 1, KHZ,   200000, 267000, 304000, 400000, 484000,  533000,  533000,  533000,  600000),
-	CORE_DVFS("mpe",    2, 1, KHZ,   200000, 267000, 304000, 400000, 484000,  533000,  533000,  533000,  600000),
-	CORE_DVFS("2d",     2, 1, KHZ,   200000, 267000, 304000, 400000, 484000,  533000,  533000,  533000,  600000),
-	CORE_DVFS("epp",    2, 1, KHZ,   200000, 267000, 304000, 400000, 484000,  533000,  533000,  533000,  600000),
-	CORE_DVFS("3d",     2, 1, KHZ,   200000, 267000, 304000, 400000, 484000,  533000,  533000,  533000,  600000),
-	CORE_DVFS("3d2",    2, 1, KHZ,   200000, 267000, 304000, 400000, 484000,  533000,  533000,  533000,  600000),
-	CORE_DVFS("se",     2, 1, KHZ,   200000, 267000, 304000, 400000, 484000,  533000,  533000,  533000,  600000),
-#else
 	CORE_DVFS("vde",    2, 1, KHZ,   200000, 247000, 304000, 352000, 400000,  437000,  484000,  520000,  600000),
 	CORE_DVFS("mpe",    2, 1, KHZ,   200000, 247000, 304000, 361000, 408000,  446000,  484000,  520000,  600000),
 	CORE_DVFS("2d",     2, 1, KHZ,   200000, 267000, 304000, 361000, 408000,  446000,  484000,  520000,  600000),
@@ -326,7 +326,6 @@ static struct dvfs core_dvfs_table[] = {
 	CORE_DVFS("3d",     2, 1, KHZ,   200000, 247000, 304000, 361000, 408000,  446000,  484000,  520000,  600000),
 	CORE_DVFS("3d2",    2, 1, KHZ,   200000, 247000, 304000, 361000, 408000,  446000,  484000,  520000,  600000),
 	CORE_DVFS("se",     2, 1, KHZ,   200000, 267000, 304000, 361000, 408000,  446000,  484000,  520000,  600000),
-#endif
 
 	CORE_DVFS("vde",    3, 1, KHZ,        1,      1,      1,      1,      1,       1,  484000,  484000,  484000),
 	CORE_DVFS("mpe",    3, 1, KHZ,        1,      1,      1,      1,      1,       1,  484000,  484000,  484000),
@@ -343,15 +342,10 @@ static struct dvfs core_dvfs_table[] = {
 
 	CORE_DVFS("cbus",   0, 1, KHZ,        1, 228000, 275000, 332000, 380000,  416000,  416000,  416000,  416000),
 	CORE_DVFS("cbus",   1, 1, KHZ,   200000, 228000, 275000, 332000, 380000,  416000,  416000,  416000,  416000),
-#ifdef CONFIG_TEGRA_GPU_OC
-	CORE_DVFS("cbus",   2, 1, KHZ,   200000, 267000, 304000, 400000, 484000,  533000,  533000,  533000,  600000),
-#else
 	CORE_DVFS("cbus",   2, 1, KHZ,   200000, 247000, 304000, 352000, 400000,  437000,  484000,  520000,  600000),
-#endif
 	CORE_DVFS("cbus",   3, 1, KHZ,        1,      1,      1,      1,      1,       1,  484000,  484000,  484000),
 
 	CORE_DVFS("pll_c",  -1, 1, KHZ,  533000, 667000, 667000, 800000, 800000, 1066000, 1066000, 1066000, 1200000),
-
 	/*
 	 * PLLM dvfs is common across all speedo IDs with one special exception
 	 * for T30 and T33, rev A02+, provided PLLM usage is restricted. Both
@@ -868,8 +862,6 @@ void __init tegra_soc_init_dvfs(void)
 	int core_process_id = tegra_core_process_id();
 
 	int i;
-	int core_nominal_mv_index;
-	int cpu_nominal_mv_index;
 
 #ifndef CONFIG_TEGRA_CORE_DVFS
 	tegra_dvfs_core_disabled = true;
@@ -1300,9 +1292,6 @@ static ssize_t gpu_oc_show(struct kobject *kobj, struct kobj_attribute *attr,
 
 static ssize_t gpu_oc_store(struct kobject *kobj, struct kobj_attribute *attr,
 		     const char *buf, size_t count){
-	int ret;
-	unsigned long gpu_freq;
-
 	//all the tables that need to be updated with the new frequencies
 	struct clk *vde = tegra_get_clock_by_name("vde");
 	struct clk *mpe = tegra_get_clock_by_name("mpe");
@@ -1315,70 +1304,106 @@ static ssize_t gpu_oc_store(struct kobject *kobj, struct kobj_attribute *attr,
 	struct clk *cbus = tegra_get_clock_by_name("cbus");
 	struct clk *pll_c = tegra_get_clock_by_name("pll_c");
 
+	int ret;
+	unsigned long gpu_freq;
 	const int num_freqs = vde->dvfs->num_freqs;
 	char cur_size[num_freqs];
 	int j = 0;
-
+	unsigned long freq_user[num_freqs];
+	struct clk *shared_bus_user;	
+	
 	if (num_freqs == 0)
 		return -EINVAL;
-
+	
 	for (j = 0; j < num_freqs; j++) {
 		ret = sscanf(buf, "%lu", &gpu_freq);
-		
 		if (gpu_freq > GPU_MAX_FREQ){
-			continue;
+			gpu_freq = GPU_MAX_FREQ;
 		}
+
+		freq_user[j] = gpu_freq * 1000000;
 		
-		mutex_lock(&dvfs_lock);
-		if (j == num_freqs-1) {
-			vde->max_rate = gpu_freq*1000000;
-			mpe->max_rate = gpu_freq*1000000;
-			two_d->max_rate = gpu_freq*1000000;
-			epp->max_rate = gpu_freq*1000000;
-			three_d->max_rate = gpu_freq*1000000;
-			three_d2->max_rate = gpu_freq*1000000;
-			se->max_rate = gpu_freq*1000000;
-			host1x->max_rate = DIV_ROUND_UP((gpu_freq*1000000),2);
-			cbus->max_rate = gpu_freq*1000000;
-			pll_c->max_rate = (gpu_freq*1000000)*2;
-		}
-
-		if (gpu_freq != 1){
-			vde->dvfs->freqs[j] = gpu_freq*1000000;
-			mpe->dvfs->freqs[j] = gpu_freq*1000000;
-			two_d->dvfs->freqs[j] = gpu_freq*1000000;
-			epp->dvfs->freqs[j] = gpu_freq*1000000;
-			three_d->dvfs->freqs[j] = gpu_freq*1000000;
-			three_d2->dvfs->freqs[j] = gpu_freq*1000000;
-			se->dvfs->freqs[j] = gpu_freq*1000000;
-			cbus->dvfs->freqs[j] = gpu_freq*1000000;
-		} else {
-			vde->dvfs->freqs[j] = 1000;
-			mpe->dvfs->freqs[j] = 1000;
-			two_d->dvfs->freqs[j] = 1000;
-			epp->dvfs->freqs[j] = 1000;
-			three_d->dvfs->freqs[j] = 1000;
-			three_d2->dvfs->freqs[j] = 1000;
-			se->dvfs->freqs[j] = 1000;
-			cbus->dvfs->freqs[j] = 1000;
-		}
-		
-		if (j >= 6)
-			pll_c->dvfs->freqs[j] = (gpu_freq*1000000)*2;
-
-		mutex_unlock(&dvfs_lock);
-
-		/* Non-standard sysfs interface: advance buf */
 		ret = sscanf(buf, "%s", cur_size);
 		buf += (strlen(cur_size) + 1);
 	}
 
+	mutex_lock(&dvfs_lock);
+			
+	for (j = 0; j < num_freqs; j++) {
+		gpu_freq = freq_user[j];
+
+		if ((gpu_freq * 2) < (pll_c_default[j] * 1000))
+			pll_c->dvfs->freqs[j] = pll_c_default[j] * 1000;
+		else
+			pll_c->dvfs->freqs[j] = gpu_freq * 2;
+			
+		vde->dvfs->freqs[j] = gpu_freq;
+		mpe->dvfs->freqs[j] = gpu_freq;
+		two_d->dvfs->freqs[j] = gpu_freq;
+		epp->dvfs->freqs[j] = gpu_freq;
+		three_d->dvfs->freqs[j] = gpu_freq;
+		three_d2->dvfs->freqs[j] = gpu_freq;
+		se->dvfs->freqs[j] = gpu_freq;
+		host1x->dvfs->freqs[j] = DIV_ROUND_UP(gpu_freq, 2);
+		cbus->dvfs->freqs[j] = gpu_freq;
+	}
+
+	pll_c->max_rate = pll_c->dvfs->freqs[core_nominal_mv_index];
+	vde->max_rate = vde->dvfs->freqs[core_nominal_mv_index];
+	mpe->max_rate= mpe->dvfs->freqs[core_nominal_mv_index];
+	two_d->max_rate = two_d->dvfs->freqs[core_nominal_mv_index];		
+	epp->max_rate = epp->dvfs->freqs[core_nominal_mv_index];
+	three_d->max_rate = three_d->dvfs->freqs[core_nominal_mv_index];		
+	three_d2->max_rate = three_d2->dvfs->freqs[core_nominal_mv_index];		
+	se->max_rate = se->dvfs->freqs[core_nominal_mv_index];		
+	host1x->max_rate = host1x->dvfs->freqs[core_nominal_mv_index];		
+	
+	cbus->max_rate = cbus->dvfs->freqs[core_nominal_mv_index];	
+	list_for_each_entry(shared_bus_user,
+			    &cbus->shared_bus_list, u.shared_bus_user.node) {
+		shared_bus_user->u.shared_bus_user.rate = cbus->max_rate;
+		shared_bus_user->max_rate = cbus->max_rate;
+	}
+
+	mutex_unlock(&dvfs_lock);
 	return count;
 }
 
 static struct kobj_attribute gpu_oc_attribute =
 	__ATTR(gpu_oc, 0644, gpu_oc_show, gpu_oc_store);
 
+
+static ssize_t gpu_quick_oc_show(struct kobject *kobj, struct kobj_attribute *attr,
+		    char *buf){
+	char *out = buf;
+		
+	out += sprintf(out, "%u\n", gpu_quick_oc_enabled);
+
+	return out - buf;
+}
+
+static ssize_t gpu_quick_oc_store(struct kobject *kobj, struct kobj_attribute *attr,
+		     const char *buf, size_t count){
+	int ret;
+	unsigned int n;
+	
+	ret = sscanf(buf, "%d", &n);
+
+	if ((ret != 1) || n < 0 || n > 1)
+		return -EINVAL;
+
+	gpu_quick_oc_enabled = n;
+	
+	if (!gpu_quick_oc_enabled)
+		gpu_oc_store(kobj, attr, gpu_default, strlen(gpu_default));
+	else
+		gpu_oc_store(kobj, attr, gpu_quick_oc, strlen(gpu_quick_oc));
+	
+	return count;
+}
+
+static struct kobj_attribute gpu_quick_oc_attribute =
+	__ATTR(gpu_quick_oc, 0644, gpu_quick_oc_show, gpu_quick_oc_store);
 #endif
 
 const struct attribute *dvfs_attributes[] = {
@@ -1388,6 +1413,7 @@ const struct attribute *dvfs_attributes[] = {
 #endif
 #ifdef CONFIG_TEGRA_GPU_OC
 	&gpu_oc_attribute.attr,
+	&gpu_quick_oc_attribute.attr,
 #endif
 	NULL,
 };
