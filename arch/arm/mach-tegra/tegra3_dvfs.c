@@ -1317,6 +1317,9 @@ static ssize_t gpu_oc_store(struct kobject *kobj, struct kobj_attribute *attr,
 	
 	for (j = 0; j < num_freqs; j++) {
 		ret = sscanf(buf, "%lu", &gpu_freq);
+		if (ret != 1)
+			return -EINVAL;
+
 		if (gpu_freq > GPU_MAX_FREQ){
 			gpu_freq = GPU_MAX_FREQ;
 		}
@@ -1324,6 +1327,9 @@ static ssize_t gpu_oc_store(struct kobject *kobj, struct kobj_attribute *attr,
 		freq_user[j] = gpu_freq * 1000000;
 		
 		ret = sscanf(buf, "%s", cur_size);
+		if (ret != 1)
+			return -EINVAL;
+			
 		buf += (strlen(cur_size) + 1);
 	}
 
