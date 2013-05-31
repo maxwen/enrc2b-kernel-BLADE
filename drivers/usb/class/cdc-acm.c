@@ -47,7 +47,6 @@
 #include <asm/unaligned.h>
 #include <linux/list.h>
 extern int debug_gpio_dump(void);
-extern int trigger_radio_fatal_get_coredump(char *reason);
 
 #include "cdc-acm.h"
 
@@ -62,35 +61,10 @@ extern int trigger_radio_fatal_get_coredump(char *reason);
 #define I(x...) pr_info("[CDC-ACM]" x)
 #define E(x...) pr_err("[CDC-ACM]" x)
 
-/* HTC: TP statistic variables */
-#define MAX_ACM_NUM 1 /* bert: currently support for ttyACM0 only */
-/*static int is_mach_ble = 0;
-static int is_flashless = 0;
-static int is_mach_edge = 0;
-static int mach_ble_flashless = 0;
-static int mach_ble_flash = 0;
-const int ENDIDX = 16;*/ /* the size when we try to print out raw data */
-const int timer_value_ms = 6000;
-struct acm_tp {
-	int pre_tx_total;
-	int pre_rx_total;
-	int tx_total;
-	int rx_total;
-};
-
-struct timer_list acm_timer;
-
-#define is_minor_valid(m) (m >= 0 && m < MAX_ACM_NUM)? 1 : 0
-
 static int max_intfs = 2;
-char gpr_buf[512];
 module_param(max_intfs, int, 0644);
 MODULE_PARM_DESC(max_intfs, "usb class (cdc-acm) - Number of TTYACMs");
 
-/*
- * Version Information
- */
-#define DRIVER_VERSION "v0.26"
 #define DRIVER_AUTHOR "Armin Fuerst, Pavel Machek, Johannes Erdfelt, Vojtech Pavlik, David Kubicek, Johan Hovold"
 #define DRIVER_DESC "USB Abstract Control Model driver for USB modems and ISDN adapters"
 
@@ -224,8 +198,6 @@ static int acm_write_start(struct acm *acm, int wbn)
 	usb_autopm_get_interface_async(acm->control);
 	if (acm->susp_count) {
 #ifdef CONFIG_PM
-		D("%s buffer urb %p len=%d, [%02x] anchor urb=%p\n",
-			__func__, wb->buf, wb->len, wb->buf[0], wb->urb);
 		acm->transmitting++;
 		wb->urb->transfer_buffer = wb->buf;
 		wb->urb->transfer_dma = wb->dmah;
@@ -432,21 +404,6 @@ static void acm_process_read_urb(struct acm *acm, struct urb *urb)
 	tty_flip_buffer_push(tty);
 
 	tty_kref_put(tty);
-
-#if 0
-	/*Buffer latest Rx for debug*/
-	if(buf->size>0&&(acm->minor==0)){
-	int gsize = buf->size;
-	char *gdata_buf = buf->base;
-	int gi=0;
-	gsize = gsize > 16 ? 16 : gsize;
-	int grc = 0;
-	for (gi = 0; gi < gsize; gi++)
-		grc += sprintf(gpr_buf + grc, "%02x ", gdata_buf[gi]);
-	gpr_buf[grc] = '\0';
-	pcount=1;
-	}
-#endif
 }
 
 static void acm_read_bulk_callback(struct urb *urb)
@@ -470,7 +427,6 @@ static void acm_read_bulk_callback(struct urb *urb)
 			D("%s: cdc-acm EPROTO Hit %d times!\n", __func__, eproto_count+1);			
 			if(eproto_count == 0){
 				debug_gpio_dump();
-				//trigger_radio_fatal_get_coredump("cdc-acm urb -71");
 			}
 			eproto_count++;
 			return;
@@ -587,7 +543,6 @@ static int acm_tty_open(struct tty_struct *tty, struct file *filp)
 	rv = tty_port_block_til_ready(&acm->port, tty, filp);
 
 	mutex_unlock(&acm->mutex);
-	D("%s ttyACM%d - \n", __func__, acm->minor);
 out:
 	mutex_unlock(&open_mutex);
 	return rv;
@@ -622,8 +577,6 @@ static void acm_port_down(struct acm *acm)
 {
 	int i;
 
-	D(":%s ttyACM%d +\n", __func__, acm->minor);
-
 	if (acm->dev) {
 		usb_autopm_get_interface(acm->control);
 		acm_set_control(acm, acm->ctrlout = 0);
@@ -635,8 +588,6 @@ static void acm_port_down(struct acm *acm)
 		acm->control->needs_remote_wakeup = 0;
 		usb_autopm_put_interface(acm->control);
 	}
-
-	D(":%s ttyACM%d -\n", __func__, acm->minor);
 }
 
 static void acm_tty_hangup(struct tty_struct *tty)
@@ -647,10 +598,7 @@ static void acm_tty_hangup(struct tty_struct *tty)
 	acm = tty->driver_data;
 
 	if (!acm)
-	{
-		E("%s: !acm\n", __func__);
 		goto out;
-	}
 
 	tty_port_hangup(&acm->port);
 	acm_port_down(acm);
@@ -665,12 +613,8 @@ static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 
 	/* Perform the closing process and see if we need to do the hardware
 	   shutdown */
-	if (!acm){
-		E("%s: !acm \n", __func__);
+	if (!acm)
 		return;
-	}
-
-	D("%s: ttyACM%d +{ \n", __func__, acm->minor);
 
 	mutex_lock(&open_mutex);
 	if (tty_port_close_start(&acm->port, tty, filp) == 0) {
@@ -686,8 +630,6 @@ static void acm_tty_close(struct tty_struct *tty, struct file *filp)
 	tty_port_close_end(&acm->port, tty);
 	tty_port_tty_set(&acm->port, NULL);
 	mutex_unlock(&open_mutex);
-
-	D("%s: ttyACM%d -{ \n", __func__, acm->minor);
 }
 
 static int acm_tty_write(struct tty_struct *tty,
@@ -698,7 +640,7 @@ static int acm_tty_write(struct tty_struct *tty,
 	unsigned long flags;
 	int wbn;
 	struct acm_wb *wb;
-		
+
 	if (!ACM_READY(acm))
 		return -EINVAL;
 	if (!count)
@@ -716,10 +658,6 @@ static int acm_tty_write(struct tty_struct *tty,
 
 	count = (count > acm->writesize) ? acm->writesize : count;
 	D("%s - write %d\n", __func__, count);
-
-	D("Get %d bytes for ttyACM%d, alloc wbn=%d\n",
-		count, acm->minor, wbn);
-
 	memcpy(wb->buf, buf, count);
 	wb->len = count;
 	spin_unlock_irqrestore(&acm->write_lock, flags);
@@ -968,8 +906,6 @@ static int acm_probe(struct usb_interface *intf,
 	int num_rx_buf;
 	int i;
 	int combined_interfaces = 0;
-
-	I("%s: probe start: 07/12 set ZLP flag - max_intfs=%d\n", __func__, max_intfs);
 
 	/* normal quirks */
 	quirks = (unsigned long)id->driver_info;
@@ -1379,8 +1315,6 @@ skip_countries:
 
 	acm_table[minor] = acm;
 
-	I("%s success!\n", __func__);
-	
 	return 0;
 alloc_fail7:
 	for (i = 0; i < ACM_NW; i++)
@@ -1428,12 +1362,8 @@ static void acm_disconnect(struct usb_interface *intf)
 	struct urb *res;
 
 	/* sibling interface is already cleaning up */
-	if (!acm){
-		D("%s: !acm\n", __func__);
+	if (!acm)
 		return;
-	}
-
-	D("%s: ttyACM%d +\n", __func__, acm->minor);
 
 	mutex_lock(&open_mutex);
 	if (acm->country_codes) {
@@ -1474,8 +1404,6 @@ static void acm_disconnect(struct usb_interface *intf)
 		tty_hangup(tty);
 		tty_kref_put(tty);
 	}
-
-	D("%s: ttyACM%d -\n", __func__, acm->minor);
 }
 
 #ifdef CONFIG_PM
@@ -1489,19 +1417,14 @@ static int acm_suspend(struct usb_interface *intf, pm_message_t message)
 		return -ENODEV;
 	}
 
-	D("%s: ttyACM%d +\n", __func__, acm->minor);
-
 	if (message.event & PM_EVENT_AUTO) {
 		int b;
 
 		spin_lock_irq(&acm->write_lock);
 		b = acm->transmitting;
 		spin_unlock_irq(&acm->write_lock);
-		if (b){
-			D("%s: ttyACM%d transmitting %d -EBUSY\n",
-				__func__, acm->minor, acm->transmitting);
+		if (b)
 			return -EBUSY;
-		}
 	}
 
 	spin_lock_irq(&acm->read_lock);
@@ -1510,15 +1433,8 @@ static int acm_suspend(struct usb_interface *intf, pm_message_t message)
 	spin_unlock(&acm->write_lock);
 	spin_unlock_irq(&acm->read_lock);
 
-	if (cnt) {
-		D(": %s ttyACM%d susp_count=%d (already suspend)\n",
-			__func__, acm->minor, acm->susp_count);
+	if (cnt)
 		return 0;
-	} else {
-		D(": %s ttyACM%d suspending.... port.count=%d\n",
-			__func__, acm->minor, acm->port.count);
-	}
-
 	/*
 	we treat opened interfaces differently,
 	we must guard against open
@@ -1529,9 +1445,6 @@ static int acm_suspend(struct usb_interface *intf, pm_message_t message)
 		stop_data_traffic(acm);
 
 	mutex_unlock(&acm->mutex);
-
-	D("%s: ttyACM%d -\n", __func__, acm->minor);
-
 	return 0;
 }
 
@@ -1551,8 +1464,6 @@ static int acm_resume(struct usb_interface *intf)
 		return -ENODEV;
 	}
 
-	D("%s: ttyACM%d +\n", __func__, acm->minor);
-
 	spin_lock_irq(&acm->read_lock);
 	if (acm->susp_count > 0) {
 		acm->susp_count -= 1;
@@ -1563,14 +1474,9 @@ static int acm_resume(struct usb_interface *intf)
 	}
 	spin_unlock_irq(&acm->read_lock);
 
-	if (cnt) {
-		D("%s ttyACM%d susp_count=%d (already resumed)\n",
-			__func__, acm->minor, acm->susp_count);
+	if (cnt)
 		return 0;
-	} else {
-		D("%s ttyACM%d resuming..... %d\n",
-			__func__, acm->minor, acm->susp_count);
-	}
+
 
 	mutex_lock(&acm->mutex);
 
@@ -1613,9 +1519,6 @@ static int acm_resume(struct usb_interface *intf)
 
 err_out:
 	mutex_unlock(&acm->mutex);
-
-	D("%s: ttyACM%d -\n", __func__, acm->minor);
-
 	return rv;
 }
 
@@ -1628,8 +1531,6 @@ static int acm_reset_resume(struct usb_interface *intf)
 		E("%s: !acm\n", __func__);
 		return -ENODEV;
 	}
-
-	D("%s: ttyACM%d\n", __func__, acm->minor);
 
 	mutex_lock(&acm->mutex);
 	if (acm->port.count) {
@@ -1727,7 +1628,7 @@ static const struct usb_device_id acm_ids[] = {
 	.driver_info = NO_UNION_NORMAL, /* reports zero length descriptor */
 	},
 	{ USB_DEVICE(0x1519, 0x0020),
-	.driver_info = /*NO_UNION_NORMAL |*/ NO_HANGUP_IN_RESET_RESUME, /* has no union descriptor */
+	.driver_info = NO_HANGUP_IN_RESET_RESUME, /* has no union descriptor */
 	},
 
 	/* Nokia S60 phones expose two ACM channels. The first is
@@ -1920,11 +1821,9 @@ static int __init acm_init(void)
 
 static void __exit acm_exit(void)
 {
-	I("%s: +{\n", __func__);
 	usb_deregister(&acm_driver);
 	tty_unregister_driver(acm_tty_driver);
 	put_tty_driver(acm_tty_driver);
-	I("%s: -}\n", __func__);
 }
 
 module_init(acm_init);
