@@ -926,7 +926,7 @@ static int acm_probe(struct usb_interface *intf,
 				intf->cur_altsetting->desc.bInterfaceNumber);
 				break;
 		default:
-			I("XMM HACK -"
+			D("XMM HACK -"
 				" interface #%d reserved for RAW-IP network driver\n",
 				intf->cur_altsetting->desc.bInterfaceNumber);
 			return -EINVAL;
@@ -942,7 +942,7 @@ static int acm_probe(struct usb_interface *intf,
 				intf->cur_altsetting->desc.bInterfaceNumber);
 				break;
 		default:
-			I("XMM HACK -"
+			D("XMM HACK -"
 				" interface #%d reserved for RAW-IP network driver\n",
 				intf->cur_altsetting->desc.bInterfaceNumber);
 			return -EINVAL;
