@@ -49,9 +49,6 @@
 extern int debug_gpio_dump(void);
 extern int trigger_radio_fatal_get_coredump(char *reason);
 
-/* HTC include file */
-#include <mach/htc_hostdbg.h>
-
 #include "cdc-acm.h"
 
 #define CDCACM_DEBUG 0
@@ -85,11 +82,8 @@ struct timer_list acm_timer;
 
 #define is_minor_valid(m) (m >= 0 && m < MAX_ACM_NUM)? 1 : 0
 
-extern unsigned int host_dbg_flag;
-
 static int max_intfs = 2;
 char gpr_buf[512];
-static int pcount=0;
 module_param(max_intfs, int, 0644);
 MODULE_PARM_DESC(max_intfs, "usb class (cdc-acm) - Number of TTYACMs");
 
@@ -439,42 +433,6 @@ static void acm_process_read_urb(struct acm *acm, struct urb *urb)
 
 	tty_kref_put(tty);
 
-		/* HTC: log */
-	/* printk(MODULE_NAME":%s ttyACM%d len=%3d\n",
-		__func__, acm->minor, buf->size); */
-	if ((host_dbg_flag & DBG_ACM0_RW && acm->minor == 0) ||
-		(host_dbg_flag & DBG_ACM1_RW && acm->minor == 1)) {
-		int i = 0, size = urb->actual_length, rc = 0;
-		char *data_buf = urb->transfer_buffer;
-		char pr_buf[512];
-#if 0
-		size = size > 16 ? 16 : size;
-		for (i=0; i < size; i++) {
-			unsigned char c = data_buf[i];
-			if (!isprint(c)) {
-				if (c == '\r')
-					rc += sprintf(pr_buf + rc, "\\r");
-				else if (c == '\n')
-					rc += sprintf(pr_buf + rc, "\\n");
-				else
-					rc += sprintf(pr_buf + rc, ".");
-			} else
-				rc += sprintf(pr_buf + rc, "%c", c);
-		}
-		pr_buf[rc] = '\0';
-		pr_info(MODULE_NAME ":[%03d] ttyACM%d RX << [%s]\n",
-			size, acm->minor, pr_buf);
-#endif
-		/* print out binary */
-		size = size > 16 ? 16 : size;
-		rc = 0;
-		for (i = 0; i < size; i++)
-			rc += sprintf(pr_buf + rc, "%02x ", data_buf[i]);
-		pr_buf[rc] = '\0';
-		D(":[%03d][%d] ttyACM%d RX bin << [%s]\n",
-			size, urb->actual_length, acm->minor, pr_buf);
-	}
-
 #if 0
 	/*Buffer latest Rx for debug*/
 	if(buf->size>0&&(acm->minor==0)){
@@ -740,9 +698,6 @@ static int acm_tty_write(struct tty_struct *tty,
 	unsigned long flags;
 	int wbn;
 	struct acm_wb *wb;
-	int i = 0, size = count, rc = 0;
-	const char *data_buf;
-	char pr_buf[512];
 		
 	if (!ACM_READY(acm))
 		return -EINVAL;
@@ -764,42 +719,6 @@ static int acm_tty_write(struct tty_struct *tty,
 
 	D("Get %d bytes for ttyACM%d, alloc wbn=%d\n",
 		count, acm->minor, wbn);
-	if ((host_dbg_flag & DBG_ACM0_RW && acm->minor == 0) ||
-		(host_dbg_flag & DBG_ACM1_RW && acm->minor == 1)) {
-		/*Print the latest Rx data*/
-		if(pcount==1&&(acm->minor==0)){
-			D(":Debug Latest RX bin << [%s]\n", gpr_buf);
-			pcount=0;
-		}
-
-
-		data_buf = buf;
-#if 0
-		size = size > 16 ? 16 : size;
-		for (i=0; i < size; i++) {
-			unsigned char c = data_buf[i];
-			if (!isprint(c)) {
-				if (c == '\r')
-					rc += sprintf(pr_buf + rc, "\\r");
-				else if (c == '\n')
-					rc += sprintf(pr_buf + rc, "\\n");
-				else
-					rc += sprintf(pr_buf + rc, ".");
-			} else
-				rc += sprintf(pr_buf + rc, "%c", c);
-		}
-
-		pr_buf[rc] = '\0';
-		pr_info(MODULE_NAME ":[%03d] TX >> [%s]", count, pr_buf);
-#endif
-		/* print out binary */
-		size = size > 16 ? 16 : size;
-		rc = 0;
-		for (i = 0; i < size; i++)
-			rc += sprintf(pr_buf + rc, "%02x ", data_buf[i]);
-		pr_buf[rc] = '\0';
-		D(":[%03d] TX bin >> [%s]\n", count, pr_buf);
-	}
 
 	memcpy(wb->buf, buf, count);
 	wb->len = count;

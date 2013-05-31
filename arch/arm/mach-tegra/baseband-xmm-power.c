@@ -35,7 +35,6 @@
 #include "board.h"
 #include "devices.h"
 #include <mach/board_htc.h>
-#include <linux/pm_qos_params.h>
 #include <asm/mach-types.h>
 
 #include "gpio-names.h"
@@ -71,58 +70,7 @@ unsigned long modem_ver = XMM_MODEM_VER_1121;
  *		log reduce
  */
 
-/* HTC: macro, variables */
-#include <mach/htc_hostdbg.h>
 #define MODULE_NAME "[XMM_v15]"
-unsigned int host_dbg_flag = 0;
-EXPORT_SYMBOL(host_dbg_flag);
-
-/* HTC: provide interface for user space to enable usb host debugging */
-static ssize_t host_dbg_show(struct device *dev,
-	struct device_attribute *attr, char *buf);
-static ssize_t host_dbg_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t size);
-static DEVICE_ATTR(host_dbg,  0664, host_dbg_show,  host_dbg_store);
-
-/* HTC: Create attribute for host debug purpose */
-static ssize_t host_dbg_show(struct device *dev,
-            struct device_attribute *attr,
-            char *buf)
-{
-    int ret = -EINVAL;
-    ret = sprintf(buf, "%x\n", host_dbg_flag);
-    return ret;
-}
-
-/**
- * HTC: get the runtime debug flags from user.
- *
- * @buf: user strings
- * @size: user strings plus one 0x0a char
- */
-static ssize_t host_dbg_store(struct device *dev,
-            struct device_attribute *attr,
-            const char *buf, size_t size)
-{
-    const int hedge = 2 + 8 + 1;
-    /* hedge: "0x" 2 chars, max: 8 chars, plus one 0x0a char */
-
-    pr_debug(MODULE_NAME "%s size = %d\n", __func__, size);
-    if (size > hedge) {
-        pr_debug(MODULE_NAME "%s size > hedge:%d, return\n",
-                __func__, hedge);
-        return size;
-    }
-    host_dbg_flag  = simple_strtoul(buf, NULL, 16);
-    pr_debug(MODULE_NAME "%s set host_dbg_flag as 0x%08x\n",
-            __func__, host_dbg_flag);
-
-    return size;
-}
-/*============================================================*/
-struct pm_qos_request_list modem_boost_cpu_freq_req;
-EXPORT_SYMBOL_GPL(modem_boost_cpu_freq_req);
-#define BOOST_CPU_FREQ_MIN	760000
 
 EXPORT_SYMBOL(modem_ver);
 
@@ -665,9 +613,6 @@ static int baseband_modem_power_on(struct baseband_power_platform_data *data)
 	gpio_set_value(data->modem.xmm.bb_on, 0);
 	//pr_debug("%s(%d) set modem.xmm.bb_on=0\n", __func__, __LINE__);
 	auto_sleep(10);
-
-	//pr_debug("%s:VP pm qos request CPU 1.5GHz\n", __func__);
-	//pm_qos_update_request(&modem_boost_cpu_freq_req, (s32)BOOST_CPU_FREQ_MIN);
 
 	/* Use RST2 to identify if modem is powered on into boot rom. */
 	/* Fix issue of power leakage in ENRC2. */
@@ -1729,10 +1674,6 @@ static int baseband_xmm_power_driver_probe(struct platform_device *device)
 		return -ENODEV;
 	}
 
-	/* HTC: create device file for host debugging */
-	if (device_create_file(dev,&dev_attr_host_dbg))
-		pr_debug(MODULE_NAME"Warning: host attribute can't be created\n");
-
 	/* init wake lock */
 	wake_lock_init(&wakelock, WAKE_LOCK_SUSPEND, "baseband_xmm_power");
 
@@ -1958,9 +1899,6 @@ static int baseband_xmm_power_driver_remove(struct platform_device *device)
 	device_remove_file(dev, &dev_attr_xmm_onoff);
 	device_remove_file(dev, &dev_attr_debug_handler);
 
-	/* HTC: delete device file */
-	device_remove_file(dev, &dev_attr_host_dbg);
-
 	 /* destroy wake lock */
 	  destroy_workqueue(workqueue_susp);
 	  destroy_workqueue(workqueue);
@@ -2139,11 +2077,9 @@ static int __init baseband_xmm_power_init(void)
 {
 	int mfg_mode = 0;
 	
-	/* HTC */
-	host_dbg_flag = 0;
 	mfg_mode = board_mfg_mode();
-	pr_debug("%s - host_dbg_flag<0x%x>, modem_ver<%lu>, mfg_mode<%d>"
-			, __func__, host_dbg_flag, modem_ver, mfg_mode);
+	pr_debug("%s - modem_ver<%lu>, mfg_mode<%d>"
+			, __func__, modem_ver, mfg_mode);
 
 	if( mfg_mode )
 	{
@@ -2156,9 +2092,6 @@ static int __init baseband_xmm_power_init(void)
 	s_sku_id = board_get_sku_tag();
 	pr_debug("SKU_ID is 0x%x", s_sku_id);
 
-	//printk("%s:VP adding pm qos request removed\n", __func__);
-	//pm_qos_add_request(&modem_boost_cpu_freq_req, PM_QOS_CPU_FREQ_MIN, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
-
 	return platform_driver_register(&baseband_power_driver);
 }
 
@@ -2166,7 +2099,6 @@ static void __exit baseband_xmm_power_exit(void)
 {
 	pr_debug("%s\n", __func__);
 	platform_driver_unregister(&baseband_power_driver);
-	//pm_qos_remove_request(&modem_boost_cpu_freq_req);
 }
 
 module_init(baseband_xmm_power_init)

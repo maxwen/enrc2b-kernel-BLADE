@@ -107,9 +107,7 @@
 
 #ifdef CONFIG_RIL_FTRACE_DEBUG_SOCK_IOCTL
 #include <linux/vermagic.h>
-#include <mach/htc_hostdbg.h>
-extern unsigned int host_dbg_flag;
-unsigned int inline ftrace_debug_enabled() { return host_dbg_flag & DBG_FTRACE_IOCTL; }
+unsigned int inline ftrace_debug_enabled() { return DBG_FTRACE_IOCTL; }
 #endif
 
 static int sock_no_open(struct inode *irrelevant, struct file *dontcare);

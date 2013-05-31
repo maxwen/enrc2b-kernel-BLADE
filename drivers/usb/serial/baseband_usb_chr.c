@@ -39,38 +39,8 @@
 #include <linux/vmalloc.h>
 #include <asm/mach-types.h>
 
-/* HTC include file */
-#include <mach/htc_hostdbg.h>
-
-/* HTC variables */
-extern unsigned int host_dbg_flag;
-#define MODULE_NAME "[USBCHRv1] "
-
 extern int Modem_is_6360(void);
-
-/* HTC: debug flag */
-/*	chrlog1: ipc write file log for modem download */
-#define chrlog1(x...) do {\
-	if (host_dbg_flag & DBG_USBCHR_L1) {\
-		pr_info(x);\
-	}\
-} while (0)
-#define chrlog2(x...) do {\
-	if (host_dbg_flag & DBG_USBCHR_L2) {\
-		pr_info(x);\
-	}\
-} while (0)
-#define chrlog3(x...) do {\
-	if (host_dbg_flag & DBG_USBCHR_L3) {\
-		pr_info(x);\
-	}\
-} while (0)
-#define chrlog4(x...) do {\
-	if (host_dbg_flag & DBG_USBCHR_L4) {\
-		pr_info(x);\
-	}\
-} while (0)
-
+#define MODULE_NAME "[USBCHRv1] "
 
 MODULE_LICENSE("GPL");
 
@@ -156,7 +126,7 @@ static void baseband_ipc_dump(const char *prefix, unsigned long int offset,
 	size_t i;
 
 	for (i = 0; i < bufsiz; i += 16) {
-		chrlog4("%s"
+		pr_debug("%s"
 			"[%lx+%x] %p "
 			"%02x %02x %02x %02x "
 			"%02x %02x %02x %02x "
@@ -208,7 +178,7 @@ static size_t peek_ipc_tx_bufsiz(struct baseband_ipc *ipc,
 	struct baseband_ipc_buf *ipc_buf, *ipc_buf_next;
 	size_t tx_bufsiz;
 
-	chrlog4("peek_ipc_tx_bufsiz\n");
+	pr_debug("peek_ipc_tx_bufsiz\n");
 
 	/* check input */
 	if (!ipc) {
@@ -227,7 +197,7 @@ static size_t peek_ipc_tx_bufsiz(struct baseband_ipc *ipc,
 	tx_bufsiz = 0;
 	list_for_each_entry_safe(ipc_buf, ipc_buf_next, &ipc->tx.buf, list)
 	{
-		chrlog4("peek_ipc_tx_bufsiz - "
+		pr_debug("peek_ipc_tx_bufsiz - "
 			"ipc_buf %p ipc_buf->offset %x ipc_buf->count %x\n",
 			ipc_buf, ipc_buf->offset, ipc_buf->count);
 		if (ipc_buf->count > bufsiz - tx_bufsiz)
@@ -248,7 +218,7 @@ static size_t get_ipc_tx_buf(struct baseband_ipc *ipc,
 	struct baseband_ipc_buf *ipc_buf, *ipc_buf_next;
 	size_t tx_bufsiz;
 
-	chrlog4("get_ipc_tx_buf\n");
+	pr_debug("get_ipc_tx_buf\n");
 
 	/* check input */
 	if (!ipc || !buf) {
@@ -269,10 +239,10 @@ static size_t get_ipc_tx_buf(struct baseband_ipc *ipc,
 	tx_bufsiz = 0;
 	list_for_each_entry_safe(ipc_buf, ipc_buf_next, &ipc->tx.buf, list)
 	{
-		chrlog4("get_ipc_tx_buf - "
+		pr_debug("get_ipc_tx_buf - "
 			"ipc_buf %p ipc_buf->offset %x ipc_buf->count %x\n",
 			ipc_buf, ipc_buf->offset, ipc_buf->count);
-		chrlog4("get_ipc_tx_buf - "
+		pr_debug("get_ipc_tx_buf - "
 			"ipc_buf->data [0] %x [1] %x [2] %x [3] %x\n",
 			ipc_buf->data[0],
 			ipc_buf->data[1],
@@ -316,7 +286,7 @@ static size_t put_ipc_rx_buf(struct baseband_ipc *ipc,
 	size_t rx_bufsiz;
 	int ret;
 
-	chrlog4("put_ipc_rx_buf\n");
+	pr_debug("put_ipc_rx_buf\n");
 
 
 	/* check input */
@@ -339,7 +309,7 @@ retry:
 	rx_bufsiz = 0;
 	list_for_each_entry_safe(ipc_buf, ipc_buf_next, &ipc->rx_free.buf, list)
 	{
-		chrlog4("put_ipc_rx_buf - "
+		pr_debug("put_ipc_rx_buf - "
 			"ipc_buf %p ipc_buf->offset %x ipc_buf->count %x\n",
 			ipc_buf, ipc_buf->offset, ipc_buf->count);
 		if (sizeof(ipc_buf->data) > bufsiz - rx_bufsiz) {
@@ -398,7 +368,7 @@ static ssize_t baseband_ipc_file_read(struct baseband_ipc *ipc,
 	struct baseband_ipc_buf *ipc_buf, *ipc_buf_next;
 	size_t read_count;
 
-	chrlog4("baseband_ipc_file_read\n");
+	pr_debug("baseband_ipc_file_read\n");
 
 	/* check input */
 	if (!ipc || !buf) {
@@ -417,12 +387,11 @@ static ssize_t baseband_ipc_file_read(struct baseband_ipc *ipc,
 	read_count = 0;
 	list_for_each_entry_safe(ipc_buf, ipc_buf_next, &ipc->rx.buf, list)
 	{
-		/* HTC: remove log
-		chrlog3("baseband_ipc_file_read - "
+		pr_debug("baseband_ipc_file_read - "
 			"ipc_buf %p ipc_buf->offset %x ipc_buf->count %x\n",
 			ipc_buf, ipc_buf->offset, ipc_buf->count);
-		*/
-		chrlog3(
+
+		pr_debug(
 			"usbrx [%05d] %02x,%02x,%02x,%02x   "
 			"%02x,%02x,%02x,%02x\n",
 			ipc_buf->count,
@@ -497,7 +466,7 @@ static ssize_t baseband_ipc_file_write(struct baseband_ipc *ipc,
 	struct baseband_ipc_buf *ipc_buf, *ipc_buf_next;
 	size_t write_count;
 
-	chrlog4("baseband_ipc_file_write\n");
+	pr_debug("baseband_ipc_file_write\n");
 
 	/* check input */
 	if (!ipc || !buf) {
@@ -525,7 +494,7 @@ retry:
 	write_count = 0;
 	list_for_each_entry_safe(ipc_buf, ipc_buf_next, &ipc->tx_free.buf, list)
 	{
-		chrlog1("baseband_ipc_file_write - "
+		pr_debug("baseband_ipc_file_write - "
 			"ipc_buf %p ipc_buf->offset %x ipc_buf->count %x\n",
 			ipc_buf, ipc_buf->offset, ipc_buf->count);
 		if (sizeof(ipc_buf->data) > count - write_count) {
@@ -554,7 +523,7 @@ retry:
 			write_count += sizeof(ipc_buf->data);
 		}
 		/* add filled tx free buffer to tx linked list */
-		chrlog4("baseband_ipc_file_write - "
+		pr_debug("baseband_ipc_file_write - "
 			"ipc_buf->data [0] %x [1] %x [2] %x [3] %x\n",
 			ipc_buf->data[0],
 			ipc_buf->data[1],
@@ -591,7 +560,7 @@ static void baseband_ipc_close(struct baseband_ipc *ipc)
 {
 	struct baseband_ipc_buf *ipc_buf, *ipc_buf_next;
 
-	chrlog4("baseband_ipc_close {\n");
+	pr_debug("baseband_ipc_close {\n");
 
 	/* check input */
 	if (!ipc)
@@ -599,9 +568,9 @@ static void baseband_ipc_close(struct baseband_ipc *ipc)
 
 	/* cancel work queue */
 	if (ipc->workqueue) {
-		chrlog4("cancel workqueue {\n");
+		pr_debug("cancel workqueue {\n");
 		cancel_work_sync(&ipc->work);
-		chrlog4("cancel workqueue }\n");
+		pr_debug("cancel workqueue }\n");
 	}
 	memset(&ipc->work, 0, sizeof(ipc->work));
 
@@ -639,7 +608,7 @@ static void baseband_ipc_close(struct baseband_ipc *ipc)
 	/* free baseband ipc structure */
 	vfree(ipc);
 
-	chrlog4("baseband_ipc_close }\n");
+	pr_debug("baseband_ipc_close }\n");
 }
 
 static struct baseband_ipc *baseband_ipc_open(work_func_t work_func,
@@ -650,7 +619,7 @@ static struct baseband_ipc *baseband_ipc_open(work_func_t work_func,
 	struct baseband_ipc_buf *ipc_buf;
 	int i;
 
-	chrlog4("baseband_ipc_open {\n");
+	pr_debug("baseband_ipc_open {\n");
 
 	/* allocate baseband ipc structure */
 	ipc = vmalloc(sizeof(struct baseband_ipc));
@@ -674,7 +643,7 @@ static struct baseband_ipc *baseband_ipc_open(work_func_t work_func,
 				i);
 			goto error_exit;
 		}
-		chrlog4("baseband_ipc_open - "
+		pr_debug("baseband_ipc_open - "
 			"rx_free: ipc_buf %p\n",
 			ipc_buf);
 		list_add_tail(&ipc_buf->list, &ipc->rx_free.buf);
@@ -687,7 +656,7 @@ static struct baseband_ipc *baseband_ipc_open(work_func_t work_func,
 				i);
 			goto error_exit;
 		}
-		chrlog4("baseband_ipc_open - "
+		pr_debug("baseband_ipc_open - "
 			"tx_free: ipc_buf %p\n",
 			ipc_buf);
 		list_add_tail(&ipc_buf->list, &ipc->tx_free.buf);
@@ -725,7 +694,7 @@ static struct baseband_ipc *baseband_ipc_open(work_func_t work_func,
 	if (tx_work_func)
 		INIT_WORK(&ipc->tx_work, tx_work_func);
 
-	chrlog4("baseband_ipc_open }\n");
+	pr_debug("baseband_ipc_open }\n");
 	return ipc;
 
 error_exit:
@@ -739,7 +708,7 @@ static void baseband_usb_chr_rx_urb_comp(struct urb *urb)
 {
 	struct baseband_usb *usb = (struct baseband_usb *) urb->context;
 
-	chrlog4("baseband_usb_chr_rx_urb_comp { urb %p\n", urb);
+	pr_debug("baseband_usb_chr_rx_urb_comp { urb %p\n", urb);
 
 	/* check input */
 	if (!usb) {
@@ -772,7 +741,7 @@ static void baseband_usb_chr_rx_urb_comp(struct urb *urb)
 	/* queue rx urb completion work */
 	queue_work(usb->ipc->workqueue, &usb->ipc->rx_work);
 
-	chrlog4("baseband_usb_chr_rx_urb_comp }\n");
+	pr_debug("baseband_usb_chr_rx_urb_comp }\n");
 }
 
 static int baseband_usb_chr_rx_urb_submit(struct baseband_usb *usb)
@@ -781,7 +750,7 @@ static int baseband_usb_chr_rx_urb_submit(struct baseband_usb *usb)
 	void *buf;
 	int err;
 
-	chrlog4("baseband_usb_chr_rx_urb_submit { usb %p\n", usb);
+	pr_debug("baseband_usb_chr_rx_urb_submit { usb %p\n", usb);
 
 	if (!usb_device_connection) {
 		pr_err("!!no usb device conenction!!!!!\n");
@@ -811,7 +780,7 @@ static int baseband_usb_chr_rx_urb_submit(struct baseband_usb *usb)
 		return err;
 	}
 
-	chrlog4("baseband_usb_chr_rx_urb_submit }\n");
+	pr_debug("baseband_usb_chr_rx_urb_submit }\n");
 	return err;
 }
 
@@ -821,7 +790,7 @@ static void baseband_usb_chr_rx_urb_comp_work(struct work_struct *work)
 	struct urb *urb = usb->usb.rx_urb;
 	size_t len;
 
-	chrlog4("baseband_usb_chr_rx_urb_comp_work { work %p\n", work);
+	pr_debug("baseband_usb_chr_rx_urb_comp_work { work %p\n", work);
 
 	if (usb_device_connection == false) {
 		/* device is closing or disconnect - nothing to read */
@@ -830,7 +799,7 @@ static void baseband_usb_chr_rx_urb_comp_work(struct work_struct *work)
 	}
 	/* put rx urb data in rx buffer */
 	if (urb->actual_length) {
-		chrlog4("baseband_usb_chr_rx_urb_comp_work - "
+		pr_debug("baseband_usb_chr_rx_urb_comp_work - "
 			"urb->actual_length %d\n", urb->actual_length);
 		len = put_ipc_rx_buf(usb->ipc,
 			urb->transfer_buffer, urb->actual_length);
@@ -854,7 +823,7 @@ static void baseband_usb_chr_rx_urb_comp_work(struct work_struct *work)
 	/* submit next rx urb */
 	baseband_usb_chr_rx_urb_submit(usb);
 
-	chrlog4("baseband_usb_chr_rx_urb_comp_work }\n");
+	pr_debug("baseband_usb_chr_rx_urb_comp_work }\n");
 }
 
 /* usb functions */
@@ -869,31 +838,31 @@ static void find_usb_pipe(struct baseband_usb *usb)
 
 	for (n = 0; n < numendpoint; n++) {
 		if (usb_endpoint_is_isoc_in(&endpoint[n].desc)) {
-			chrlog4("endpoint[%d] isochronous in\n", n);
+			pr_debug("endpoint[%d] isochronous in\n", n);
 			usb->usb.pipe.isoch.in = usb_rcvisocpipe(usbdev,
 				endpoint[n].desc.bEndpointAddress);
 		} else if (usb_endpoint_is_isoc_out(&endpoint[n].desc)) {
-			chrlog4("endpoint[%d] isochronous out\n", n);
+			pr_debug("endpoint[%d] isochronous out\n", n);
 			usb->usb.pipe.isoch.out = usb_sndisocpipe(usbdev,
 				endpoint[n].desc.bEndpointAddress);
 		} else if (usb_endpoint_is_bulk_in(&endpoint[n].desc)) {
-			chrlog4("endpoint[%d] bulk in\n", n);
+			pr_debug("endpoint[%d] bulk in\n", n);
 			usb->usb.pipe.bulk.in = usb_rcvbulkpipe(usbdev,
 				endpoint[n].desc.bEndpointAddress);
 		} else if (usb_endpoint_is_bulk_out(&endpoint[n].desc)) {
-			chrlog4("endpoint[%d] bulk out\n", n);
+			pr_debug("endpoint[%d] bulk out\n", n);
 			usb->usb.pipe.bulk.out = usb_sndbulkpipe(usbdev,
 				endpoint[n].desc.bEndpointAddress);
 		} else if (usb_endpoint_is_int_in(&endpoint[n].desc)) {
-			chrlog4("endpoint[%d] interrupt in\n", n);
+			pr_debug("endpoint[%d] interrupt in\n", n);
 			usb->usb.pipe.interrupt.in = usb_rcvintpipe(usbdev,
 				endpoint[n].desc.bEndpointAddress);
 		} else if (usb_endpoint_is_int_out(&endpoint[n].desc)) {
-			chrlog4("endpoint[%d] interrupt out\n", n);
+			pr_debug("endpoint[%d] interrupt out\n", n);
 			usb->usb.pipe.interrupt.out = usb_sndintpipe(usbdev,
 				endpoint[n].desc.bEndpointAddress);
 		} else {
-			chrlog4("endpoint[%d] skipped\n", n);
+			pr_debug("endpoint[%d] skipped\n", n);
 		}
 	}
 }
@@ -906,23 +875,23 @@ static int baseband_usb_driver_probe(struct usb_interface *intf,
 
 	pr_info("intf->cur_altsetting->desc.bInterfaceNumber %02x\n",
 		intf->cur_altsetting->desc.bInterfaceNumber);
-	chrlog4("intf->cur_altsetting->desc.bAlternateSetting %02x\n",
+	pr_debug("intf->cur_altsetting->desc.bAlternateSetting %02x\n",
 		intf->cur_altsetting->desc.bAlternateSetting);
-	chrlog4("intf->cur_altsetting->desc.bNumEndpoints %02x\n",
+	pr_debug("intf->cur_altsetting->desc.bNumEndpoints %02x\n",
 		intf->cur_altsetting->desc.bNumEndpoints);
-	chrlog4("intf->cur_altsetting->desc.bInterfaceClass %02x\n",
+	pr_debug("intf->cur_altsetting->desc.bInterfaceClass %02x\n",
 		intf->cur_altsetting->desc.bInterfaceClass);
-	chrlog4("intf->cur_altsetting->desc.bInterfaceSubClass %02x\n",
+	pr_debug("intf->cur_altsetting->desc.bInterfaceSubClass %02x\n",
 		intf->cur_altsetting->desc.bInterfaceSubClass);
-	chrlog4("intf->cur_altsetting->desc.bInterfaceProtocol %02x\n",
+	pr_debug("intf->cur_altsetting->desc.bInterfaceProtocol %02x\n",
 		intf->cur_altsetting->desc.bInterfaceProtocol);
-	chrlog4("intf->cur_altsetting->desc.iInterface %02x\n",
+	pr_debug("intf->cur_altsetting->desc.iInterface %02x\n",
 		intf->cur_altsetting->desc.iInterface);
 
 	/* usb interface mismatch */
 	if (baseband_usb_chr_intf !=
 		intf->cur_altsetting->desc.bInterfaceNumber) {
-		chrlog4("%s(%d) } -ENODEV\n", __func__, __LINE__);
+		pr_debug("%s(%d) } -ENODEV\n", __func__, __LINE__);
 		return -ENODEV;
 	}
 
@@ -937,7 +906,7 @@ static int baseband_usb_driver_probe(struct usb_interface *intf,
 static void baseband_usb_driver_disconnect(struct usb_interface *intf)
 {
 	struct usb_device *usb_dev = interface_to_usbdev(intf);
-	chrlog4("%s(%d) { intf %p\n", __func__, __LINE__, intf);
+	pr_debug("%s(%d) { intf %p\n", __func__, __LINE__, intf);
 	printk("%s\n", __func__);
 
 	if (!baseband_usb_chr) {
@@ -959,7 +928,7 @@ static void baseband_usb_driver_disconnect(struct usb_interface *intf)
 		device_remove_file(&usb_dev->dev, &dev_attr_bbusb_ioctl);
 		usb_device_connection = false;
 	}
-	chrlog4("%s(%d) }\n", __func__, __LINE__);
+	pr_debug("%s(%d) }\n", __func__, __LINE__);
 }
 
 static char baseband_usb_driver_name[40];
@@ -983,7 +952,7 @@ static void baseband_usb_chr_work(struct work_struct *work)
 	int ipc_tx_byte;
 	int err;
 
-	chrlog4("baseband_usb_chr_work {\n");
+	pr_debug("baseband_usb_chr_work {\n");
 
 	/* check input */
 	if (!usb || !usb->ipc) {
@@ -1036,14 +1005,14 @@ static void baseband_usb_chr_work(struct work_struct *work)
 		}
 	}
 
-	chrlog4("baseband_usb_chr_work }\n");
+	pr_debug("baseband_usb_chr_work }\n");
 }
 
 /* usb character file operations */
 
 static int baseband_usb_chr_open(struct inode *inode, struct file *file)
 {
-	chrlog4("baseband_usb_chr_open\n");
+	pr_debug("baseband_usb_chr_open\n");
 
 	if (baseband_usb_chr) {
 		pr_err("%s: device is already open\n", __func__);
@@ -1081,7 +1050,7 @@ static int baseband_usb_chr_open(struct inode *inode, struct file *file)
 
 static int baseband_usb_chr_release(struct inode *inode, struct file *file)
 {
-	chrlog4("baseband_usb_chr_release\n");
+	pr_debug("baseband_usb_chr_release\n");
 
 	if (baseband_usb_chr) {
 		baseband_usb_chr->ref--;
@@ -1104,7 +1073,7 @@ static ssize_t baseband_usb_chr_read(struct file *file, char *buf,
 {
 	ssize_t ret;
 
-	chrlog4("baseband_usb_chr_read\n");
+	pr_debug("baseband_usb_chr_read\n");
 
 	if (!baseband_usb_chr || !baseband_usb_chr->ipc) {
 		pr_err("%s: -ENODEV\n", __func__);
@@ -1115,7 +1084,7 @@ static ssize_t baseband_usb_chr_read(struct file *file, char *buf,
 	if (ret > 0) {
 		/* decrement count of available rx bytes */
 		int val = atomic_read(&g_rx_count);
-		chrlog4("baseband_usb_chr_read - read %d unread %d\n",
+		pr_debug("baseband_usb_chr_read - read %d unread %d\n",
 			ret, val - ret);
 		atomic_sub(ret, &g_rx_count);
 	}
@@ -1125,7 +1094,7 @@ static ssize_t baseband_usb_chr_read(struct file *file, char *buf,
 static ssize_t baseband_usb_chr_write(struct file *file, const char *buf,
 	size_t count, loff_t *pos)
 {
-	chrlog4("baseband_usb_chr_write\n");
+	pr_debug("baseband_usb_chr_write\n");
 	if (!baseband_usb_chr || !baseband_usb_chr->ipc) {
 		pr_err("%s: -ENODEV\n", __func__);
 		return -ENODEV;
@@ -1137,10 +1106,10 @@ static ssize_t baseband_usb_chr_write(struct file *file, const char *buf,
 static long baseband_usb_chr_ioctl(struct file *file, unsigned int cmd,
 	unsigned long arg)
 {
-	//chrlog4("baseband_usb_chr_ioctl\n");
+	//pr_debug("baseband_usb_chr_ioctl\n");
 	switch (cmd) {
 	case TCFLSH:
-		chrlog4("TCFLSH\n");
+		pr_debug("TCFLSH\n");
 		/* flush queued ipc transaction work */
 		if (!baseband_usb_chr || !baseband_usb_chr->ipc
 			|| !baseband_usb_chr->ipc->workqueue) {
@@ -1151,7 +1120,7 @@ static long baseband_usb_chr_ioctl(struct file *file, unsigned int cmd,
 		flush_workqueue(baseband_usb_chr->ipc->workqueue);
 		return 0;
 	case FIONREAD:
-		//chrlog4("FIONREAD\n");
+		//pr_debug("FIONREAD\n");
 		/* return count of available rx bytes */
 		{
 			int __user *p = (int __user *) arg;
@@ -1183,7 +1152,7 @@ static const struct file_operations baseband_usb_chr_fops = {
 static void baseband_usb_close(struct baseband_usb *usb)
 {
 	DEFINE_WAIT(wait);
-	chrlog4("baseband_usb_close {\n");
+	pr_debug("baseband_usb_close {\n");
 	pr_info("%s: started\n", __func__);
 
 	/* check input */
@@ -1195,11 +1164,11 @@ static void baseband_usb_close(struct baseband_usb *usb)
 
 	/* free re-usable rx urb + rx urb transfer buffer */
 	if (usb->usb.rx_urb) {
-		chrlog4("free rx urb\n");
+		pr_debug("free rx urb\n");
 		printk("%s kill rx urb\n", __func__);
 		usb_kill_urb(usb->usb.rx_urb);
 		if (usb->usb.rx_urb->transfer_buffer) {
-			chrlog4("free rx urb transfer buffer\n");
+			pr_debug("free rx urb transfer buffer\n");
 			kfree(usb->usb.rx_urb->transfer_buffer);
 			usb->usb.rx_urb->transfer_buffer = (void *) 0;
 		}
@@ -1213,10 +1182,10 @@ static void baseband_usb_close(struct baseband_usb *usb)
 
 	/* close usb driver */
 	if (usb->usb.driver) {
-		chrlog4("close usb driver {\n");
+		pr_debug("close usb driver {\n");
 		usb_deregister(usb->usb.driver);
 		usb->usb.driver = (struct usb_driver *) 0;
-		chrlog4("close usb driver }\n");
+		pr_debug("close usb driver }\n");
 	}
 
 	/* close baseband ipc */
@@ -1231,7 +1200,7 @@ static void baseband_usb_close(struct baseband_usb *usb)
 	vfree(usb);
 
 	pr_info("%s: finished\n", __func__);
-	chrlog4("baseband_usb_close }\n");
+	pr_debug("baseband_usb_close }\n");
 }
 
 static struct baseband_usb *baseband_usb_open(unsigned int vid,
@@ -1246,7 +1215,7 @@ static struct baseband_usb *baseband_usb_open(unsigned int vid,
 	struct urb *urb;
 	void *buf;
 
-	chrlog4("baseband_usb_open {\n");
+	pr_debug("baseband_usb_open {\n");
 
 	/* allocate baseband usb structure */
 	usb = vmalloc(sizeof(struct baseband_usb));
@@ -1341,7 +1310,7 @@ static struct baseband_usb *baseband_usb_open(unsigned int vid,
 		goto error_exit;
 	}
 
-	chrlog4("baseband_usb_open }\n");
+	pr_debug("baseband_usb_open }\n");
 	return usb;
 
 error_exit:
@@ -1357,11 +1326,6 @@ static int baseband_usb_chr_init(void)
 	int err;
 
 	pr_info(MODULE_NAME "0308 usb chr driver Ver.2 {\n");
-
-	/* HTC */
-	//host_dbg_flag |= DBG_USBCHR_L3;
-	pr_info("%s - host_dbg_flag=0x%x\n",
-		__func__, host_dbg_flag);
 
 	/* register character device */
 	err = register_chrdev(BASEBAND_USB_CHR_DEV_MAJOR,
