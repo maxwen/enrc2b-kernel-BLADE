@@ -116,7 +116,7 @@ static void dma_complete_callback(struct tegra_dma_req *req)
 	if (T2 > INT_DURATION_THRESHOLD)
 	{
 		TimeOutCounter++;
-		printk(KERN_INFO "[AUD] Dur = %llu, CNT = %llu", T2, TimeOutCounter);
+		//printk(KERN_INFO "[AUD] Dur = %llu, CNT = %llu", T2, TimeOutCounter);
 	}
 	oldT1 = IRQT1;
 

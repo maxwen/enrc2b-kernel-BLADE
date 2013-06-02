@@ -7,7 +7,7 @@
  * (C) Copyright 2001 Brad Hards (bhards@bigpond.net.au)
  *
  */
-#define DEBUG
+//#define DEBUG
 
 #include <linux/kernel.h>
 #include <linux/errno.h>

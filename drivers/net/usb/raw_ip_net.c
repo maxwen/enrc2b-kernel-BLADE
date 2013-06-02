@@ -174,7 +174,7 @@ static void baseband_usb_driver_disconnect(struct usb_interface *intf)
 		/* kill usb tx */
 		while ((urb = usb_get_from_anchor(&baseband_usb_net[i]->
 			usb.tx_urb_deferred)) != (struct urb *) 0) {
-			pr_info("%s: kill deferred tx urb %p\n",
+			pr_debug("%s: kill deferred tx urb %p\n",
 				__func__, urb);
 			/* decrement count from usb_get_from_anchor() */
 			usb_free_urb(urb);
@@ -918,7 +918,7 @@ static void usb_net_raw_ip_tx_urb_work(struct work_struct *work)
 
 	/* check if suspended */
 	if (usb->susp_count > 0) {
-		pr_info("%s: usb->susp_count %d > 0 (suspended)\n",
+		pr_debug("%s: usb->susp_count %d > 0 (suspended)\n",
 			__func__, usb->susp_count);
 		return;
 	}

@@ -287,7 +287,7 @@ static int tegra_ehci_hub_control(
 			int delay = ehci->reset_done[wIndex-1] - jiffies;
 			/* Sometimes it seems we get called too soon... In that case, wait.*/
 			if (delay > 0) {
-				printk(KERN_INFO"GetPortStatus called too soon, waiting %dms...\n",jiffies_to_msecs(delay));
+				EHCI_DBG("GetPortStatus called too soon, waiting %dms...\n",jiffies_to_msecs(delay));
 				ehci_dbg(ehci, "GetPortStatus called too soon, waiting %dms...\n", jiffies_to_msecs(delay));
 				mdelay(jiffies_to_msecs(delay));
 			}
@@ -408,19 +408,21 @@ static int tegra_ehci_setup(struct usb_hcd *hcd)
 static int tegra_ehci_bus_suspend(struct usb_hcd *hcd)
 {
 	struct tegra_ehci_hcd *tegra = dev_get_drvdata(hcd->self.controller);
+#ifdef DEBUG
 	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+#endif
 	int err = 0;
 
 	EHCI_DBG("%s() BEGIN\n", __func__);
-	pr_info("%s::resetdone = %ld:tegra->port_resuming =%d\n", __func__, ehci->reset_done[0], tegra->port_resuming);
+	EHCI_DBG("%s::resetdone = %ld:tegra->port_resuming =%d\n", __func__, ehci->reset_done[0], tegra->port_resuming);
 	mutex_lock(&tegra->sync_lock);
 	tegra->bus_suspended_fail = false;
 	err = ehci_bus_suspend(hcd);
 	if (err) {
 		if(tegra->port_resuming)
-			pr_info("%s: bus_suspended aborted because of resume. err=(%d):resetdone = %ld:tegra->port_resuming =%d\n", __func__, err, ehci->reset_done[0], tegra->port_resuming);
+			EHCI_DBG("%s: bus_suspended aborted because of resume. err=(%d):resetdone = %ld:tegra->port_resuming =%d\n", __func__, err, ehci->reset_done[0], tegra->port_resuming);
 		else
-			pr_info("%s: bus_suspended_fail err=(%d):resetdone = %ld\n", __func__, err, ehci->reset_done[0]);
+			EHCI_DBG("%s: bus_suspended_fail err=(%d):resetdone = %ld\n", __func__, err, ehci->reset_done[0]);
 		tegra->bus_suspended_fail = true;
 	}
 	else
@@ -623,8 +625,8 @@ static int tegra_ehci_suspend(struct platform_device *pdev, pm_message_t state)
 
 	dev_info(&pdev->dev, "%s\n", __func__);		//htc_dbg
 
-	pr_info("%s:: bus_suspended_fail = %d\n", __func__, tegra->bus_suspended_fail);
-	pr_info("%s::ehci_remove = %d\n", __func__, ehci_remove);
+	EHCI_DBG("%s:: bus_suspended_fail = %d\n", __func__, tegra->bus_suspended_fail);
+	EHCI_DBG("%s::ehci_remove = %d\n", __func__, ehci_remove);
 
 	/* bus suspend could have failed because of remote wakeup resume */
 	if (tegra->bus_suspended_fail)

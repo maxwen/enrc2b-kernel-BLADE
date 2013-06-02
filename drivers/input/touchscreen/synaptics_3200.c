@@ -2545,9 +2545,9 @@ static void synaptics_ts_finger_func(struct synaptics_ts_data *ts)
 							if (finger_press_changed & BIT(i)) {
 								ts->pre_finger_data[i + 1][0] = finger_data[i][0];
 								ts->pre_finger_data[i + 1][1] = finger_data[i][1];
-								if (!ts->first_pressed)
-								printk(KERN_INFO "[TP] S%d@%d, %d\n", i + 1,
-									finger_data[i][0], finger_data[i][1]);
+								//if (!ts->first_pressed)
+								//	printk(KERN_INFO "[TP] S%d@%d, %d\n", i + 1,
+								//		finger_data[i][0], finger_data[i][1]);
 								if (ts->packrat_number < SYNAPTICS_FW_NOCAL_PACKRAT) {
 if (calibration_control){
 									if (ts->multitouch_calibration) {

@@ -1077,7 +1077,7 @@ static int tegra3_cpu_cmplx_clk_set_parent(struct clk *c, struct clk *p)
 			return 0;
 
 		if ((rate > p->max_rate) || (rate < p->min_rate)) {
-			pr_info("%s: No %s mode switch to %s at rate %lu\n",
+			pr_debug("%s: No %s mode switch to %s at rate %lu\n",
 				 __func__, c->name, p->name, rate);
 			return -ECANCELED;
 		}

@@ -1194,7 +1194,7 @@ static int tegra_startup(struct uart_port *u)
 		ret = request_irq(t->wakeup_irq, bluesleep_hostwake_isr, IRQF_TRIGGER_HIGH,
 			"bluetooth hostwake", t);
 		if (ret < 0) {
-			dev_info(u->dev, "[SER_BRCM]Couldn't acquire BT_HOST_WAKE IRQ, (errno = %d)", ret);
+			dev_err(u->dev, "[SER_BRCM]Couldn't acquire BT_HOST_WAKE IRQ, (errno = %d)", ret);
 		}
 #endif
 
@@ -1530,8 +1530,10 @@ static unsigned long find_best_clock_source(struct tegra_uart_port *t,
 	}
 
 	if (final_index >= 0) {
+#ifdef BCM_BT_DEBUG
 		dev_info(t->uport.dev, "Setting clk_src %s\n",
 				pdata->parent_clk_list[final_index].name);
+#endif
 		clk_set_parent(t->clk,
 			pdata->parent_clk_list[final_index].parent_clk);
 	}
