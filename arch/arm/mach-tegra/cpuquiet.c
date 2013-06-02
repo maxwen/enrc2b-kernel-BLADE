@@ -118,15 +118,16 @@ static inline bool lp_possible(void)
 
 static inline int switch_clk_to_gmode(void)
 {
-	/* set rate to max of LP mode */
-	clk_set_rate(cpu_clk, idle_top_freq * 1000);
+	/* if needed set rate to max of LP mode to make sure G mode switch is ok */
+	if (clk_get_rate(cpu_clk) < idle_top_freq * 1000)
+		clk_set_rate(cpu_clk, idle_top_freq * 1000);
 	return clk_set_parent(cpu_clk, cpu_g_clk);
 }
 
 static inline int switch_clk_to_lpmode(void)
 {
-	/* set rate to max of LP mode */
-	clk_set_rate(cpu_clk, idle_top_freq * 1000);
+	/* this is expected to fail if the current freq is to high
+	 for LP mode - but we never want to force LP mode */
 	return clk_set_parent(cpu_clk, cpu_lp_clk);
 }
 
