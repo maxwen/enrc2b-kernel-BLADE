@@ -908,10 +908,8 @@ static irqreturn_t ehci_irq (struct usb_hcd *hcd)
 			 */
 			ehci->reset_done[i] = jiffies + msecs_to_jiffies(25);
 			ehci_dbg (ehci, "port %d remote wakeup\n", i + 1);
-			printk("%s: port %d remote wakeup\n",__func__, i+1);
 			mod_timer(&hcd->rh_timer, ehci->reset_done[i]);
 #ifdef CONFIG_USB_EHCI_TEGRA
-			pr_info( "Debug for remote wakeup hang: %s set crw to true", __func__ );
 			ehci->controller_remote_wakeup = true;
 #endif
 		}
@@ -933,15 +931,8 @@ dead:
 		bh = 1;
 	}
 
-	if (bh) {
-		//htc_dbg+++
-		if (get_radio_flag() & 0x0001) {
-			trace_printk("USBSTS 0x%X ehci->async->qh_next.qh %p\n",
-				status, ehci->async->qh_next.qh);
-		}
-		//htc_dbg---
+	if (bh)
 		ehci_work (ehci);
-	}
 	spin_unlock (&ehci->lock);
 	if (pcd_status)
 		usb_hcd_poll_rh_status(hcd);

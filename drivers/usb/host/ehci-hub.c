@@ -263,9 +263,6 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 			set_bit(port, &ehci->owned_ports);
 		else if ((t1 & PORT_PE) && !(t1 & PORT_SUSPEND)) {
 			t2 |= PORT_SUSPEND;
-			//htc_dbg
-			printk(KERN_INFO"%s: set port[%d] PORT_SUSPEND\n", __func__, port);
-
 			set_bit(port, &ehci->bus_suspended);
 		}
 
@@ -385,9 +382,6 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 	ehci_writel(ehci, (u32) ehci->async->qh_dma, &ehci->regs->async_next);
 
 	/* restore CMD_RUN, framelist size, and irq threshold */
-	//htc_dbg
-	if (get_radio_flag() & 0x0001)
-		ehci_info(ehci, "%s write USBCMD:%x\n", __func__, ehci->command);
 	ehci_writel(ehci, ehci->command, &ehci->regs->command);
 
 	/* Some controller/firmware combinations need a delay during which
@@ -424,12 +418,9 @@ static int ehci_bus_resume (struct usb_hcd *hcd)
 				(temp & PORT_SUSPEND)) {
 			temp |= PORT_RESUME;
 			set_bit(i, &resume_needed);
-			//htc_dbg
-			printk(KERN_INFO"%s: set port[%d] PORT_RESUME\n", __func__, i);
 		}
 		ehci_writel(ehci, temp, &ehci->regs->port_status [i]);
 	}
-
 
 	/* msleep for 20ms only if code is trying to resume port */
 	if (resume_needed) {

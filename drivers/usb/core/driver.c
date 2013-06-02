@@ -1024,10 +1024,6 @@ static int usb_suspend_device(struct usb_device *udev, pm_message_t msg)
 			udev->state == USB_STATE_SUSPENDED)
 		goto done;
 
-	//htc_dbg
-	if ( get_radio_flag() & 0x0001 )
-		dev_vdbg(&udev->dev, "%s+\n", __func__);
-
 	/* For devices that don't have a driver, we do a generic suspend. */
 	if (udev->dev.driver)
 		udriver = to_usb_device_driver(udev->dev.driver);
@@ -1039,10 +1035,6 @@ static int usb_suspend_device(struct usb_device *udev, pm_message_t msg)
 
  done:
 	dev_vdbg(&udev->dev, "%s: status %d\n", __func__, status);
-
-	//htc_dbg
-	if ( get_radio_flag() & 0x0001 )
-		dev_vdbg(&udev->dev, "%s-: status %d\n", __func__, status);
 	return status;
 }
 
@@ -1060,10 +1052,6 @@ static int usb_resume_device(struct usb_device *udev, pm_message_t msg)
 		goto done;
 	}
 
-	//htc_dbg
-	if ( get_radio_flag() & 0x0001 )
-		dev_vdbg(&udev->dev, "%s+\n", __func__);
-
 	/* Non-root devices on a full/low-speed bus must wait for their
 	 * companion high-speed root hub, in case a handoff is needed.
 	 */
@@ -1080,10 +1068,6 @@ static int usb_resume_device(struct usb_device *udev, pm_message_t msg)
 
  done:
 	dev_vdbg(&udev->dev, "%s: status %d\n", __func__, status);
-
-	//htc_dbg
-	if ( get_radio_flag() & 0x0001 )
-		dev_vdbg(&udev->dev, "%s-: status %d\n", __func__, status);
 	return status;
 }
 
@@ -1092,9 +1076,6 @@ static int usb_suspend_interface(struct usb_device *udev,
 {
 	struct usb_driver	*driver;
 	int			status = 0;
-
-	dev_vdbg(&intf->dev, "%s: cnt %d -> %d intf=%p &intf->dev=%p kobje=%s udev->state=%d intf->condition =%d disable_depth = %d\n",
-			__func__, atomic_read(&intf->dev.power.usage_count),status,intf,&intf->dev,kobject_name(&intf->dev.kobj),udev->state,intf->condition,intf->dev.power.disable_depth);
 
 	if (udev->state == USB_STATE_NOTATTACHED ||
 			intf->condition == USB_INTERFACE_UNBOUND)
@@ -1115,7 +1096,6 @@ static int usb_suspend_interface(struct usb_device *udev,
 
  done:
 	dev_vdbg(&intf->dev, "%s: status %d\n", __func__, status);
-
 	return status;
 }
 
@@ -1124,10 +1104,6 @@ static int usb_resume_interface(struct usb_device *udev,
 {
 	struct usb_driver	*driver;
 	int			status = 0;
-
-	dev_vdbg(&intf->dev, "%s: cnt %d -> %d intf=%p &intf->dev=%p kobje=%s udev->state=%d intf->condition =%d::intf->needs_binding= %d reset_resume = %d disable_depth = %d\n",
-			__func__, atomic_read(&intf->dev.power.usage_count),status,intf,&intf->dev,kobject_name(&intf->dev.kobj),udev->state,intf->condition,intf->needs_binding, reset_resume, intf->dev.power.disable_depth);
-
 
 	if (udev->state == USB_STATE_NOTATTACHED)
 		goto done;
@@ -1156,30 +1132,24 @@ static int usb_resume_interface(struct usb_device *udev,
 	if (reset_resume) {
 		if (driver->reset_resume) {
 			status = driver->reset_resume(intf);
-			if (status) {
+			if (status)
 				dev_err(&intf->dev, "%s error %d\n",
-						"resume", status);
-				pr_info("%s:driver = %p resume error status = %d\n",__func__, driver, status);
-			}
+						"reset_resume", status);
 		} else {
 			intf->needs_binding = 1;
 			dev_warn(&intf->dev, "no %s for driver %s?\n",
 					"reset_resume", driver->name);
-			pr_info("%s:resume for driver %s\n",__func__, driver->name);
 		}
 	} else {
 		if (driver->resume) {
 			status = driver->resume(intf);
-			if (status) {
+			if (status)
 				dev_err(&intf->dev, "%s error %d\n",
-				        "resume", status);
-				pr_info("%s:driver = %p resume error status = %d\n",__func__, driver, status);
-			}
+						"resume", status);
 		} else {
 			intf->needs_binding = 1;
 			dev_warn(&intf->dev, "no %s for driver %s?\n",
 					"resume", driver->name);
-			pr_info("%s:resume for driver %s\n",__func__, driver->name);
 		}
 	}
 
@@ -1216,9 +1186,6 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 	int			i = 0, n = 0;
 	struct usb_interface	*intf;
 
-	if ( get_radio_flag() & 0x0008 )
-		dev_info(&udev->dev, "%s+\n", __func__);		//htc_dbg
-	
 	if (udev->state == USB_STATE_NOTATTACHED ||
 			udev->state == USB_STATE_SUSPENDED)
 		goto done;
@@ -1247,7 +1214,6 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 
 	/* If the suspend failed, resume interfaces that did get suspended */
 	if (status != 0) {
-		pr_info("%s:  suspend failed:: n = %d\n", __func__, n);
 		msg.event ^= (PM_EVENT_SUSPEND | PM_EVENT_RESUME);
 		while (++i < n) {
 			intf = udev->actconfig->interface[i];
@@ -1274,9 +1240,6 @@ static int usb_suspend_both(struct usb_device *udev, pm_message_t msg)
 //--------------------------------------------------------
 
 	dev_vdbg(&udev->dev, "%s: status %d\n", __func__, status);
-
-	if ( get_radio_flag() & 0x0008 )
-		dev_vdbg(&udev->dev, "%s-: status %d\n", __func__, status);		//htc_dbg
 	return status;
 }
 
@@ -1310,14 +1273,9 @@ static int usb_resume_both(struct usb_device *udev, pm_message_t msg)
 	}
 	udev->can_submit = 1;
 
-	if ( get_radio_flag() & 0x0008 )
-		dev_vdbg(&udev->dev, "%s+\n", __func__);		//htc_dbg
-
 	/* Resume the device */
 	if (udev->state == USB_STATE_SUSPENDED || udev->reset_resume)
 		status = usb_resume_device(udev, msg);
-	else
-		 pr_info("%s:no usb_resume_device \n", __func__);
 
 	/* Resume the interfaces */
 	if (status == 0 && udev->actconfig) {
@@ -1339,10 +1297,6 @@ static int usb_resume_both(struct usb_device *udev, pm_message_t msg)
 //--------------------------------------------------------
 
 	dev_vdbg(&udev->dev, "%s: status %d\n", __func__, status);
-
-	if ( get_radio_flag() & 0x0008 )
-		dev_vdbg(&udev->dev, "%s-: status %d\n", __func__, status);	//htc_dbg
-
 	if (!status)
 		udev->reset_resume = 0;
 	return status;
@@ -1380,8 +1334,6 @@ int usb_suspend(struct device *dev, pm_message_t msg)
 {
 	struct usb_device	*udev = to_usb_device(dev);
 
-	dev_vdbg(dev, "%s msg.event:%d\n", __func__, msg.event);		//htc_dbg
-
 	do_unbind_rebind(udev, DO_UNBIND);
 	choose_wakeup(udev, msg);
 	return usb_suspend_both(udev, msg);
@@ -1392,8 +1344,6 @@ int usb_resume(struct device *dev, pm_message_t msg)
 {
 	struct usb_device	*udev = to_usb_device(dev);
 	int			status;
-
-	dev_vdbg(dev, "%s+ msg.event:%d\n", __func__, msg.event);		//htc_dbg
 
 	/* For PM complete calls, all we do is rebind interfaces */
 	if (msg.event == PM_EVENT_ON) {
@@ -1460,7 +1410,6 @@ int usb_resume(struct device *dev, pm_message_t msg)
 usb_resume_end:
 #endif	//HTC_SKIP_MDM_USB_RESUME_IF_NOT_HSIC_WAKEUP
 //--------------------------------------------------------
-	dev_vdbg(dev, "%s- status:%d\n", __func__, status);		//htc_dbg
 	return status;
 }
 
@@ -1524,12 +1473,6 @@ void usb_autosuspend_device(struct usb_device *udev)
 	dev_vdbg(&udev->dev, "%s: cnt %d -> %d\n",
 			__func__, atomic_read(&udev->dev.power.usage_count),
 			status);
-
-	//htc_dbg
-	if ( get_radio_flag() & 0x0001 )
-	dev_info(&udev->dev, "%s: cnt %d -> %d\n",
-			__func__, atomic_read(&udev->dev.power.usage_count),
-			status);
 }
 
 /**
@@ -1560,13 +1503,6 @@ int usb_autoresume_device(struct usb_device *udev)
 	dev_vdbg(&udev->dev, "%s: cnt %d -> %d\n",
 			__func__, atomic_read(&udev->dev.power.usage_count),
 			status);
-
-	//htc_dbg
-	if ( get_radio_flag() & 0x0001 )
-		dev_info(&udev->dev, "%s: cnt %d -> %d\n",
-			__func__, atomic_read(&udev->dev.power.usage_count),
-			status);
-
 	if (status > 0)
 		status = 0;
 	return status;
@@ -1787,11 +1723,8 @@ int autosuspend_check(struct usb_device *udev)
 			 */
 			if (intf->dev.power.disable_depth)
 				continue;
-			if (atomic_read(&intf->dev.power.usage_count) > 0) {
-				//HTC_DBG
-				dev_err(&intf->dev, "%s: EBUSY, cnt %d\n", __func__, atomic_read(&intf->dev.power.usage_count));
+			if (atomic_read(&intf->dev.power.usage_count) > 0)
 				return -EBUSY;
-			}
 			w |= intf->needs_remote_wakeup;
 
 			/* Don't allow autosuspend if the device will need
@@ -1803,11 +1736,8 @@ int autosuspend_check(struct usb_device *udev)
 
 				driver = to_usb_driver(intf->dev.driver);
 				if (!driver->reset_resume ||
-						intf->needs_remote_wakeup) {
-					//HTC_DBG
-					dev_err(&intf->dev, "%s: EOPNOTSUPP, reset_resume %p, needs_remote_wakeup %d\n", __func__, driver->reset_resume, intf->needs_remote_wakeup);
+						intf->needs_remote_wakeup)
 					return -EOPNOTSUPP;
-				}
 			}
 		}
 	}
@@ -1831,9 +1761,6 @@ int usb_runtime_suspend(struct device *dev)
 	if (autosuspend_check(udev) != 0)
 		return -EAGAIN;
 
-	if ( get_radio_flag() & 0x0001 )
-		dev_vdbg(dev, "%s+\n", __func__);		//htc_dbg
-
 	status = usb_suspend_both(udev, PMSG_AUTO_SUSPEND);
 
 	/* Allow a retry if autosuspend failed temporarily */
@@ -1843,8 +1770,6 @@ int usb_runtime_suspend(struct device *dev)
 	/* The PM core reacts badly unless the return code is 0,
 	 * -EAGAIN, or -EBUSY, so always return -EBUSY on an error.
 	 */
-	if ( get_radio_flag() & 0x0001 )
-		dev_vdbg(dev, "%s- status:%d\n", __func__, status);		//htc_dbg
 	if (status != 0)
 		return -EBUSY;
 	return status;
@@ -1858,13 +1783,7 @@ int usb_runtime_resume(struct device *dev)
 	/* Runtime resume for a USB device means resuming both the device
 	 * and all its interfaces.
 	 */
-	if ( get_radio_flag() & 0x0001 )
-		dev_vdbg(dev, "%s+\n", __func__);		//htc_dbg
-
 	status = usb_resume_both(udev, PMSG_AUTO_RESUME);
-
-	if ( get_radio_flag() & 0x0001 )
-		dev_vdbg(dev, "%s- status:%d\n", __func__, status);		//htc_dbg
 	return status;
 }
 

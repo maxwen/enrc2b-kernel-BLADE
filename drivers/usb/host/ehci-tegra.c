@@ -641,7 +641,6 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 	struct tegra_ehci_hcd *tegra = platform_get_drvdata(pdev);
 	struct usb_hcd *hcd = ehci_to_hcd(tegra->ehci);
 
-	dev_info(&pdev->dev, "%s+\n", __func__);		//htc_dbg
 
 	if (tegra == NULL || hcd == NULL)
 		return -EINVAL;
@@ -660,7 +659,6 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 	if(!tegra_usb_phy_hw_accessible(tegra->phy))
 		tegra_usb_phy_power_on(tegra->phy);
 
-	pr_info("+%s:usb_remove_hcd\n", __func__);
 	uhsic_phy_remove(tegra->phy);
 	usb_remove_hcd(hcd);
 	usb_put_hcd(hcd);
@@ -670,7 +668,6 @@ static int tegra_ehci_remove(struct platform_device *pdev)
 	iounmap(hcd->regs);
 	platform_set_drvdata(pdev, NULL);
 
-	dev_info(&pdev->dev, "%s-\n", __func__);		//htc_dbg
 
 	return 0;
 }
@@ -691,26 +688,25 @@ static void tegra_ehci_hcd_shutdown(struct platform_device *pdev)
 	struct tegra_ehci_hcd *tegra = NULL;
 	struct usb_hcd *hcd = NULL;
 
-	dev_info(&pdev->dev, "%s+\n", __func__);
 
 	device_ehci_shutdown = true;
 
 	if (!_try_lock(&pdev->dev)) {
-		pr_info("%s failed to lock device\n", __func__);
+		pr_err("%s failed to lock device\n", __func__);
 		goto exit;
 	}
 
 	tegra = platform_get_drvdata(pdev);
 
 	if (!tegra) {
-		pr_info("%s device has no driver data\n", __func__);
+		pr_err("%s device has no driver data\n", __func__);
 		goto unlock_device;
 	}
 
 	hcd = ehci_to_hcd(tegra->ehci);
 
 	if ( !hcd || !hcd->driver ) {
-		pr_info("%s: hcd <%p> or driver is NULL\n", __func__, hcd);
+		pr_err("%s: hcd <%p> or driver is NULL\n", __func__, hcd);
 		WARN_ON(1);
 		goto unlock_device;
 	}
@@ -718,7 +714,6 @@ static void tegra_ehci_hcd_shutdown(struct platform_device *pdev)
 	if (hcd->driver->shutdown)
 		hcd->driver->shutdown(hcd);
 
-	dev_info(&pdev->dev, "%s-\n", __func__);		//htc_dbg
 
 unlock_device:
 	device_unlock(&pdev->dev);

@@ -1652,7 +1652,7 @@ rescan:
 
 		/* kick hcd */
 		unlink1(hcd, urb, -ESHUTDOWN);
-		dev_info (hcd->self.controller,
+		dev_dbg (hcd->self.controller,
 			"shutdown urb %p ep%d%s%s\n",
 			urb, usb_endpoint_num(&ep->desc),
 			is_in ? "in" : "out",
@@ -1995,9 +1995,6 @@ int hcd_bus_suspend(struct usb_device *rhdev, pm_message_t msg)
 		status = hcd->driver->bus_suspend(hcd);
 	}
 	if (status == 0) {
-		//htc_dbg
-		if (get_radio_flag() & 0x0001)
-			pr_info("%s:set state to USB_STATE_SUSPENDED \n", __func__);
 		usb_set_device_state(rhdev, USB_STATE_SUSPENDED);
 		hcd->state = HC_STATE_SUSPENDED;
 	} else {
@@ -2551,8 +2548,6 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 {
 	struct usb_device *rhdev = hcd->self.root_hub;
 
-	pr_info("+%s\n", __func__);
-
 	dev_info(hcd->self.controller, "remove, state %x\n", hcd->state);
 
 	usb_get_dev(rhdev);
@@ -2572,7 +2567,6 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 #endif
 
 	mutex_lock(&usb_bus_list_lock);
-	pr_info("+%s:usb_disconnect\n", __func__);
 	usb_disconnect(&rhdev);		/* Sets rhdev to NULL */
 	mutex_unlock(&usb_bus_list_lock);
 
@@ -2598,11 +2592,8 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	}
 
 	usb_put_dev(hcd->self.root_hub);
-	pr_info("+%s:usb_deregister_bus\n", __func__);
 	usb_deregister_bus(&hcd->self);
 	hcd_buffer_destroy(hcd);
-
-	pr_info("-%s\n", __func__);
 }
 EXPORT_SYMBOL_GPL(usb_remove_hcd);
 
