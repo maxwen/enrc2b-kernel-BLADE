@@ -689,10 +689,12 @@ static void uart_tx_gpo(int mode)
 	switch (mode) {
 		case 0:
 			tegra_gpio_enable(TEGRA_GPIO_PO1);
+			gpio_request(TEGRA_GPIO_PO1, "uart_tx_gpo");
 			gpio_direction_output(TEGRA_GPIO_PO1, 0);
 			break;
 		case 1:
 			tegra_gpio_enable(TEGRA_GPIO_PO1);
+			gpio_request(TEGRA_GPIO_PO1, "uart_tx_gpo");
 			gpio_direction_output(TEGRA_GPIO_PO1, 1);
 			break;
 		case 2:
@@ -703,6 +705,7 @@ static void uart_tx_gpo(int mode)
 
 static void uart_lv_shift_en(int enable)
 {
+	gpio_request(TEGRA_GPIO_PZ0, "uart_lv_shift_en");
 	gpio_direction_output(TEGRA_GPIO_PZ0, enable);
 }
 

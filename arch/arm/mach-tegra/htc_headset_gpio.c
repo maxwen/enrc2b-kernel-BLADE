@@ -23,7 +23,6 @@
 #include <linux/rtc.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
-#include <linux/regulator/consumer.h>
 
 
 #include <mach/htc_headset_mgr.h>
@@ -33,7 +32,8 @@
 
 #define DRIVER_NAME "HS_GPIO"
 
-static struct regulator *regulator;
+extern void hs_regulator_enable(void);
+
 static struct workqueue_struct *detect_wq;
 static void detect_gpio_work_func(struct work_struct *work);
 static DECLARE_DELAYED_WORK(detect_gpio_work, detect_gpio_work_func);
@@ -54,6 +54,7 @@ unsigned long unstable_jiffies = 0.02 * HZ;
 unsigned long irq_delay = 0.010 * HZ;
 
 static int headset_uart_enable = 0;
+static bool key_irq_enabled = false;
 
 /*
  * This function should be called while caller thread holding a
@@ -133,8 +134,12 @@ static void button_gpio_work_func(struct work_struct *work)
 
 static void hs_key_irq_enable_func(struct work_struct *work)
 {
+	if (key_irq_enabled)
+		return;
+		
 	HS_DBG();
 	enable_irq(hi->key_irq);
+	key_irq_enabled = true;
 }
 
 static void cancel_button_work_func(struct work_struct *work)
@@ -168,6 +173,7 @@ static irqreturn_t button_irq_handler(int irq, void *dev_id)
 	HS_DBG();
 
 	disable_irq_nosync(hi->key_irq);
+	key_irq_enabled = false;
 
 	hi->key_irq_type ^= irq_mask;
 	irq_set_irq_type(hi->key_irq, hi->key_irq_type);
@@ -313,13 +319,7 @@ static void detect_gpio_work_func(struct work_struct *work)
 	}
 	if ((hi->pdata.eng_cfg == HS_QUO_F_U) || (hi->pdata.eng_cfg == HS_ENRC2_U_XB))
 	{
-		regulator = regulator_get(NULL, "v_aud_2v85");
-		if (IS_ERR_OR_NULL(regulator)) {
-			pr_err("htc_headset_gpio_probe:Couldn't get regulator v_aud_2v85\n");
-			regulator = NULL;
-			return;
-		}
-		regulator_enable(regulator);
+		hs_regulator_enable();
 	}
 
 	insert = gpio_get_value(hi->pdata.hpin_gpio) ? 0 : 1;
@@ -342,6 +342,7 @@ static void detect_gpio_work_func(struct work_struct *work)
 			if (ret < 0)
 				HS_ERR("request irq error;");
 			disable_irq_nosync(hi->key_irq);
+			key_irq_enabled = false;
 		}
 
 		if (hi->key_irq){
@@ -350,11 +351,13 @@ static void detect_gpio_work_func(struct work_struct *work)
 				if (ret < 0)
 					HS_ERR("set irq wake error");
 				enable_irq(hi->key_irq);
+				key_irq_enabled = true;
 			}else{
 				ret = irq_set_irq_wake(hi->key_irq, 0);
 				if (ret < 0)
 					HS_ERR("set irq wake error");
 				disable_irq_nosync(hi->key_irq);
+				key_irq_enabled = false;
 			}
 		}
 	}
@@ -363,11 +366,15 @@ static void detect_gpio_work_func(struct work_struct *work)
 static int hs_gpio_key_int_enable(int enable)
 {
 	if (enable) {
-		HS_LOG("Key int enable");
-		enable_irq(hi->key_irq);
+		if (!key_irq_enabled){
+			HS_LOG("Key int enable");
+			enable_irq(hi->key_irq);
+			key_irq_enabled = true;
+		}
 	} else {
 		HS_LOG("Key int disable");
 		disable_irq_nosync(hi->key_irq);
+		key_irq_enabled = false;
 	}
 	return 0;
 }

@@ -81,10 +81,43 @@ static int	hpin_report = 0,
 		key_report = 0,
 		key_bounce = 0;
 
-static struct regulator *regulator;
 static struct button_work *key_event[HS_BUTTON_EVENT_QUEUE];
 static int key_event_flag;
 static int uart_check = 0;
+
+static struct regulator *regulator = NULL;
+static bool headset_regulator_enabled = false;
+
+void hs_regulator_enable(void)
+{
+	if (headset_regulator_enabled)
+		return;
+
+	regulator = regulator_get(NULL, "v_aud_2v85");
+	if (IS_ERR_OR_NULL(regulator)) {
+		pr_err("htc_headset_gpio_probe:Couldn't get regulator v_aud_2v85\n");
+		regulator = NULL;
+	}
+	if (regulator != NULL){
+		HS_LOG("regulator_enable");
+		regulator_enable(regulator);
+		headset_regulator_enabled = true;
+	}
+}
+
+static void hs_regulator_disable(void)
+{
+	if (!headset_regulator_enabled)
+		return;
+
+	if (regulator != NULL){
+		HS_LOG("regulator_disable");
+		regulator_disable(regulator);
+		regulator_put(regulator);
+		regulator = NULL;
+		headset_regulator_enabled = false;
+	}
+}
 
 static void init_next_driver(void)
 {
@@ -567,13 +600,7 @@ static void mic_detect_work_func(struct work_struct *work)
 				aic3008_set_mic_bias(0);
 			}
 			if ((hi->pdata.eng_cfg == HS_QUO_F_U) || (hi->pdata.eng_cfg == HS_ENRC2_U_XB)){
-				regulator = regulator_get(NULL, "v_aud_2v85");
-				if (IS_ERR_OR_NULL(regulator)) {
-					pr_err("htc_headset_gpio_probe:Couldn't get regulator v_aud_2v85\n");
-					regulator = NULL;
-					return;
-				}
-				regulator_disable(regulator);
+				hs_regulator_disable();
 			}
 		}
 		return;
@@ -795,13 +822,7 @@ static void remove_detect_work_func(struct work_struct *work)
 
 	if ((hi->pdata.eng_cfg == HS_QUO_F_U) || (hi->pdata.eng_cfg == HS_ENRC2_U_XB))
 	{
-		regulator = regulator_get(NULL, "v_aud_2v85");
-		if (IS_ERR_OR_NULL(regulator)) {
-			pr_err("htc_headset_gpio_probe:Couldn't get regulator v_aud_2v85\n");
-			regulator = NULL;
-			return;
-		}
-		regulator_disable(regulator);
+		hs_regulator_disable();
 	}
 
 	/* FIXME */
