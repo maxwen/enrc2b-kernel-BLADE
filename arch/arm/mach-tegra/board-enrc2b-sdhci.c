@@ -329,6 +329,7 @@ int enrc2b_wifi_sdclk (int enable){
         tegra_gpio_disable(WIFI_SDIO_CLK);
     }else{
         tegra_gpio_enable(WIFI_SDIO_CLK);
+        gpio_request(WIFI_SDIO_CLK, "wifi_sdclk");
         gpio_direction_output(WIFI_SDIO_CLK, 0);
     }
     return 0;
