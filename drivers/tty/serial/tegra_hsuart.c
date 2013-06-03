@@ -1278,7 +1278,7 @@ static unsigned long find_best_clock_source(struct tegra_uart_port *t,
 	}
 
 	if (final_index >= 0) {
-		dev_info(t->uport.dev, "Setting clk_src %s\n",
+		dev_dbg(t->uport.dev, "Setting clk_src %s\n",
 				pdata->parent_clk_list[final_index].name);
 		clk_set_parent(t->clk,
 			pdata->parent_clk_list[final_index].parent_clk);

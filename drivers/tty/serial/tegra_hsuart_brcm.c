@@ -1018,8 +1018,6 @@ static int tegra_uart_hw_init(struct tegra_uart_port *t)
 static irqreturn_t bluesleep_hostwake_isr(int irq, void *dev)
 {
 #ifdef USE_BCM_BT_CHIP	/* bt for brcm */
-#ifndef CONFIG_SERIAL_TEGRA_BRCM_LPM
-
 	unsigned long flags;
 	struct tegra_uart_port *t = (struct tegra_uart_port *)dev;
 	struct uart_port *uport = &t->uport;
@@ -1061,7 +1059,6 @@ static irqreturn_t bluesleep_hostwake_isr(int irq, void *dev)
 	}
 
 	spin_unlock_irqrestore(&uport->lock, flags);
-#endif
 #endif /* USE_BCM_BT_CHIP */
 	return IRQ_HANDLED;
 }
@@ -1245,7 +1242,7 @@ static void tegra_shutdown(struct uart_port *u)
 #ifdef BCM_BT_DEBUG
 		dev_info(t->uport.dev, "[SER_BRCM] BT_ON_SYS_IDLE -> BT_OFF_SYS_IDLE\n");
 #endif //BCM_BT_DEBUG
-#ifdef CONFIG_SERIAL_TEGRA_BRCM_LPM
+#ifndef CONFIG_SERIAL_TEGRA_BRCM_LPM
 		/* disable irq wakeup when shutdown **/
 		free_irq(t->wakeup_irq, t);
 		gpio_direction_output(t->bt_wakeup_pin, T_LOW);
