@@ -55,7 +55,12 @@ static int lowmem_minfree_size = 4;
 
 static struct task_struct *lowmem_deathpending;
 static unsigned long lowmem_deathpending_timeout;
+
+/* call compact nodes after that num of processes has been killed */
+#define COMPACT_NODES_TRIGGER_MAX 10
+static unsigned int compact_node_trigger = 0;
 extern int compact_nodes(bool);
+
 
 #define lowmem_print(level, x...)			\
 	do {						\
@@ -176,13 +181,17 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		lowmem_deathpending_timeout = jiffies + HZ;
 		force_sig(SIGKILL, selected);
 		rem -= selected_tasksize;
+		compact_node_trigger++;
 	}
 	lowmem_print(4, "lowmem_shrink %lu, %x, return %d\n",
 		     sc->nr_to_scan, sc->gfp_mask, rem);
 	read_unlock(&tasklist_lock);
 
-    if (selected)
-        compact_nodes(false);
+	if (compact_node_trigger == COMPACT_NODES_TRIGGER_MAX){
+		lowmem_print(1, "compact_nodes\n");
+		compact_nodes(true);
+		compact_node_trigger = 0;
+	}
 
 	return rem;
 }
