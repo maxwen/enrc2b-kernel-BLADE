@@ -56,9 +56,10 @@ static int lowmem_minfree_size = 4;
 static struct task_struct *lowmem_deathpending;
 static unsigned long lowmem_deathpending_timeout;
 
+static unsigned int compact_nodes_enabled = 0;
 /* call compact nodes after that num of processes has been killed */
 #define COMPACT_NODES_TRIGGER_MAX 10
-static unsigned int compact_node_trigger = 0;
+static unsigned int compact_nodes_trigger = COMPACT_NODES_TRIGGER_MAX;
 extern int compact_nodes(bool);
 
 
@@ -181,16 +182,17 @@ static int lowmem_shrink(struct shrinker *s, struct shrink_control *sc)
 		lowmem_deathpending_timeout = jiffies + HZ;
 		force_sig(SIGKILL, selected);
 		rem -= selected_tasksize;
-		compact_node_trigger++;
+		if (compact_nodes_enabled)
+			compact_nodes_trigger++;
 	}
 	lowmem_print(4, "lowmem_shrink %lu, %x, return %d\n",
 		     sc->nr_to_scan, sc->gfp_mask, rem);
 	read_unlock(&tasklist_lock);
 
-	if (compact_node_trigger == COMPACT_NODES_TRIGGER_MAX){
+	if (compact_nodes_enabled && compact_nodes_trigger == COMPACT_NODES_TRIGGER_MAX){
 		lowmem_print(1, "compact_nodes\n");
 		compact_nodes(true);
-		compact_node_trigger = 0;
+		compact_nodes_trigger = 0;
 	}
 
 	return rem;
@@ -220,6 +222,8 @@ module_param_array_named(adj, lowmem_adj, int, &lowmem_adj_size,
 module_param_array_named(minfree, lowmem_minfree, uint, &lowmem_minfree_size,
 			 S_IRUGO | S_IWUSR);
 module_param_named(debug_level, lowmem_debug_level, uint, S_IRUGO | S_IWUSR);
+module_param_named(compact_nodes, compact_nodes_enabled, uint, S_IRUGO | S_IWUSR);
+module_param(compact_nodes_trigger, uint, S_IRUGO | S_IWUSR);
 
 module_init(lowmem_init);
 module_exit(lowmem_exit);
