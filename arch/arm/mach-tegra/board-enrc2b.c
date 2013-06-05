@@ -1057,32 +1057,38 @@ static struct attribute_group Aproj_properties_attr_group_XC = {
 
 static struct regulator *srio_1v8_en;
 
+/* singleton access of the srio_1v8 regulator used in mpu-dev and in TS */
+struct regulator* srio_1v8_en_regulator_get(void)
+{
+	if (srio_1v8_en == NULL) {
+		srio_1v8_en = regulator_get(NULL, "v_srio_1v8");
+		if (IS_ERR_OR_NULL(srio_1v8_en)) {
+			pr_err("%s: couldn't get regulator srio_1v8_en\n", __func__);
+			srio_1v8_en = NULL;
+		}
+	
+		if (srio_1v8_en != NULL){
+			pr_info("%s: enable regulator srio_1v8_en\n", __func__);
+			regulator_enable(srio_1v8_en);
+		}
+	}
+	return srio_1v8_en;
+}
+
 static int powerfun(int enable)
 {
 	int ret = 0;
-	if(enable >= 2){
-	}
-	else
-	{
-		if (srio_1v8_en == NULL) {
-			srio_1v8_en = regulator_get(NULL, "v_srio_1v8");
-			if (WARN_ON(IS_ERR(srio_1v8_en))) {
-				pr_err("[srio_1v8] %s: couldn't get regulator srio_1v8_en: %ld\n",
-						__func__, PTR_ERR(srio_1v8_en));
-				ret = -1;
-				goto exit;
-			}
-		}
-		if(enable){
-			ret = regulator_enable(srio_1v8_en);
-			mdelay(10);
-		}else{
-			ret = regulator_disable(srio_1v8_en);
+	struct regulator* regulator;
+	
+	if(enable == 1){
+		regulator = srio_1v8_en_regulator_get();
+		if (regulator == NULL){
+			return -1;
 		}
 	}
-exit:
+	// we must never disable this regulator cause it is also
+	// used in mpu-dev
 	return ret;
-
 }
 
 static struct synaptics_i2c_rmi_platform_data edge_ts_3k_data_XB[] = {

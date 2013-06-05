@@ -88,6 +88,7 @@ static int uart_check = 0;
 static struct regulator *regulator = NULL;
 static bool headset_regulator_enabled = false;
 
+/* singleton access of regulator enable */
 void hs_regulator_enable(void)
 {
 	if (headset_regulator_enabled)
@@ -95,23 +96,24 @@ void hs_regulator_enable(void)
 
 	regulator = regulator_get(NULL, "v_aud_2v85");
 	if (IS_ERR_OR_NULL(regulator)) {
-		pr_err("htc_headset_gpio_probe:Couldn't get regulator v_aud_2v85\n");
+		pr_err("%s: couldn't get regulator v_aud_2v85\n", __func__);
 		regulator = NULL;
 	}
 	if (regulator != NULL){
-		HS_LOG("regulator_enable");
+		HS_LOG("enable regulator v_aud_2v85");
 		regulator_enable(regulator);
 		headset_regulator_enabled = true;
 	}
 }
 
+/* singleton access of regulator disable */
 static void hs_regulator_disable(void)
 {
 	if (!headset_regulator_enabled)
 		return;
 
 	if (regulator != NULL){
-		HS_LOG("regulator_disable");
+		HS_LOG("disable regulator v_aud_2v85");
 		regulator_disable(regulator);
 		regulator_put(regulator);
 		regulator = NULL;

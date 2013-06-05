@@ -400,10 +400,6 @@ static struct regulator_consumer_supply fixed_reg_fuse_src_3v3_en_supply[] = {
         REGULATOR_SUPPLY("v_fuse_src_3v3", NULL),
 };
 
-static struct regulator_consumer_supply fixed_reg_ps_2v85_en_supply[] = {
-        REGULATOR_SUPPLY("v_ps_2v85", NULL),
-};
-
 static struct regulator_consumer_supply fixed_reg_raw_1v8_en_supply[] = {
         REGULATOR_SUPPLY("v_raw_1v8", NULL),
 };
@@ -502,8 +498,7 @@ FIXED_REG(9, mhl_1v2_en,     NULL,      TEGRA_GPIO_PE4,  true, 1200, 0, 0);
 FIXED_REG(10, aud_2v85_en,   NULL,      TEGRA_GPIO_PB2,  true, 2850, 0, 0);
 FIXED_REG(11, lcm_3v_en,     NULL,      TEGRA_GPIO_PE2,  true, 3000, 1, 0);
 FIXED_REG(12, fuse_src_3v3_en, NULL,    TEGRA_GPIO_PF0,  true, 3300, 0, 0);
-FIXED_REG(13, ps_2v85_en,    NULL,      TEGRA_GPIO_PM3,  true, 2850, 1, 0);
-FIXED_REG(14, raw_1v8_en,    "tps80031_LDO7",      TEGRA_GPIO_PR3,  true, 1800, 0, 0);
+FIXED_REG(13, raw_1v8_en,    "tps80031_LDO7",      TEGRA_GPIO_PR3,  true, 1800, 0, 0);
 
 #define ADD_FIXED_REG(_name)	(&fixed_reg_##_name##_dev)
 
@@ -521,7 +516,6 @@ FIXED_REG(14, raw_1v8_en,    "tps80031_LDO7",      TEGRA_GPIO_PR3,  true, 1800, 
 	ADD_FIXED_REG(aud_2v85_en),	\
 	ADD_FIXED_REG(lcm_3v_en),	\
 	ADD_FIXED_REG(fuse_src_3v3_en),	\
-	ADD_FIXED_REG(ps_2v85_en),	\
 	ADD_FIXED_REG(raw_1v8_en)	\
 
 

@@ -64,6 +64,8 @@
 #define E(x...) printk(KERN_ERR "[GYRO][MPU3050 ERROR] " x)
 #define DIF(x...) if (mpu_debug_flag) printk(KERN_DEBUG "[GYRO][MPU3050] " x)
 
+extern struct regulator* srio_1v8_en_regulator_get(void);
+
 /* Platform data for the MPU */
 struct mpu_private_data {
 	struct mldl_cfg mldl_cfg;
@@ -1253,8 +1255,6 @@ static ssize_t mpu_debug_flag_store(struct device *dev,
 static DEVICE_ATTR(mpu_debug_flag, 0664, mpu_debug_flag_show, \
 		mpu_debug_flag_store);
 
-static struct regulator *srio_1v8_en ;
-
 static ssize_t mpu_sensors_reset_show(struct device *dev,
 			struct device_attribute *attr, char *buf)
 {
@@ -1299,6 +1299,7 @@ int mpu3050_probe(struct i2c_client *client,
 	struct i2c_adapter *accel_adapter = NULL;
 	struct i2c_adapter *compass_adapter = NULL;
 	struct i2c_adapter *pressure_adapter = NULL;
+	struct regulator* regulator;
 	mpu_gyro_state = 0; /*represent gyro probe ok*/
 
 	I("mpu3050_probe start");
@@ -1320,22 +1321,9 @@ int mpu3050_probe(struct i2c_client *client,
 	mldl_cfg = &mpu->mldl_cfg;
 	pdata = (struct mpu3050_platform_data *) client->dev.platform_data;
 
-	if( (pdata != NULL) && (pdata->en_1v8 == 1) ){
-		I("[SRIO_1v8] SRIO_1v8_start...\n");
-		if (srio_1v8_en == NULL) {
-			srio_1v8_en = regulator_get(NULL, "v_srio_1v8");
-			if (WARN_ON(IS_ERR(srio_1v8_en))) {
-				pr_err("[SRIO_1v8] %s: couldn't get regulator srio_1v8_en: %ld\n",
-					__func__, PTR_ERR(srio_1v8_en));
-				goto continue_i2c;
-			}
-		}
-		regulator_enable(srio_1v8_en);
-		I("[SRIO_1v8] SRIO_1v8_end...\n");
-
-	}
-
-continue_i2c:
+	if( (pdata != NULL) && (pdata->en_1v8 == 1) )
+		// same is using in board-enrc2b for the TS
+		regulator = srio_1v8_en_regulator_get();
 
 	if (!pdata) {
 		dev_warn(&this_client->adapter->dev,

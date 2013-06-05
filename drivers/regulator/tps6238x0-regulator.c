@@ -400,8 +400,6 @@ static int __devinit tps6238x0_probe(struct i2c_client *client,
 
 	tps->rdev = rdev;
 
-	dev_info(&client->dev, "%s(): Probe done!", __func__);
-
 	return 0;
 
 err_init:

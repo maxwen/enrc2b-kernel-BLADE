@@ -1024,8 +1024,6 @@ static int __devinit tps80031_regulator_probe(struct platform_device *pdev)
 	int id = pdev->id;
 	int err;
 
-	dev_dbg(&pdev->dev, "Probing reulator %d\n", id);
-
 	ri = find_regulator_info(id);
 	if (ri == NULL) {
 		dev_err(&pdev->dev, "invalid regulator ID specified\n");
