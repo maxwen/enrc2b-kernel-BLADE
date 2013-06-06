@@ -46,6 +46,14 @@
 
 #define DEBUG 0
 
+int tegra_auto_hotplug_init(struct mutex *cpu_lock)
+{ return 0; }
+void tegra_auto_hotplug_exit(void)
+{ }
+void tegra_auto_hotplug_governor(unsigned int cpu_freq,
+					       bool suspend)
+{ }
+
 extern unsigned int best_core_to_turn_up (void);
 
 #define MPDEC_TAG                       "[MPDEC]: "

@@ -876,6 +876,8 @@ int tegra_update_cpu_speed(unsigned long rate)
 	struct cpufreq_freqs freqs;
 #ifndef CONFIG_TEGRA_CPUQUIET
 	unsigned long rate_save = rate;
+#endif
+#ifdef CONFIG_TEGRA_MPDECISION
 	int status = 1;
 #endif
 
