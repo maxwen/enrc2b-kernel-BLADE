@@ -45,7 +45,9 @@
 #endif
 
 #ifdef CONFIG_CPU_FREQ_GOV_SMARTMAX_TEGRA
-extern int tegra_input_boost (int cpu, unsigned int target_freq);
+extern int tegra_input_boost (struct cpufreq_policy *policy,
+		       unsigned int target_freq,
+		       unsigned int relation);
 #endif
 
 /******************** Tunable parameters: ********************/
@@ -247,11 +249,9 @@ static u64 timer_stat[4] = {0, 0, 0, 0};
  */
 static DEFINE_MUTEX(dbs_mutex);
 
-extern int tegra_input_boost(int cpu, unsigned int target_freq);
-
 static bool boost_task_alive = false;
 static struct task_struct *boost_task;
-static u64 boost_end_time = 0;
+static u64 boost_end_time = 0ULL;
 static unsigned int cur_boost_freq = 0;
 static unsigned int cur_boost_duration = 0;
 static bool boost_running = false;
@@ -1097,8 +1097,8 @@ static struct attribute_group smartmax_attr_group = {
 static int cpufreq_smartmax_boost_task(void *data) {
 	struct smartmax_info_s *this_smartmax;
 	u64 now;
-#ifndef CONFIG_CPU_FREQ_GOV_SMARTMAX_TEGRA
 	struct cpufreq_policy *policy;
+#ifndef CONFIG_CPU_FREQ_GOV_SMARTMAX_TEGRA
 	unsigned int cpu;
 	bool start_boost = false;
 #endif
@@ -1121,12 +1121,19 @@ static int cpufreq_smartmax_boost_task(void *data) {
 		if (!this_smartmax)
 			continue;
 
-		if (tegra_input_boost(0, cur_boost_freq) < 0) {
+		policy = this_smartmax->cur_policy;
+		if (!policy)
 			continue;
-		}
+
+        if (lock_policy_rwsem_write(0) < 0)
+        	continue;
+		
+		tegra_input_boost(policy, cur_boost_freq, CPUFREQ_RELATION_H);
 	
         this_smartmax->prev_cpu_idle = get_cpu_idle_time(0,
 						&this_smartmax->prev_cpu_wall);
+
+        unlock_policy_rwsem_write(0);
 #else
 		for_each_online_cpu(cpu){
 			this_smartmax = &per_cpu(smartmax_info, cpu);

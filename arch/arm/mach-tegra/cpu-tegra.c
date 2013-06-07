@@ -82,7 +82,6 @@ static struct clk *cpu_clk;
 static struct clk *cpu_g_clk;
 static struct clk *emc_clk;
 
-static unsigned long policy_max_speed[CONFIG_NR_CPUS];
 static unsigned long target_cpu_speed[CONFIG_NR_CPUS];
 static DEFINE_MUTEX(tegra_cpu_lock);
 static bool is_suspended;
@@ -118,13 +117,14 @@ extern void tegra_cpuquiet_set_no_lp(bool);
 static unsigned int disable_lp_mode_on_resume = false;
 #endif
 
-static unsigned int force_policy_max;
 /* called from ril 
 this fixes the "screen not turning on issue" on incoming calls!
 the problem is that else the device may go into suspend again
 because min freq is 0 */
 static unsigned int ril_boost = 0;
 static unsigned int perf_early_suspend = 0;
+
+static int _tegra_cpu_set_speed_cap(unsigned int *speed_cap, bool apply_scale);
 
 // maxwen: see tegra_cpu_init
 // values can be changed in sysfs interface of cpufreq
@@ -176,32 +176,6 @@ unsigned int tegra_lpmode_freq_max(void)
     	max_rate = T3_LP_MAX_FREQ_DEFAULT;
 	return max_rate;
 }
-
-static int force_policy_max_set(const char *arg, const struct kernel_param *kp)
-{
-	int ret;
-	bool old_policy = force_policy_max;
-
-	mutex_lock(&tegra_cpu_lock);
-
-	ret = param_set_uint(arg, kp);
-	if ((ret == 0) && (old_policy != force_policy_max))
-		tegra_cpu_set_speed_cap(NULL);
-
-	mutex_unlock(&tegra_cpu_lock);
-	return ret;
-}
-
-static int force_policy_max_get(char *buffer, const struct kernel_param *kp)
-{
-	return param_get_uint(buffer, kp);
-}
-
-static struct kernel_param_ops policy_ops = {
-	.set = force_policy_max_set,
-	.get = force_policy_max_get,
-};
-module_param_cb(force_policy_max, &policy_ops, &force_policy_max, 0644);
 
 static int suspend_cap_freq_set(const char *arg, const struct kernel_param *kp)
 {
@@ -952,9 +926,7 @@ int tegra_update_cpu_speed(unsigned long rate)
 		return ret;
 	} 
 #if CPU_FREQ_DEBUG			
-	else {
-		pr_info("tegra_update_cpu_speed: old=%d new=%d\n", freqs.old, tegra_getspeed(0));
-	}
+	pr_info("tegra_update_cpu_speed: old=%d new=%d\n", freqs.old, tegra_getspeed(0));
 #endif
 	for_each_online_cpu(freqs.cpu)
 		cpufreq_notify_transition(&freqs, CPUFREQ_POSTCHANGE);
@@ -1001,16 +973,12 @@ unsigned long tegra_cpu_lowest_speed(void) {
 }
 
 unsigned long tegra_cpu_highest_speed(void) {
-	unsigned long policy_max = ULONG_MAX;
 	unsigned long rate = 0;
 	int i;
 
 	for_each_online_cpu(i) {
-		if (force_policy_max)
-			policy_max = min(policy_max, policy_max_speed[i]);
 		rate = max(rate, target_cpu_speed[i]);
 	}
-	rate = min(rate, policy_max);
 	return rate;
 }
 
@@ -2181,7 +2149,6 @@ void bthp_cpuup_standalone (
 EXPORT_SYMBOL (bthp_cpuup_standalone);
 
 unsigned long bthp_cpu_highest_speed (void) {
-	unsigned long policy_max = ULONG_MAX;
 	unsigned long rate = 0;
 	int i;
 	int cpu = smp_processor_id();
@@ -2198,14 +2165,10 @@ unsigned long bthp_cpu_highest_speed (void) {
 			!idle_cpu (i) ||
 			jiffies < (per_cpu (last_freq_update_jiffies, i) + ref_jiffies))
 		{
-			if (force_policy_max)
-				policy_max = min (policy_max, policy_max_speed[i]);
-
 			rate = max (rate, target_cpu_speed[i]);
         }
 	}
 
-	rate = min (rate, policy_max);
 	return rate;
 }
 
@@ -2241,10 +2204,15 @@ unsigned int bthp_get_slowest_cpu_n (void) {
 
 int tegra_cpu_set_speed_cap(unsigned int *speed_cap)
 {
+	return _tegra_cpu_set_speed_cap(speed_cap, true);
+}
+
+static int _tegra_cpu_set_speed_cap(unsigned int *speed_cap, bool apply_scale)
+{
 	int ret = 0;
     unsigned int new_speed = tegra_cpu_highest_speed();
     unsigned int curr_speed = tegra_getspeed(0);
-    int cpu = smp_processor_id();
+    int cpu = 0;
         
 #if defined(CONFIG_BEST_TRADE_HOTPLUG)
     unsigned int speed_wocap = 0UL;
@@ -2270,8 +2238,11 @@ int tegra_cpu_set_speed_cap(unsigned int *speed_cap)
 	if (is_suspended)
 		return -EBUSY;
 
-	/* apply all active freq limits */
-	new_speed = get_scaled_freq(cpu, new_speed);
+	if (apply_scale){
+		cpu = smp_processor_id();
+		/* apply all active freq limits */
+		new_speed = get_scaled_freq(cpu, new_speed);
+	}
 
 #if defined(CONFIG_BEST_TRADE_HOTPLUG)
     /* do a best trade for power/performance,
@@ -2365,10 +2336,14 @@ int tegra_suspended_target(unsigned int target_freq)
 }
 #endif
 
-int tegra_input_boost (int cpu, unsigned int target_freq)
+int tegra_input_boost(struct cpufreq_policy *policy,
+		       unsigned int target_freq,
+		       unsigned int relation)
 {
+	int idx;
     int ret = 0;
-    unsigned int curfreq = 0;
+	unsigned int freq;
+	unsigned int curfreq = 0;
 #ifdef CONFIG_TEGRA_CPUQUIET
     bool free_device = false;
 #endif
@@ -2378,14 +2353,23 @@ int tegra_input_boost (int cpu, unsigned int target_freq)
 	}
 
     mutex_lock(&tegra_cpu_lock);
+
+	/* apply all active freq limits */
+    target_freq = get_scaled_freq(policy->cpu, target_freq);
+		
+	ret = cpufreq_frequency_table_target(policy, freq_table, target_freq,
+		relation, &idx);
+	if (ret){
+		mutex_unlock(&tegra_cpu_lock);
+		return ret;
+	}
+	
+	freq = freq_table[idx].frequency;
     
     curfreq = tegra_getspeed(0);
 
-	/* apply all active freq limits */
-    target_freq = get_scaled_freq(cpu, target_freq);
-
     /* dont need to boost cpu at this moment */
-    if (!curfreq || curfreq >= target_freq) {
+    if (curfreq >= freq) {
     	mutex_unlock(&tegra_cpu_lock);
         return -EINVAL;
     }
@@ -2399,13 +2383,11 @@ int tegra_input_boost (int cpu, unsigned int target_freq)
 #endif
     
 #if CPU_FREQ_DEBUG
-	pr_info("tegra_input_boost: cpu=%d curfreq =%d -> target_freq=%d\n", cpu, curfreq, target_freq);
+	pr_info("tegra_input_boost: freq=%d\n", freq);
 #endif
 
-    target_cpu_speed[cpu] = target_freq;
-
-    /* will auto. round-rate */
-    ret = tegra_update_cpu_speed(target_freq);
+	target_cpu_speed[policy->cpu] = freq;
+	ret = _tegra_cpu_set_speed_cap(NULL, false);
 
     mutex_unlock(&tegra_cpu_lock);
 
@@ -2461,7 +2443,7 @@ static int tegra_target(struct cpufreq_policy *policy,
 #endif
 
 	target_cpu_speed[policy->cpu] = freq;
-	ret = tegra_cpu_set_speed_cap(NULL);
+	ret = _tegra_cpu_set_speed_cap(NULL, false);
 
 	mutex_unlock(&tegra_cpu_lock);
 
@@ -2587,25 +2569,6 @@ static int tegra_cpu_exit(struct cpufreq_policy *policy)
 	clk_put(cpu_clk);
 	return 0;
 }
-
-static int tegra_cpufreq_policy_notifier(
-	struct notifier_block *nb, unsigned long event, void *data)
-{
-	int i, ret;
-	struct cpufreq_policy *policy = data;
-
-	if (event == CPUFREQ_NOTIFY) {
-		ret = cpufreq_frequency_table_target(policy, freq_table,
-			policy->max, CPUFREQ_RELATION_H, &i);
-		policy_max_speed[policy->cpu] =
-			ret ? policy->max : freq_table[i].frequency;
-	}
-	return NOTIFY_OK;
-}
-
-static struct notifier_block tegra_cpufreq_policy_nb = {
-	.notifier_call = tegra_cpufreq_policy_notifier,
-};
 
 static struct freq_attr *tegra_cpufreq_attr[] = {
 	&cpufreq_freq_attr_scaling_available_freqs,
@@ -2818,12 +2781,6 @@ static int __init tegra_cpufreq_init(void)
 	suspend_cap_freq_default = tegra_lpmode_freq_max();
     suspend_cap_freq = suspend_cap_freq_default;
 	
-	ret = cpufreq_register_notifier(
-		&tegra_cpufreq_policy_nb, CPUFREQ_POLICY_NOTIFIER);
-	if (ret){
-		destroy_workqueue(suspend_wq);
-		return ret;
-	}
 	return cpufreq_register_driver(&tegra_cpufreq_driver);
 }
 
@@ -2843,8 +2800,6 @@ static void __exit tegra_cpufreq_exit(void)
 	destroy_workqueue(suspend_wq);
 #endif
 	cpufreq_unregister_driver(&tegra_cpufreq_driver);
-	cpufreq_unregister_notifier(
-		&tegra_cpufreq_policy_nb, CPUFREQ_POLICY_NOTIFIER);
 }
 
 
