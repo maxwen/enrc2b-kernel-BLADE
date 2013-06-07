@@ -844,15 +844,6 @@ static int tegra3_cpu_clk_set_rate(struct clk *c, unsigned long rate)
 	bool skip_to_backup =
 		skip && (clk_get_rate_all_locked(c) >= SKIPPER_ENGAGE_RATE);
 
-    /* for NV platform, all G cores consume the same clk source
-     *
-     * to port to any other platforms,
-     * pls. modify lt_rate to lt_rate[NR_CPUS] accordingly
-     */
-#if defined(CONFIG_BEST_TRADE_HOTPLUG)
-    static unsigned long lt_rate = 0;
-#endif
-
 	if (c->dvfs) {
 		if (!c->dvfs->dvfs_rail)
 			return -ENOSYS;
@@ -924,30 +915,6 @@ static int tegra3_cpu_clk_set_rate(struct clk *c, unsigned long rate)
 		pr_err("Failed to switch cpu to clock %s\n", c->u.cpu.main->name);
 		goto out;
 	}
-
-#if defined(CONFIG_BEST_TRADE_HOTPLUG)
-    {
-        extern unsigned long *t_rate;
-        extern bool is_bthp_en (void);
-
-        if (likely(is_bthp_en ())) {
-            atomic_set((atomic_t *)&lt_rate, rate / 1000);
-            barrier();
-
-            /* for NV platform, all G cores consume the same clk source
-             *
-             * to port to any othe platforms,
-             * pls. modify t_rate to t_rate[NR_CPUS] accordingly
-             */
-            if (unlikely(!atomic_cmpxchg ((atomic_t *)&t_rate,
-                                          (int)NULL,
-                                          (int)&lt_rate)))
-            {
-                pr_bthp_info ("lt_rate is skirted...\n");
-            }
-        }
-    }
-#endif
 
 out:
 	if (skipped) {

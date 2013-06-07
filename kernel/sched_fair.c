@@ -91,33 +91,6 @@ unsigned int __read_mostly sysctl_sched_shares_window = 10000000UL;
 
 static const struct sched_class fair_sched_class;
 
-#if defined(CONFIG_BEST_TRADE_HOTPLUG)
-DEFINE_PER_CPU(struct bthp_lb, bthp_lb) = {0};
-
-void get_bthp_lb_info (
-    unsigned long long *clock_in_ns,
-    unsigned long *avg_load
-    )
-{
-    int cpu;
-
-    BUG_ON(clock_in_ns == NULL || avg_load == NULL);
-
-    *clock_in_ns = per_cpu(bthp_lb, 0).clock;
-    *avg_load = per_cpu(bthp_lb, 0).avg_load;
-
-    for_each_possible_cpu (cpu) {
-        if (cpu == 0) continue;
-
-        if (time_after64 (per_cpu(bthp_lb, cpu).clock, *clock_in_ns)) {
-            *clock_in_ns = per_cpu(bthp_lb, cpu).clock;
-            *avg_load = per_cpu(bthp_lb, cpu).avg_load;
-        }
-    }
-}
-EXPORT_SYMBOL(get_bthp_lb_info);
-#endif
-
 /**************************************************************
  * CFS operations on generic schedulable entities:
  */
@@ -3177,24 +3150,6 @@ find_busiest_group(struct sched_domain *sd, int this_cpu,
 	 * this level.
 	 */
 	update_sd_lb_stats(sd, this_cpu, idle, cpus, balance, &sds);
-
-#if defined(CONFIG_BEST_TRADE_HOTPLUG)
-    /* To aware of latest global average weighted_load
-     * off last-recently load balancing
-     */
-#if defined(_I_DEBUG_)
-    extern bool bthp_en;
-
-    /*
-     * Update per-cpu seen avg_load and clock in ns
-     */
-    if (likely(bthp_en)) {
-        per_cpu(bthp_lb, this_cpu).clock = ktime_to_ns(ktime_get());
-        per_cpu(bthp_lb, this_cpu).avg_load =
-            (SCHED_LOAD_SCALE * sds.total_load) / sds.total_pwr;
-    }
-#endif
-#endif
 
 	/*
 	 * this_cpu is not the appropriate cpu to perform load balancing at

@@ -733,63 +733,6 @@ extern struct user_struct root_user;
 struct backing_dev_info;
 struct reclaim_state;
 
-#if defined(CONFIG_BEST_TRADE_HOTPLUG)
-#define MAX_TRACKED_TASKS       20
-
-struct bthp_rqinfo {
-    /* a:  has concerns about cpu affinity;
-     * na: has no concerns about cpu affinity
-     */
-    struct t_store {
-        struct list_head list_a;
-        struct list_head list_na;
-        struct task_struct *task;
-        cpumask_t last_cpumask;
-        union {
-            unsigned long curr_max_eff;
-            unsigned long curr_min_eff;
-
-        } curr_eff;
-
-
-    /* go thru linked list in aggregated array
-     * instead of real tasks, hence the cache could
-     * be leveraged best to speed up processing
-     */
-    } _max[MAX_TRACKED_TASKS], _min[MAX_TRACKED_TASKS];
-
-    struct list_head _max_a_head, _min_a_head;
-    struct list_head _max_na_head, _min_na_head;
-
-    unsigned long _max_cc_a[MAX_TRACKED_TASKS];
-    unsigned long _min_cc_a[MAX_TRACKED_TASKS];
-
-    unsigned long _max_cc_na[MAX_TRACKED_TASKS];
-    unsigned long _min_cc_na[MAX_TRACKED_TASKS];
-
-    /* task will vote to his cpu's runqueue if performance is critical */
-    int votes_for_perf_up;
-
-} ____cacheline_aligned_in_smp;
-
-#define _EFFICIENCY_WEIGHT_       5
-#define _LATENCY_WEIGHT_          5
-
-struct bthp_tskinfo {
-    unsigned long long last_arrival;
-    unsigned long long last_queued;
-    bool perf_is_downgrading;
-    unsigned long unfinished;
-    unsigned long long cc_latency[_LATENCY_WEIGHT_];
-    unsigned long cc_efficiency[_EFFICIENCY_WEIGHT_];
-};
-
-struct bthp_lb {
-    unsigned long long clock;
-    unsigned long avg_load;
-};
-#endif
-
 #if defined(CONFIG_SCHEDSTATS) || defined(CONFIG_TASK_DELAY_ACCT)
 struct sched_info {
 	/* cumulative counters */
@@ -1632,11 +1575,6 @@ struct task_struct {
 #endif
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
 	atomic_t ptrace_bp_refcnt;
-#endif
-
-#if defined(CONFIG_BEST_TRADE_HOTPLUG)
-	/* PUT ME AT THE END!! */
-	struct bthp_tskinfo bthp_tskinfo;
 #endif
 };
 

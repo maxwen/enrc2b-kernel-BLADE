@@ -2010,17 +2010,6 @@ int cpufreq_get_policy(struct cpufreq_policy *policy, unsigned int cpu)
 }
 EXPORT_SYMBOL(cpufreq_get_policy);
 
-#if defined(CONFIG_BEST_TRADE_HOTPLUG)
-	/* Both of file node and pm_qos APIs would change cpufreq policy,
-	 * and go thru this function path
-	 *
-	 * Thus, hook on this function is good enough...
-	 */
-    extern void update_bthp_policy_qos (int cpu,
-                                        unsigned int min_freq,
-                                        unsigned int max_freq);
-#endif
-
 /*
  * data   : current policy.
  * policy : policy to be set.
@@ -2079,10 +2068,6 @@ static int __cpufreq_set_policy(struct cpufreq_policy *data,
 
 	pr_debug("new min and max freqs are %u - %u kHz\n",
 					data->min, data->max);
-
-#if defined(CONFIG_BEST_TRADE_HOTPLUG)
-    update_bthp_policy_qos (data->cpu, data->min, data->max);
-#endif
 
 	if (cpufreq_driver->setpolicy) {
 		data->policy = policy->policy;

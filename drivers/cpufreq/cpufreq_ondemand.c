@@ -1178,12 +1178,6 @@ static void dbs_chown(void)
 }
 #endif
 
-#if defined(CONFIG_BEST_TRADE_HOTPLUG)
-extern void bthp_set_floor_cap (unsigned int floor_freq,
-                                cputime64_t floor_time
-                                );
-#endif
-
 extern int tegra_input_boost (struct cpufreq_policy *policy,
 		       unsigned int target_freq,
 		       unsigned int relation);
@@ -1234,11 +1228,6 @@ static int cpufreq_ondemand_input_boost_task (
         dbs_tuners_ins.floor_freq = touch_poke_freq;
         dbs_tuners_ins.floor_valid_time =
             ktime_to_ns(ktime_get()) + dbs_tuners_ins.input_boost_duration;
-
-#if defined(CONFIG_BEST_TRADE_HOTPLUG)
-        bthp_set_floor_cap (dbs_tuners_ins.floor_freq,
-                            dbs_tuners_ins.floor_valid_time);
-#endif
 
 		g_ui_counter = dbs_tuners_ins.ui_counter;
 		if (dbs_tuners_ins.ui_counter > 0)
