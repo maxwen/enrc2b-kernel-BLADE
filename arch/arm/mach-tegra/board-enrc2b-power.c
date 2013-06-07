@@ -191,7 +191,7 @@ static struct regulator_consumer_supply tps80031_vbus_supply_common[] = {
 	}
 
 TPS_PDATA_INIT(vio, common, 600, 2100, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0);
-TPS_PDATA_INIT(smps2, common, 600, 2600, 0, 0, 0, 0, -1, 0, 0, 0, PWR_REQ_INPUT_PREQ1, 0);
+TPS_PDATA_INIT(smps2, common, 600, 2100, 0, 0, 0, 0, -1, 0, 0, 0, PWR_REQ_INPUT_PREQ1, 0);
 TPS_PDATA_INIT(smps3, common, 600, 2100, 0, 0, 0, 0, -1, 0, 0, 0, 0, 0);
 TPS_PDATA_INIT(smps4, common, 600, 3300, 0, 1, 0, 0, -1, 0, 0, 0, 0, 0);
 TPS_PDATA_INIT(ldo1, common, 1000, 3300, tps80031_rails(VIO), 1, 0, 0, -1, 0, 0, 0, PWR_REQ_INPUT_PREQ1, 0);
