@@ -56,7 +56,7 @@ static int lowmem_minfree_size = 4;
 static struct task_struct *lowmem_deathpending;
 static unsigned long lowmem_deathpending_timeout;
 
-static unsigned int compact_nodes_enabled = 0;
+static unsigned int compact_nodes_enabled = 1;
 /* call compact nodes after that num of processes has been killed */
 #define COMPACT_NODES_TRIGGER_MAX 10
 static unsigned int compact_nodes_trigger = COMPACT_NODES_TRIGGER_MAX;
