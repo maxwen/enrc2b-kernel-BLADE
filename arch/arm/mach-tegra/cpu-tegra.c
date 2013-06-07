@@ -2336,11 +2336,29 @@ int tegra_suspended_target(unsigned int target_freq)
 }
 #endif
 
+static inline unsigned int scale_freq_to_target(struct cpufreq_policy *policy,
+		       unsigned int target_freq,
+		       unsigned int relation,
+		       unsigned int *freq)
+{    
+	int idx;
+	
+	/* apply all active freq limits */
+    target_freq = get_scaled_freq(policy->cpu, target_freq);
+		
+	if (unlikely(cpufreq_frequency_table_target(policy, freq_table, target_freq,
+		relation, &idx))){
+		return -EINVAL;
+	}
+	
+	*freq = freq_table[idx].frequency;
+	return 0;
+}
+
 int tegra_input_boost(struct cpufreq_policy *policy,
 		       unsigned int target_freq,
 		       unsigned int relation)
 {
-	int idx;
     int ret = 0;
 	unsigned int freq;
 	unsigned int curfreq = 0;
@@ -2353,18 +2371,11 @@ int tegra_input_boost(struct cpufreq_policy *policy,
 	}
 
     mutex_lock(&tegra_cpu_lock);
-
-	/* apply all active freq limits */
-    target_freq = get_scaled_freq(policy->cpu, target_freq);
-		
-	ret = cpufreq_frequency_table_target(policy, freq_table, target_freq,
-		relation, &idx);
-	if (ret){
-		mutex_unlock(&tegra_cpu_lock);
-		return ret;
-	}
 	
-	freq = freq_table[idx].frequency;
+	if(unlikely(scale_freq_to_target(policy, target_freq, relation, &freq))){
+		mutex_unlock(&tegra_cpu_lock);
+        return -EINVAL;
+	}
     
     curfreq = tegra_getspeed(0);
 
@@ -2405,7 +2416,6 @@ static int tegra_target(struct cpufreq_policy *policy,
 		       unsigned int target_freq,
 		       unsigned int relation)
 {
-	int idx;
 	unsigned int freq;
 	int ret = 0;
 #ifdef CONFIG_TEGRA_CPUQUIET
@@ -2418,17 +2428,10 @@ static int tegra_target(struct cpufreq_policy *policy,
 
 	mutex_lock(&tegra_cpu_lock);
 
-	/* apply all active freq limits */
-    target_freq = get_scaled_freq(policy->cpu, target_freq);
-		
-	ret = cpufreq_frequency_table_target(policy, freq_table, target_freq,
-		relation, &idx);
-	if (ret){
+	if(unlikely(scale_freq_to_target(policy, target_freq, relation, &freq))){
 		mutex_unlock(&tegra_cpu_lock);
-		return ret;
+        return -EINVAL;
 	}
-	
-	freq = freq_table[idx].frequency;
 	
 #ifdef CONFIG_TEGRA_CPUQUIET
 	if (target_freq > tegra_lpmode_freq_max() && is_lp_cluster()){
