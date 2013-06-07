@@ -573,7 +573,7 @@ static int ic_reset(void)
 	gpio_set_value(LCM_RST, 0);
 	hr_msleep(1);
 	gpio_set_value(LCM_RST, 1);
-	hr_msleep(25);
+	hr_msleep(10);
 
 success:
 	DISP_INFO_OUT();
@@ -4127,7 +4127,7 @@ static struct tegra_stereo_out enrc2b_stereo = {
 #ifdef CONFIG_TEGRA_DC
 static struct tegra_dc_mode enrc2b_dsi_modes[] = {
 	{
-		.pclk = 20000000,
+		.pclk = 10000000,
 		.h_ref_to_sync = 4,
 		.v_ref_to_sync = 1,
 		.h_sync_width = 16,
