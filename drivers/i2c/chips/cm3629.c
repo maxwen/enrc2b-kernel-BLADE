@@ -953,7 +953,6 @@ static int psensor_enable(struct cm3629_info *lpi)
 	uint8_t ps_adc2 = 0;
 #endif
 	mutex_lock(&ps_enable_mutex);
-	D("%s\n", __func__);
 	if (lpi->ps_enable) {
 		D("%s: already enabled %d\n", __func__, lpi->ps_enable);
 		lpi->ps_enable++;
@@ -1019,6 +1018,9 @@ static int psensor_enable(struct cm3629_info *lpi)
 	}
 #endif
 	mutex_unlock(&ps_enable_mutex);
+
+	I("%s %d\n", __func__, lpi->ps_enable);
+	
 	return ret;
 }
 
@@ -1029,7 +1031,6 @@ static int psensor_disable(struct cm3629_info *lpi)
 	mutex_lock(&ps_enable_mutex);
 	lpi->ps_pocket_mode = 0;
 
-	D("%s %d\n", __func__, lpi->ps_enable);
 	if (lpi->ps_enable != 1) {
 		if (lpi->ps_enable > 1)
 			lpi->ps_enable--;
@@ -1079,6 +1080,9 @@ static int psensor_disable(struct cm3629_info *lpi)
 	}
 #endif
 	mutex_unlock(&ps_enable_mutex);
+
+	I("%s %d\n", __func__, lpi->ps_enable);
+	
 	return ret;
 }
 
@@ -1469,7 +1473,7 @@ static ssize_t ps_enable_store(struct device *dev,
 		D("%s: change lpi->ps_conf1_val  0x%x\n",
 			  __func__, lpi->ps_conf1_val);
 	}
-	D("%s: ps_en=%d\n",
+	I("%s: ps_en=%d\n",
 			__func__, ps_en);
 
 	if (ps_en && !ps_drv_enable) {
@@ -1579,7 +1583,7 @@ static ssize_t ps_kadc_store(struct device *dev,
 	ps2_canc_set = lpi->inte_ps2_canc = ((param2 >> 8) & 0xFF);
 	psensor_intelligent_cancel_cmd(lpi);
 
-	D("%s: inte_ps1_canc = 0x%02X, inte_ps2_canc = 0x%02X, lpi->ps_conf1_val  = 0x%02X\n",
+	I("%s: inte_ps1_canc = 0x%02X, inte_ps2_canc = 0x%02X, lpi->ps_conf1_val  = 0x%02X\n",
 	  __func__, lpi->inte_ps1_canc, lpi->inte_ps2_canc, lpi->ps_conf1_val );
 
 	return count;
@@ -1613,7 +1617,7 @@ static ssize_t ps_canc_store(struct device *dev,
 	lpi->inte_ps2_canc = (uint8_t) ps2_canc;
 	psensor_intelligent_cancel_cmd(lpi);
 
-	D("%s: PS1_CANC = 0x%02X, PS2_CANC = 0x%02X\n",
+	I("%s: PS1_CANC = 0x%02X, PS2_CANC = 0x%02X\n",
 	  __func__, lpi->inte_ps1_canc, lpi->inte_ps2_canc);
 
 	return count;
@@ -1715,7 +1719,7 @@ static ssize_t ps_hw_store(struct device *dev,
 
 	sscanf(buf, "0x%x", &code);
 
-	D("%s: store value = 0x%x\n", __func__, code);
+	I("%s: store value = 0x%x\n", __func__, code);
 	if (code == 1) {
 		lpi->inte_ps1_canc = 0;
 		lpi->inte_ps2_canc = 0;
@@ -1749,8 +1753,6 @@ static ssize_t ls_adc_show(struct device *dev,
 	/*because 3628 is interrupt mode*/
 	report_lsensor_input_event(lpi, 0);
 
-	D("%s: ADC = 0x%04X, Level = %d \n",
-		__func__, lpi->current_adc, lpi->current_level);
 	ret = sprintf(buf, "ADC[0x%04X] => level %d\n",
 		lpi->current_adc, lpi->current_level);
 
@@ -1794,7 +1796,7 @@ static ssize_t ls_enable_store(struct device *dev,
 		ret = lightsensor_disable(lpi);
 	}
 
-	D("%s: lpi->als_enable = %d, lpi->ls_calibrate = %d, ls_auto=%d\n",
+	I("%s: lpi->als_enable = %d, lpi->ls_calibrate = %d, ls_auto=%d\n",
 		__func__, lpi->als_enable, lpi->ls_calibrate, ls_auto);
 
 	if (ret < 0)
@@ -1836,7 +1838,7 @@ static ssize_t ls_kadc_store(struct device *dev,
 	mutex_lock(&als_get_adc_mutex);
 	lpi->als_kadc = kadc_temp;
 	lpi->als_gadc = lpi->golden_adc;
-	D("%s: als_kadc=0x%x, als_gadc=0x%x\n",
+	I("%s: als_kadc=0x%x, als_gadc=0x%x\n",
 			__func__, lpi->als_kadc, lpi->als_gadc);
 
 	if (lightsensor_update_table(lpi) < 0)
@@ -1878,7 +1880,6 @@ static ssize_t ls_adc_table_store(struct device *dev,
 	unsigned long tempdata[10];
 	int i, ret;
 
-	D("%s\n", buf);
 	for (i = 0; i < 10; i++) {
 		token[i] = strsep((char **)&buf, " ");
 		ret = strict_strtoul(token[i], 16, &(tempdata[i]));
@@ -1888,6 +1889,9 @@ static ssize_t ls_adc_table_store(struct device *dev,
 			return count;
 		}
 	}
+
+	I("%s:\n", __func__);
+	
 	mutex_lock(&als_get_adc_mutex);
 	for (i = 0; i < 10; i++) {
 		lpi->adc_table[i] = tempdata[i];
@@ -1898,7 +1902,6 @@ static ssize_t ls_adc_table_store(struct device *dev,
 		E("%s: update ls table fail\n",
 		__func__);
 	mutex_unlock(&als_get_adc_mutex);
-	D("%s\n", __func__);
 
 	return count;
 }
@@ -1923,7 +1926,7 @@ static ssize_t ls_fLevel_store(struct device *dev,
 	f_cm3629_level = value;
 	input_report_abs(lpi->ls_input_dev, ABS_MISC, f_cm3629_level);
 	input_sync(lpi->ls_input_dev);
-	D("set fLevel = %d\n", f_cm3629_level);
+	I("%s; set fLevel = %d\n", __func__, f_cm3629_level);
 
 	msleep(1000);
 	f_cm3629_level = -1;
@@ -1991,7 +1994,7 @@ static ssize_t ls_dark_level_store(struct device *dev,
 
         lpi->dark_level = (uint8_t) ls_dark_level;
 
-        D("%s LS_dark_level = %d\n",
+        I("%s LS_dark_level = %d\n",
           __func__, lpi->dark_level);
 
         return count;
