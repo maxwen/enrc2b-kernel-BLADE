@@ -68,7 +68,7 @@ struct work_struct ril_suspend_resume_work;
 /* frequency cap used during suspend (screen off)*/
 static unsigned int suspend_cap_freq;
 static unsigned int suspend_cap_freq_default;
-static unsigned int suspend_cap_cpu_num = SUSPEND_CPU_NUM_MAX;
+static unsigned int suspend_cap_cpu_num = SUSPEND_ONLINE_CPUS_MAX;
 
 // maxwen: assumes 4 cores!
 unsigned int tegra_pmqos_cpu_freq_limits[CONFIG_NR_CPUS] = {0, 0, 0, 0};
@@ -210,7 +210,7 @@ static int suspend_cap_cpu_num_set(const char *arg, const struct kernel_param *k
 
 	// 0 means reset to default
 	if (suspend_cap_cpu_num == 0)
-		suspend_cap_cpu_num = SUSPEND_CPU_NUM_MAX;
+		suspend_cap_cpu_num = SUSPEND_ONLINE_CPUS_MAX;
 
     pr_info("suspend_cap_cpu_num=%d\n", suspend_cap_cpu_num);
 	return 0;

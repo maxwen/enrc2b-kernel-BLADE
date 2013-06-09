@@ -42,7 +42,7 @@
 #define T3_LP_MAX_FREQ_DEFAULT  475000
 
 // sysfs to change available
-#define SUSPEND_CPU_NUM_MAX		2
+#define SUSPEND_ONLINE_CPUS_MAX		2
 
 // f_mtp.c
 #define MTP_CPU_FREQ_MIN 1150000
@@ -73,6 +73,10 @@
 // usbnet.c
 #define USBNET_CPU_FREQ_MIN 475000
 #define USBNET_ONLINE_CPUS_MIN 2
+
+// tegra_camera.c
+#define CAMERA_CPU_FREQ_MIN 910000
+#define CAMERA_ONLINE_CPUS_MIN 2
 
 extern unsigned int tegra_pmqos_cpu_freq_limits[];
 extern unsigned int tegra_pmqos_cpu_freq_limits_min[];

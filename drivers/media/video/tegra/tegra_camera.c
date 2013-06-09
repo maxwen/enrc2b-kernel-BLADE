@@ -29,8 +29,80 @@
 #include <mach/clk.h>
 #include <mach/powergate.h>
 #include <mach/csi.h>
+#include <linux/pm_qos_params.h>
 
 #include <media/tegra_camera.h>
+
+#include "../../../../arch/arm/mach-tegra/tegra_pmqos.h"
+
+static unsigned int camera_boost = 1;
+static struct pm_qos_request_list boost_cpu_freq_req;
+static struct pm_qos_request_list boost_cpu_num_req;
+static unsigned int camera_boost_freq = CAMERA_CPU_FREQ_MIN;
+static unsigned int camera_boost_cpus = CAMERA_ONLINE_CPUS_MIN;
+
+static int camera_boost_freq_set(const char *arg, const struct kernel_param *kp)
+{
+	int ret = param_set_uint(arg, kp);
+	if (ret)
+		return ret;
+		
+    pr_info("camera_boost_freq=%d\n", camera_boost_freq);
+	return 0;
+}
+
+static int camera_boost_freq_get(char *buffer, const struct kernel_param *kp)
+{
+	return param_get_uint(buffer, kp);
+}
+
+static struct kernel_param_ops camera_boost_freq_ops = {
+	.set = camera_boost_freq_set,
+	.get = camera_boost_freq_get,
+};
+module_param_cb(camera_boost_freq, &camera_boost_freq_ops, &camera_boost_freq, 0644);
+
+static int camera_boost_cpus_set(const char *arg, const struct kernel_param *kp)
+{
+	int ret = param_set_uint(arg, kp);
+	if (ret)
+		return ret;
+		
+    pr_info("camera_boost_cpus=%d\n", camera_boost_cpus);
+	return 0;
+}
+
+static int camera_boost_cpus_get(char *buffer, const struct kernel_param *kp)
+{
+	return param_get_uint(buffer, kp);
+}
+
+static struct kernel_param_ops camera_boost_cpus_ops = {
+	.set = camera_boost_cpus_set,
+	.get = camera_boost_cpus_get,
+};
+module_param_cb(camera_boost_cpus, &camera_boost_cpus_ops, &camera_boost_cpus, 0644);
+
+static int camera_boost_set(const char *arg, const struct kernel_param *kp)
+{
+	int ret = param_set_uint(arg, kp);
+	if (ret)
+		return ret;
+		
+    pr_info("camera_boost=%d\n", camera_boost);
+	return 0;
+}
+
+static int camera_boost_get(char *buffer, const struct kernel_param *kp)
+{
+	return param_get_uint(buffer, kp);
+}
+
+static struct kernel_param_ops camera_boost_ops = {
+	.set = camera_boost_set,
+	.get = camera_boost_get,
+};
+module_param_cb(camera_boost, &camera_boost_ops, &camera_boost, 0644);
 
 /* Eventually this should handle all clock and reset calls for the isp, vi,
  * vi_sensor, and csi modules, replacing nvrm and nvos completely for camera
@@ -247,6 +319,13 @@ static int tegra_camera_power_on(struct tegra_camera_dev *dev)
 
 	dev->power_on = 1;
 	tegra_camera_on = dev->power_on;
+
+	if (camera_boost){
+		pr_info("%s: set camera boost freq = %d cpus = %d\n", __func__, camera_boost_freq, camera_boost_cpus);
+		pm_qos_update_request(&boost_cpu_freq_req, (s32)camera_boost_freq);
+		pm_qos_update_request(&boost_cpu_num_req, (s32)camera_boost_cpus);
+	}
+	
 	return ret;
 }
 
@@ -272,6 +351,13 @@ static int tegra_camera_power_off(struct tegra_camera_dev *dev)
 
 	val = PAD_CIL_PDVREG(0x0);
 	tegra_vi_csi_writel(val, CSI_CIL_PAD_CONFIG);
+
+	if (camera_boost){
+		pr_info("%s: clean camera freq boost\n", __func__);
+		pm_qos_update_request(&boost_cpu_freq_req, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
+		pm_qos_update_request(&boost_cpu_num_req, (s32)PM_QOS_MIN_ONLINE_CPUS_DEFAULT_VALUE);
+	}
+	
 	return ret;
 }
 
@@ -562,12 +648,16 @@ static struct platform_driver tegra_camera_driver = {
 
 static int __init tegra_camera_init(void)
 {
+	pm_qos_add_request(&boost_cpu_freq_req, PM_QOS_CPU_FREQ_MIN, (s32)PM_QOS_CPU_FREQ_MIN_DEFAULT_VALUE);
+	pm_qos_add_request(&boost_cpu_num_req, PM_QOS_MIN_ONLINE_CPUS, (s32)PM_QOS_MIN_ONLINE_CPUS_DEFAULT_VALUE);
 	return platform_driver_register(&tegra_camera_driver);
 }
 
 static void __exit tegra_camera_exit(void)
 {
 	platform_driver_unregister(&tegra_camera_driver);
+	pm_qos_remove_request(&boost_cpu_freq_req);
+	pm_qos_remove_request(&boost_cpu_num_req);
 }
 
 module_init(tegra_camera_init);
