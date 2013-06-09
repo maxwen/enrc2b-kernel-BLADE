@@ -83,7 +83,14 @@ static struct cm3629_platform_data cm3629_pdata = {
 	.model = CAPELLA_CM36282,
 	.ps_select = CM3629_PS1_ONLY,
 	.intr = TEGRA_GPIO_PK2,
-	.levels = { 12, 14, 16, 176, 361, 4169, 6891, 9662, 12433, 65535},
+	// stock enrc2b && enrc2u && endeavoru
+	// .levels = { 12, 14, 16, 176, 361, 4169, 6891, 9662, 12433, 65535},
+	// stock evitaruel
+	// .levels = { 0x0, 0x30, 0xA7, 0x170, 0x5D5, 0xE71, 0x1836, 0x2027, 0x281A, 0xFFFF},
+	// stock One
+	// .levels = { 12, 14, 77, 566, 1360, 4793, 8101, 13240, 18379, 65535},
+	// based on One but keep lower level longer
+	.levels =  { 0xc, 0x4d, 0x236, 0x550, 0x12b9, 0x1fa5, 0x33b8, 0x47cb, 0x8f96, 0xffff},
 	.golden_adc = 0x13AA,
 	.power = NULL,
 	.cm3629_slave_address = 0xC0>>1,
