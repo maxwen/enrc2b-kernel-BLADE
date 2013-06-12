@@ -167,6 +167,8 @@ static unsigned int s2w_double_tap_threshold = 150;  /* msecs */
 static cputime64_t s2w_double_tap_start = 0;
 // screen y barrier below that touch events will be recognized
 static unsigned int s2w_double_tap_barrier_y = 1300;
+// should the I2C sleep command be used on resume
+static bool s2w_resume_tweak_enabled = false;
 
 static bool s2w_switch = true;
 static bool scr_suspended = false;
@@ -1628,6 +1630,38 @@ static ssize_t synaptics_s2w_double_tap_barrier_y_dump(struct device *dev,
 static DEVICE_ATTR(s2w_double_tap_barrier_y, (S_IWUSR|S_IRUGO),
 	synaptics_s2w_double_tap_barrier_y_show, synaptics_s2w_double_tap_barrier_y_dump);
 
+static ssize_t synaptics_s2w_resume_tweak_enabled_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	size_t count = 0;
+
+	count += sprintf(buf, "%d\n", s2w_resume_tweak_enabled);
+
+	return count;
+}
+
+static ssize_t synaptics_s2w_resume_tweak_enabled_dump(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned long value;
+    int ret = 0;
+
+	ret = strict_strtoul(buf, 10, &value);
+    if (ret < 0 || value < 0 || value > 1) {
+        return -EINVAL;
+    }
+    if (value == 0)
+        s2w_resume_tweak_enabled = false;
+    else if (value == 1)
+        s2w_resume_tweak_enabled = true;
+
+    pr_info(S2W_TAG "s2w_resume_tweak_enabled=%d", s2w_resume_tweak_enabled);
+	return count;
+}
+
+static DEVICE_ATTR(s2w_resume_tweak_enabled, (S_IWUSR|S_IRUGO),
+	synaptics_s2w_resume_tweak_enabled_show, synaptics_s2w_resume_tweak_enabled_dump);
+	
 #endif
 
 static ssize_t synaptics_calibration_control_show(struct device *dev,
@@ -1700,7 +1734,8 @@ static int synaptics_touch_sysfs_init(void)
         sysfs_create_file(android_touch_kobj, &dev_attr_s2w_allow_double_tap.attr) ||
         sysfs_create_file(android_touch_kobj, &dev_attr_s2w_double_tap_duration.attr) ||        
         sysfs_create_file(android_touch_kobj, &dev_attr_s2w_double_tap_threshold.attr) ||
-        sysfs_create_file(android_touch_kobj, &dev_attr_s2w_double_tap_barrier_y.attr)        
+        sysfs_create_file(android_touch_kobj, &dev_attr_s2w_double_tap_barrier_y.attr) ||
+        sysfs_create_file(android_touch_kobj, &dev_attr_s2w_resume_tweak_enabled.attr)
 	    )
         return -ENOMEM;
 #endif
@@ -1731,6 +1766,7 @@ static void synaptics_touch_sysfs_remove(void)
 	sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_double_tap_duration.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_double_tap_threshold.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_double_tap_barrier_y.attr);
+	sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_resume_tweak_enabled.attr);	
 #endif
 	kobject_del(android_touch_kobj);
 }
@@ -3274,7 +3310,7 @@ static int synaptics_ts_resume(struct i2c_client *client)
 	printk(KERN_INFO "[TP] %s: enter\n", __func__);
 
 #ifdef CONFIG_TOUCHSCREEN_SYNAPTICS_SWEEP2WAKE
-	if (s2w_active()) {
+	if (s2w_active() && s2w_resume_tweak_enabled) {
 		/* HW revision fix, this is not needed for all touch controllers!
 		 * suspend me for a short while, so that resume can wake me up the right way
 		 *
@@ -3284,7 +3320,7 @@ static int synaptics_ts_resume(struct i2c_client *client)
 		ret = i2c_syn_write_byte_data(client,
 			get_address_base(ts, 0x01, CONTROL_BASE), 0x01);
 		if (ret < 0)
-			i2c_syn_error_handler(ts, 1, "sleep", __func__);
+			i2c_syn_error_handler(ts, ts->i2c_err_handler_en, "sleep", __func__);
 		msleep(150);
 		ret = 0;
 		//screen on, disable_irq_wake
