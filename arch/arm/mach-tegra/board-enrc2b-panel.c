@@ -106,82 +106,10 @@ static struct gpio panel_init_gpios[] = {
     {MHL_3V3_EN,    GPIOF_OUT_INIT_HIGH,    "mhl_3v3_en"},
 };
 
-static tegra_dc_bl_output enrc2b_bl_output_measured_a02 = {
-	1, 5, 9, 10, 11, 12, 12, 13,
-	13, 14, 14, 15, 15, 16, 16, 17,
-	17, 18, 18, 19, 19, 20, 21, 21,
-	22, 22, 23, 24, 24, 25, 26, 26,
-	27, 27, 28, 29, 29, 31, 31, 32,
-	32, 33, 34, 35, 36, 36, 37, 38,
-	39, 39, 40, 41, 41, 42, 43, 43,
-	44, 45, 45, 46, 47, 47, 48, 49,
-	49, 50, 51, 51, 52, 53, 53, 54,
-	55, 56, 56, 57, 58, 59, 60, 61,
-	61, 62, 63, 64, 65, 65, 66, 67,
-	67, 68, 69, 69, 70, 71, 71, 72,
-	73, 73, 74, 74, 75, 76, 76, 77,
-	77, 78, 79, 79, 80, 81, 82, 83,
-	83, 84, 85, 85, 86, 86, 88, 89,
-	90, 91, 91, 92, 93, 93, 94, 95,
-	95, 96, 97, 97, 98, 99, 99, 100,
-	101, 101, 102, 103, 103, 104, 105, 105,
-	107, 107, 108, 109, 110, 111, 111, 112,
-	113, 113, 114, 115, 115, 116, 117, 117,
-	118, 119, 119, 120, 121, 122, 123, 124,
-	124, 125, 126, 126, 127, 128, 129, 129,
-	130, 131, 131, 132, 133, 133, 134, 135,
-	135, 136, 137, 137, 138, 139, 139, 140,
-	142, 142, 143, 144, 145, 146, 147, 147,
-	148, 149, 149, 150, 151, 152, 153, 153,
-	153, 154, 155, 156, 157, 158, 158, 159,
-	160, 161, 162, 163, 163, 164, 165, 165,
-	166, 166, 167, 168, 169, 169, 170, 170,
-	171, 172, 173, 173, 174, 175, 175, 176,
-	176, 178, 178, 179, 180, 181, 182, 182,
-	183, 184, 185, 186, 186, 187, 188, 188
-};
-
-static tegra_dc_bl_output enrc2b_bl_output_measured_a03 = {
-	0, 1, 2, 3, 4, 5, 6, 7,
-	8, 9, 10, 12, 13, 14, 15, 16,
-	17, 19, 20, 21, 22, 22, 23, 24,
-	25, 26, 27, 28, 29, 29, 30, 32,
-	33, 34, 35, 36, 38, 39, 40, 42,
-	43, 44, 46, 47, 49, 50, 51, 52,
-	53, 54, 55, 56, 57, 58, 59, 60,
-	61, 63, 64, 66, 67, 69, 70, 71,
-	72, 73, 74, 75, 76, 77, 78, 79,
-	80, 81, 82, 83, 84, 84, 85, 86,
-	87, 88, 89, 90, 91, 92, 93, 94,
-	95, 96, 97, 98, 99, 100, 101, 102,
-	103, 104, 105, 106, 107, 108, 109, 110,
-	110, 111, 112, 113, 113, 114, 115, 116,
-	116, 117, 118, 118, 119, 120, 121, 122,
-	123, 124, 125, 126, 127, 128, 129, 130,
-	130, 131, 132, 133, 134, 135, 136, 137,
-	138, 139, 140, 141, 142, 143, 144, 145,
-	146, 147, 148, 149, 150, 151, 152, 153,
-	154, 155, 156, 157, 158, 159, 160, 160,
-	161, 162, 163, 163, 164, 165, 165, 166,
-	167, 168, 168, 169, 170, 171, 172, 173,
-	174, 175, 176, 176, 177, 178, 179, 180,
-	181, 182, 183, 184, 185, 186, 187, 188,
-	189, 190, 191, 191, 192, 193, 194, 194,
-	195, 196, 197, 197, 198, 199, 199, 200,
-	202, 203, 205, 206, 208, 209, 211, 212,
-	213, 215, 216, 218, 219, 220, 221, 222,
-	223, 224, 225, 226, 227, 228, 229, 230,
-	231, 232, 233, 234, 235, 236, 237, 238,
-	239, 240, 241, 243, 244, 245, 247, 248,
-	250, 251, 251, 252, 253, 254, 254, 255,
-};
-
 static atomic_t sd_brightness = ATOMIC_INIT(255);
 
 /*global varible for work around*/
 static bool g_display_on = true;
-
-static p_tegra_dc_bl_output bl_output;
 
 #define BACKLIGHT_MAX 255
 
@@ -538,7 +466,7 @@ static int bridge_reset(void)
 
 	/*LCD_RST pull low*/
 	gpio_set_value(LCM_RST, 0);
-	hr_msleep(5);
+	hr_msleep(1);
 	/*Turn on LCMIO_1V8_EN*/
 	regulator_enable(v_lcmio_1v8);
 	hr_msleep(1);
@@ -547,7 +475,7 @@ static int bridge_reset(void)
 	hr_msleep(20);
 
 	gpio_set_value(LCM_RST, 1);
-	hr_msleep(13);
+	hr_msleep(10);
 failed:
 success:
 	is_power_on = 1;
@@ -591,7 +519,7 @@ static int enrc2b_dsi_panel_disable(void)
 
 	DISP_INFO_IN();
 	gpio_set_value(LCM_RST, 0);
-	hr_msleep(12);
+	hr_msleep(1);
 
 	REGULATOR_GET(v_lcm_3v, "v_lcm_3v");
 	regulator_disable(v_lcm_3v);
@@ -4085,8 +4013,6 @@ struct tegra_dsi_out enrc2b_dsi = {
 
 	.panel_reset = DSI_PANEL_RESET,
 	.power_saving_suspend = true,
-	.n_init_cmd = ARRAY_SIZE(dsi_init_sharp_nt_c2_9a_cmd),
-	.dsi_init_cmd = dsi_init_sharp_nt_c2_9a_cmd,
 
 	.n_early_suspend_cmd = ARRAY_SIZE(dsi_early_suspend_cmd),
 	.dsi_early_suspend_cmd = dsi_early_suspend_cmd,
@@ -4105,6 +4031,9 @@ struct tegra_dsi_out enrc2b_dsi = {
 	.impedance_para = 3,
 
 	/* base on kernel2.6 setting */
+	// maxwen: these values together with enrc2b_dsi_modes will print errors 
+	// in the dsi phy timing checks
+    // evitareul hasnt set anything like this at all
 	.phy_timing.t_hsdexit_ns = 108,
 	.phy_timing.t_hstrail_ns = 60,
 	.phy_timing.t_datzero_ns = 172,
@@ -4127,7 +4056,7 @@ static struct tegra_stereo_out enrc2b_stereo = {
 #ifdef CONFIG_TEGRA_DC
 static struct tegra_dc_mode enrc2b_dsi_modes[] = {
 	{
-		.pclk = 10000000,
+		.pclk = 20000000,
 		.h_ref_to_sync = 4,
 		.v_ref_to_sync = 1,
 		.h_sync_width = 16,
@@ -4365,14 +4294,8 @@ int __init enrc2b_panel_init(void)
 
 	tegra_get_board_info(&board_info);
 
-	BUILD_BUG_ON(ARRAY_SIZE(enrc2b_bl_output_measured_a03) != 256);
-	BUILD_BUG_ON(ARRAY_SIZE(enrc2b_bl_output_measured_a02) != 256);
-
-	if (board_info.fab >= BOARD_FAB_A03) {
+	if (board_info.fab >= BOARD_FAB_A03)
 		enrc2b_disp1_backlight_data.clk_div = 0x1D;
-		bl_output = enrc2b_bl_output_measured_a03;
-	} else
-		bl_output = enrc2b_bl_output_measured_a02;
 
 	enrc2b_dsi.chip_id = tegra_get_chipid();
 	enrc2b_dsi.chip_rev = tegra_get_revision();
