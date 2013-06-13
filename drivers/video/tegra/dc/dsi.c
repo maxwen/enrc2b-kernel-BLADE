@@ -85,6 +85,9 @@
 #define NUM_DSI_INIT_SEQ_DATA 8
 #define NUM_DSI_INIT_SEQ_DATA_BYTE 16
 
+// maxwen: TODO
+static bool disable_contraint_checks = true;
+
 static bool enable_read_debug;
 module_param(enable_read_debug, bool, 0644);
 MODULE_PARM_DESC(enable_read_debug,
@@ -1098,7 +1101,8 @@ static void tegra_dsi_set_phy_timing(struct tegra_dc_dsi_data *dsi, u8 lphs)
 	tegra_dsi_get_phy_timing
 		(dsi, &phy_timing, dsi->current_bit_clk_ns, lphs);
 
-	tegra_dsi_constraint_phy_timing(dsi, &phy_timing,
+    if (!disable_contraint_checks)
+	    tegra_dsi_constraint_phy_timing(dsi, &phy_timing,
 					dsi->current_bit_clk_ns, lphs);
 
 	val = DSI_PHY_TIMING_0_THSDEXIT(phy_timing.t_hsdexit) |
