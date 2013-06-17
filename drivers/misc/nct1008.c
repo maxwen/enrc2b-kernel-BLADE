@@ -840,9 +840,8 @@ error:
 
 static int __devinit nct1008_configure_irq(struct nct1008_data *data)
 {
-	data->workqueue = create_singlethread_workqueue((data->chip == NCT72) \
-							? "nct72" : "nct1008");
-
+	data->workqueue = alloc_workqueue((data->chip == NCT72) ? "nct72" : "nct1008", 
+								WQ_UNBOUND | WQ_RESCUER, 1);
 	INIT_WORK(&data->work, nct1008_work_func);
 
 	if (data->client->irq < 0)
