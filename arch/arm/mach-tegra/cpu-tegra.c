@@ -1130,7 +1130,11 @@ int tegra_input_boost(struct cpufreq_policy *policy,
 			free_device = true;
 	}
 #endif
-    
+
+	/* no need to proceed if the new freq is equal to cur */
+	if (freq == policy->cur)
+		goto _out;
+
 #if CPU_FREQ_DEBUG
 	pr_info("tegra_input_boost: freq=%d\n", freq);
 #endif
@@ -1138,6 +1142,7 @@ int tegra_input_boost(struct cpufreq_policy *policy,
 	target_cpu_speed[policy->cpu] = freq;
 	ret = _tegra_cpu_set_speed_cap(NULL, false);
 
+_out:
     mutex_unlock(&tegra_cpu_lock);
 
     return ret;
@@ -1173,6 +1178,10 @@ static int tegra_target(struct cpufreq_policy *policy,
 	}
 #endif
 
+	/* no need to proceed if the new freq is equal to cur */
+	if (freq == policy->cur)
+		goto _out;
+
 #if CPU_FREQ_DEBUG
 	pr_info("tegra_target: freq=%d\n", freq);
 #endif
@@ -1180,6 +1189,7 @@ static int tegra_target(struct cpufreq_policy *policy,
 	target_cpu_speed[policy->cpu] = freq;
 	ret = _tegra_cpu_set_speed_cap(NULL, false);
 
+_out:
 	mutex_unlock(&tegra_cpu_lock);
 
 	return ret;
