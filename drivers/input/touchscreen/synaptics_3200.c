@@ -168,7 +168,7 @@ static cputime64_t s2w_double_tap_start = 0;
 // screen y barrier below that touch events will be recognized
 static unsigned int s2w_double_tap_barrier_y = 1300;
 // should the I2C sleep command be used on resume
-static bool s2w_resume_tweak_enabled = false;
+static bool s2w_resume_tweak_enabled = true;
 
 static bool s2w_switch = true;
 static bool scr_suspended = false;
@@ -3321,7 +3321,7 @@ static int synaptics_ts_resume(struct i2c_client *client)
 			get_address_base(ts, 0x01, CONTROL_BASE), 0x01);
 		if (ret < 0)
 			i2c_syn_error_handler(ts, ts->i2c_err_handler_en, "sleep", __func__);
-		msleep(150);
+		msleep(100);
 		ret = 0;
 		//screen on, disable_irq_wake
 		disable_irq_wake(client->irq);
