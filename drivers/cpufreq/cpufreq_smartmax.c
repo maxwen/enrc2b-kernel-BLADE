@@ -119,6 +119,23 @@ extern int tegra_input_boost (struct cpufreq_policy *policy,
 #define DEFAULT_IGNORE_NICE 1
 #endif
 
+#ifdef CONFIG_CPU_FREQ_GOV_SMARTMAX_FIND5
+#define DEFAULT_SUSPEND_IDEAL_FREQ 384000
+#define DEFAULT_AWAKE_IDEAL_FREQ 702000
+#define DEFAULT_RAMP_UP_STEP 300000
+#define DEFAULT_RAMP_DOWN_STEP 200000
+#define DEFAULT_MAX_CPU_LOAD 70
+#define DEFAULT_MIN_CPU_LOAD 40
+#define DEFAULT_UP_RATE 30000
+#define DEFAULT_DOWN_RATE 60000
+#define DEFAULT_SAMPLING_RATE 30000
+#define DEFAULT_INPUT_BOOST_DURATION 90000
+#define DEFAULT_TOUCH_POKE_FREQ 1134000
+#define DEFAULT_BOOST_FREQ 1134000
+#define DEFAULT_IO_IS_BUSY 0
+#define DEFAULT_IGNORE_NICE 1
+#endif
+
 static unsigned int suspend_ideal_freq;
 static unsigned int awake_ideal_freq;
 /*
@@ -204,7 +221,6 @@ struct smartmax_info_s {
 	unsigned int cur_cpu_load;
 	unsigned int old_freq;
 	int ramp_dir;
-	bool enable;
 	unsigned int ideal_speed;
 	unsigned int cpu;
 	struct mutex timer_mutex;
@@ -354,12 +370,18 @@ inline static void smartmax_update_min_max(
 inline static void smartmax_update_min_max_allcpus(void) {
 	unsigned int i;
 
+	// block hotplugging
+	get_online_cpus();
+
 	for_each_online_cpu(i)
 	{
 		struct smartmax_info_s *this_smartmax = &per_cpu(smartmax_info, i);
-		if (this_smartmax->enable)
+		if (this_smartmax->cur_policy)
 			smartmax_update_min_max(this_smartmax, this_smartmax->cur_policy);
 	}
+
+	// resume hotplugging
+	put_online_cpus();
 }
 
 inline static unsigned int validate_freq(struct cpufreq_policy *policy,
@@ -1135,17 +1157,22 @@ static int cpufreq_smartmax_boost_task(void *data) {
 
         unlock_policy_rwsem_write(0);
 #else
+		// block hotplugging
+		get_online_cpus();
+		
 		for_each_online_cpu(cpu){
 			this_smartmax = &per_cpu(smartmax_info, cpu);
 			if (!this_smartmax)
 				continue;
 
-			policy = this_smartmax->cur_policy;
-			if (!policy)
-				continue;
-
 			if (lock_policy_rwsem_write(cpu) < 0)
 				continue;
+
+			policy = this_smartmax->cur_policy;
+			if (!policy){
+				unlock_policy_rwsem_write(cpu);
+				continue;
+			}
 
 			mutex_lock(&this_smartmax->timer_mutex);
 
@@ -1158,6 +1185,8 @@ static int cpufreq_smartmax_boost_task(void *data) {
 
 			unlock_policy_rwsem_write(cpu);
 		}
+		// resume hotplugging
+		put_online_cpus();
 #endif
 
 #ifndef CONFIG_CPU_FREQ_GOV_SMARTMAX_TEGRA
@@ -1281,13 +1310,13 @@ static int cpufreq_governor_smartmax(struct cpufreq_policy *new_policy,
 
 	switch (event) {
 	case CPUFREQ_GOV_START:
-		if ((!cpu_online(cpu)) || (!new_policy->cur))return -EINVAL;
+		if ((!cpu_online(cpu)) || (!new_policy->cur))
+			return -EINVAL;
 
 		mutex_lock(&dbs_mutex);
 
 		this_smartmax->cur_policy = new_policy;
 		this_smartmax->cpu = cpu;
-		this_smartmax->enable = true;
 
 		smartmax_update_min_max(this_smartmax,new_policy);
 
@@ -1342,7 +1371,6 @@ static int cpufreq_governor_smartmax(struct cpufreq_policy *new_policy,
 		}
 
 		mutex_unlock(&dbs_mutex);
-		mutex_init(&this_smartmax->timer_mutex);
 		dbs_timer_init(this_smartmax);
 
 		break;
@@ -1367,8 +1395,7 @@ static int cpufreq_governor_smartmax(struct cpufreq_policy *new_policy,
 		dbs_timer_exit(this_smartmax);
 
 		mutex_lock(&dbs_mutex);
-		mutex_destroy(&this_smartmax->timer_mutex);
-		this_smartmax->enable = false;
+		this_smartmax->cur_policy = NULL;
 		dbs_enable--;
 
 		if (!dbs_enable){
@@ -1423,14 +1450,15 @@ static int __init cpufreq_smartmax_init(void) {
 	touch_poke_freq = DEFAULT_TOUCH_POKE_FREQ;
 	boost_freq = DEFAULT_BOOST_FREQ;
 
-	/* Initalize per-cpu data: */for_each_possible_cpu(i)
+	/* Initalize per-cpu data: */
+	for_each_possible_cpu(i)
 	{
 		this_smartmax = &per_cpu(smartmax_info, i);
-		this_smartmax->enable = false;
-		this_smartmax->cur_policy = 0;
+		this_smartmax->cur_policy = NULL;
 		this_smartmax->ramp_dir = 0;
 		this_smartmax->freq_change_time = 0;
 		this_smartmax->cur_cpu_load = 0;
+		mutex_init(&this_smartmax->timer_mutex);
 	}
 
 #ifdef CONFIG_HAS_EARLYSUSPEND
@@ -1449,7 +1477,16 @@ module_init(cpufreq_smartmax_init);
 #endif
 
 static void __exit cpufreq_smartmax_exit(void) {
+	unsigned int i;
+	struct smartmax_info_s *this_smartmax;
+
 	cpufreq_unregister_governor(&cpufreq_gov_smartmax);
+
+	for_each_possible_cpu(i)
+	{
+		this_smartmax = &per_cpu(smartmax_info, i);
+		mutex_destroy(&this_smartmax->timer_mutex);
+	}
 }
 
 module_exit(cpufreq_smartmax_exit);
