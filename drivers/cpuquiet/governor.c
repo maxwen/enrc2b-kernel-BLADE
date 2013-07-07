@@ -19,6 +19,8 @@
 #include <linux/mutex.h>
 #include <linux/module.h>
 #include <linux/cpuquiet.h>
+#include <linux/input.h>
+#include <linux/slab.h>
 
 #include "cpuquiet.h"
 
@@ -36,7 +38,7 @@ void cpuquiet_set_default_governor(struct cpuquiet_governor* gov)
 	if (!strnicmp("balanced", gov->name, CPUQUIET_NAME_LEN))
 		default_gov = gov;
 #endif
-#ifdef CONFIG_CPUQUIET_DEFAULT_GOV_RQSTATS
+#ifdef CONFIG_CPUQUIET_DEFAULT_GOV_RQ_STATS
 	if (!strnicmp("rq_stats", gov->name, CPUQUIET_NAME_LEN))
 		default_gov = gov;
 #endif
@@ -44,7 +46,10 @@ void cpuquiet_set_default_governor(struct cpuquiet_governor* gov)
 	if (!strnicmp("runnable", gov->name, CPUQUIET_NAME_LEN))
 		default_gov = gov;
 #endif
-
+#ifdef CONFIG_CPUQUIET_DEFAULT_GOV_LOAD_STATS
+	if (!strnicmp("load_stats", gov->name, CPUQUIET_NAME_LEN))
+		default_gov = gov;
+#endif
 	if (default_gov != NULL)
 		cpuquiet_switch_governor(default_gov); 
 }
@@ -139,3 +144,86 @@ void cpuquiet_device_free(void)
 			cpuquiet_curr_governor->device_free_notification)
 		cpuquiet_curr_governor->device_free_notification();
 }
+
+void cpuquiet_touch_event(void)
+{
+	if (cpuquiet_curr_governor &&
+			cpuquiet_curr_governor->touch_event_notification)
+		cpuquiet_curr_governor->touch_event_notification();
+}
+
+static void cpuquiet_input_event(struct input_handle *handle, unsigned int type,
+		unsigned int code, int value) {
+	if (type == EV_SYN && code == SYN_REPORT) {
+		cpuquiet_touch_event();
+	}
+}
+
+static int input_dev_filter(const char* input_dev_name) {
+	int ret = 0;
+	if (strstr(input_dev_name, "touchscreen")
+			|| strstr(input_dev_name, "-ts")
+			|| strstr(input_dev_name, "-keypad")
+			|| strstr(input_dev_name, "-nav")
+			|| strstr(input_dev_name, "-oj")) {
+	} else {
+		ret = 1;
+	}
+	return ret;
+}
+
+static int cpuquiet_input_connect(struct input_handler *handler,
+		struct input_dev *dev, const struct input_device_id *id) {
+	struct input_handle *handle;
+	int error;
+
+	/* filter out those input_dev that we don't care */
+	if (input_dev_filter(dev->name))
+		return 0;
+
+	pr_info(CPUQUIET_TAG "%s input connect to %s\n", __func__, dev->name);
+
+	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
+	if (!handle)
+		return -ENOMEM;
+
+	handle->dev = dev;
+	handle->handler = handler;
+	handle->name = "cpuquiet";
+
+	error = input_register_handle(handle);
+	if (error)
+		goto err2;
+
+	error = input_open_device(handle);
+	if (error)
+		goto err1;
+
+	return 0;
+	err1: input_unregister_handle(handle);
+	err2: kfree(handle);
+	return error;
+}
+
+static void cpuquiet_input_disconnect(struct input_handle *handle) {
+	input_close_device(handle);
+	input_unregister_handle(handle);
+	kfree(handle);
+}
+
+static const struct input_device_id cpuquiet_ids[] = { { .driver_info = 1 }, { }, };
+
+static struct input_handler cpuquiet_input_handler = { 
+	.event = cpuquiet_input_event,
+	.connect = cpuquiet_input_connect, 
+	.disconnect = cpuquiet_input_disconnect,
+	.name = "cpuquiet", 
+	.id_table = cpuquiet_ids, 
+	};
+
+static int cpuquiet_input_init(void)
+{
+	return input_register_handler(&cpuquiet_input_handler);
+}
+
+late_initcall(cpuquiet_input_init);
