@@ -1203,6 +1203,9 @@ static int cpufreq_smartmax_boost_task(void *data) {
 #endif
 	}
 
+#if SMARTMAX_DEBUG
+	pr_info("[smartmax]:" "%s boost_thread stopped\n", __func__);
+#endif
 	return 0;
 }
 
@@ -1224,6 +1227,7 @@ static void dbs_input_event(struct input_handle *handle, unsigned int type,
 static int input_dev_filter(const char* input_dev_name) {
 	int ret = 0;
 	if (strstr(input_dev_name, "touchscreen")
+			|| strstr(input_dev_name, "-ts")
 			|| strstr(input_dev_name, "-keypad")
 			|| strstr(input_dev_name, "-nav")
 			|| strstr(input_dev_name, "-oj")) {
@@ -1242,7 +1246,9 @@ static int dbs_input_connect(struct input_handler *handler,
 	if (input_dev_filter(dev->name))
 		return 0;
 
-	dprintk(SMARTMAX_DEBUG_INPUT, "%s\n", __func__);
+#if SMARTMAX_DEBUG
+	pr_info("[smartmax]:" "%s input connect to %s\n", __func__, dev->name);
+#endif
 
 	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
 	if (!handle)
@@ -1331,7 +1337,7 @@ static int cpufreq_governor_smartmax_eps(struct cpufreq_policy *new_policy,
 				boost_task = kthread_create (
 						cpufreq_smartmax_boost_task,
 						NULL,
-						"kinputboostd"
+						"smartmax_input_boost_task"
 				);
 
 				if (IS_ERR(boost_task)) {
@@ -1340,6 +1346,9 @@ static int cpufreq_governor_smartmax_eps(struct cpufreq_policy *new_policy,
 					return PTR_ERR(boost_task);
 				}
 
+#if SMARTMAX_DEBUG
+				pr_info("[smartmax]:" "%s input boost task created\n", __func__);
+#endif
 				sched_setscheduler_nocheck(boost_task, SCHED_RR, &param);
 				get_task_struct(boost_task);
 				boost_task_alive = true;
@@ -1399,6 +1408,9 @@ static int cpufreq_governor_smartmax_eps(struct cpufreq_policy *new_policy,
 		dbs_enable--;
 
 		if (!dbs_enable){
+			if (boost_task_alive)
+				kthread_stop(boost_task);
+
 			sysfs_remove_group(cpufreq_global_kobject, &smartmax_attr_group);
 			input_unregister_handler(&dbs_input_handler);
 #ifdef CONFIG_HAS_EARLYSUSPEND
