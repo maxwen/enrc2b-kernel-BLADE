@@ -74,6 +74,8 @@ static unsigned int max_cpus = CONFIG_NR_CPUS;
 
 static DEFINE_MUTEX(hotplug_lock);
 
+int tegra_cpuquiet_force_gmode(void);
+
 #define CPUQUIET_TAG                       "[CPUQUIET]: "
 
 static bool log_hotplugging = false;
@@ -177,22 +179,17 @@ static int update_core_config(unsigned int cpunumber, bool up)
 	}
 			
 	if (up) {
-		if(is_lp_cluster()) {
-			ret = -EBUSY;
-		} else {
-			if (nr_cpus < max_cpus){
-				show_status("UP", 0, cpunumber);
-				ret = cpu_up(cpunumber);
-			}
+		if(is_lp_cluster())
+			tegra_cpuquiet_force_gmode();
+
+		if (nr_cpus < max_cpus){
+			show_status("UP", 0, cpunumber);
+			ret = cpu_up(cpunumber);
 		}
 	} else {
-		if (is_lp_cluster()) {
-			ret = -EBUSY;
-		} else {
-			if (nr_cpus > 1 && nr_cpus > min_cpus){
-				show_status("DOWN", 0, cpunumber);
-				ret = cpu_down(cpunumber);
-			}
+		if (nr_cpus > 1 && nr_cpus > min_cpus){
+			show_status("DOWN", 0, cpunumber);
+			ret = cpu_down(cpunumber);
 		}
 	}
 
@@ -219,7 +216,6 @@ static struct cpuquiet_driver tegra_cpuquiet_driver = {
 
 static void tegra_cpuquiet_work_func(struct work_struct *work)
 {
-	int device_busy = -1;
 	cputime64_t on_time = 0;
 
 #if CPUQUIET_DEBUG_VERBOSE
@@ -246,7 +242,6 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 					show_status("LP -> off", on_time, -1);
 					/*catch-up with governor target speed */
 					tegra_cpu_set_speed_cap(NULL);
-					device_busy = 0;
 				} else
 					pr_err(CPUQUIET_TAG "tegra_cpuquiet_work_func - switch_clk_to_gmode failed\n");				
 			}
@@ -261,7 +256,6 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 					show_status("LP -> on", 0, -1);
 					/*catch-up with governor target speed*/
 					tegra_cpu_set_speed_cap(NULL);
-					device_busy = 1;
 					lp_on_time = ktime_to_ms(ktime_get());
 				}
 #if CPUQUIET_DEBUG_VERBOSE
@@ -282,14 +276,6 @@ static void tegra_cpuquiet_work_func(struct work_struct *work)
 	mutex_unlock(tegra3_cpu_lock);
 
 	mutex_unlock(&hotplug_lock);
-	
-	if (!manual_hotplug){
-		if (device_busy == 1) {
-			cpuquiet_device_busy();
-		} else if (!device_busy) {
-			cpuquiet_device_free();
-		}
-	}
 }
 
 static void min_max_constraints_workfunc(struct work_struct *work)
@@ -363,9 +349,6 @@ static void min_cpus_change(void)
 	mutex_unlock(tegra3_cpu_lock);
 
 	schedule_work(&minmax_work);
-
-	if (g_cluster && !manual_hotplug)
-		cpuquiet_device_free();
 }
 
 static int min_cpus_notify(struct notifier_block *nb, unsigned long n, void *p)
@@ -435,9 +418,6 @@ int tegra_cpuquiet_force_gmode(void)
 		show_status("LP -> off - force", on_time, -1);
 
     	mutex_unlock(tegra3_cpu_lock);
-
-		if (!manual_hotplug)
-			cpuquiet_device_free();
 	}
 	
 	return 0;
@@ -467,13 +447,6 @@ int tegra_cpuquiet_force_gmode_locked(void)
 	}
 	return 0;
 }
-
-void tegra_cpuquiet_device_free(void)
-{
-	if (!manual_hotplug)
-		cpuquiet_device_free();
-}
-
 
 void tegra_cpuquiet_set_no_lp(bool value)
 {

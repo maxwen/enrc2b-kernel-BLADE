@@ -60,7 +60,6 @@ extern int mpdecision_gmode_notifier(void);
 #ifdef CONFIG_TEGRA_CPUQUIET
 extern int tegra_cpuquiet_force_gmode(void);
 extern int tegra_cpuquiet_force_gmode_locked(void);
-extern void tegra_cpuquiet_device_free(void);
 #endif
 
 struct work_struct ril_suspend_resume_work;
@@ -1138,12 +1137,6 @@ int tegra_input_boost(struct cpufreq_policy *policy,
 
     mutex_unlock(&tegra_cpu_lock);
 
-#ifdef CONFIG_TEGRA_CPUQUIET
-	// must be outsde of mutex
-	if (free_device){
-		tegra_cpuquiet_device_free();
-	}
-#endif
     return ret;
 }
 EXPORT_SYMBOL (tegra_input_boost);
@@ -1186,12 +1179,6 @@ static int tegra_target(struct cpufreq_policy *policy,
 
 	mutex_unlock(&tegra_cpu_lock);
 
-#ifdef CONFIG_TEGRA_CPUQUIET
-	// must be outsde of mutex
-	if (free_device){
-		tegra_cpuquiet_device_free();
-	}
-#endif
 	return ret;
 }
 
