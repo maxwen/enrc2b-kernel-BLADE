@@ -19,8 +19,9 @@
 #include <linux/slab.h>
 #include <linux/cpu.h>
 #include <linux/sched.h>
-#include <linux/rq_stats.h>
 #include <linux/kthread.h>
+#include <linux/kernel_stat.h>
+#include <linux/tick.h>
 
 // from cpu-tegra.c
 extern unsigned int best_core_to_turn_up(void);
@@ -46,7 +47,7 @@ static LOAD_STATS_STATE load_stats_state;
 static struct workqueue_struct *load_stats_wq;
 
 static unsigned int load_threshold[8] = {90, 80, 80, 70, 70, 60, 60, 50};
-static unsigned int twts_threshold[8] = {140, 0, 140, 190, 140, 190, 0, 190};
+static unsigned int twts_threshold[8] = {70, 0, 70, 120, 70, 120, 0, 120};
 
 extern unsigned int get_rq_info(void);
 
@@ -64,10 +65,120 @@ static cputime64_t last_time;
 
 DEFINE_MUTEX(load_stats_work_lock);
 
+struct cpu_load_data {
+	cputime64_t prev_cpu_idle;
+	cputime64_t prev_cpu_wall;
+	cputime64_t prev_cpu_iowait;
+	cputime64_t prev_cpu_nice;
+};
+
+/* Consider IO as busy */
+static bool io_is_busy = false;
+static bool ignore_nice = true;
+
+static DEFINE_PER_CPU(struct cpu_load_data, cpuload);
+
 static bool log_hotplugging = false;
 #define hotplug_info(msg...) do { \
 	if (log_hotplugging) pr_info("[LOAD_STATS]: " msg); \
 	} while (0)
+
+static inline u64 get_cpu_idle_time_jiffy(unsigned int cpu, u64 *wall)
+{
+	u64 idle_time;
+	u64 cur_wall_time;
+	u64 busy_time;
+
+	cur_wall_time = jiffies64_to_cputime64(get_jiffies_64());
+
+	busy_time  = kstat_cpu(cpu).cpustat.user;
+	busy_time += kstat_cpu(cpu).cpustat.system;
+	busy_time += kstat_cpu(cpu).cpustat.irq;
+	busy_time += kstat_cpu(cpu).cpustat.softirq;
+	busy_time += kstat_cpu(cpu).cpustat.steal;
+	busy_time += kstat_cpu(cpu).cpustat.nice;
+
+	idle_time = cur_wall_time - busy_time;
+	if (wall)
+		*wall = jiffies_to_usecs(cur_wall_time);
+
+	return jiffies_to_usecs(idle_time);
+}
+
+static inline cputime64_t get_cpu_idle_time(unsigned int cpu, cputime64_t *wall)
+{
+	u64 idle_time = get_cpu_idle_time_us(cpu, NULL);
+
+	if (idle_time == -1ULL)
+		return get_cpu_idle_time_jiffy(cpu, wall);
+	else
+		idle_time += get_cpu_iowait_time_us(cpu, wall);
+
+	return idle_time;
+}
+
+static inline cputime64_t get_cpu_iowait_time(unsigned int cpu,
+							cputime64_t *wall)
+{
+	u64 iowait_time = get_cpu_iowait_time_us(cpu, wall);
+
+	if (iowait_time == -1ULL)
+		return 0;
+
+	return iowait_time;
+}
+
+static unsigned int calc_cur_load(unsigned int cpu)
+{
+	struct cpu_load_data *pcpu = &per_cpu(cpuload, cpu);
+	cputime64_t cur_wall_time, cur_idle_time, cur_iowait_time;
+	unsigned int idle_time, wall_time, iowait_time;
+
+	cur_idle_time = get_cpu_idle_time(cpu, &cur_wall_time);
+	cur_iowait_time = get_cpu_iowait_time(cpu, &cur_wall_time);
+
+	wall_time = (unsigned int) (cur_wall_time - pcpu->prev_cpu_wall);
+	pcpu->prev_cpu_wall = cur_wall_time;
+
+	idle_time = (unsigned int) (cur_idle_time - pcpu->prev_cpu_idle);
+	pcpu->prev_cpu_idle = cur_idle_time;
+
+	iowait_time = (unsigned int) (cur_iowait_time - pcpu->prev_cpu_iowait);
+	pcpu->prev_cpu_iowait = cur_iowait_time;
+
+	if (ignore_nice) {
+		u64 cur_nice;
+		unsigned long cur_nice_jiffies;
+
+		cur_nice = kstat_cpu(cpu).cpustat.nice - pcpu->prev_cpu_nice;
+		cur_nice_jiffies = (unsigned long) cputime64_to_jiffies64(cur_nice);
+
+		pcpu->prev_cpu_nice = kstat_cpu(cpu).cpustat.nice;
+
+		idle_time += jiffies_to_usecs(cur_nice_jiffies);
+	}
+
+	if (io_is_busy && idle_time >= iowait_time)
+		idle_time -= iowait_time;
+
+	if (unlikely(!wall_time || wall_time < idle_time))
+		return 0;
+
+	return 100 * (wall_time - idle_time) / wall_time;
+}
+
+static unsigned int report_load(void)
+{
+	int cpu;
+	unsigned int cur_load = 0;
+	
+	for_each_online_cpu(cpu) {
+		cur_load += calc_cur_load(cpu);
+	}
+	cur_load /= num_online_cpus();
+  	
+	return cur_load;
+}
 
 static unsigned int get_lightest_loaded_cpu_n(void)
 {
@@ -100,9 +211,6 @@ static void update_load_stats_state(void)
 	if (load_stats_state == DISABLED)
 		return;
 
-	if (!rq_data_init_done)
-		return;
-
 	current_time = ktime_to_ms(ktime_get());
 	if (current_time <= start_delay){
 		load_stats_state = IDLE;
@@ -115,7 +223,7 @@ static void update_load_stats_state(void)
 		this_time = current_time - last_time;
 	}
 	total_time += this_time;
-	load = report_load_at_max_freq();
+	load = report_load();
 	nr_cpu_online = num_online_cpus();
 	load_stats_state = IDLE;
 
@@ -420,8 +528,6 @@ static void load_stats_stop(void)
 {
 	load_stats_state = DISABLED;
 	cancel_delayed_work_sync(&load_stats_work);
-
-	enable_rq_load_calc(false);
 	
 	if (input_boost_task_alive)
 		kthread_stop(input_boost_task);
@@ -445,8 +551,6 @@ static int load_stats_start(void)
 		return -ENOMEM;
 
 	INIT_DELAYED_WORK(&load_stats_work, load_stats_work_func);
-
-	enable_rq_load_calc(true);
 
 	input_boost_task = kthread_create (
 			load_stats_boost_task,
