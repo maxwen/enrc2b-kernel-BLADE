@@ -32,6 +32,7 @@
 #include <linux/seq_file.h>
 #include <linux/pm_qos_params.h>
 #include <linux/cpuquiet.h>
+#include <linux/earlysuspend.h>
 
 #include "pm.h"
 #include "cpu-tegra.h"
@@ -63,7 +64,12 @@ static bool manual_hotplug = false;
 static unsigned int cpusallowed = 0;
 // core 0 is always active
 unsigned int cpu_core_state[3] = {0, 0, 0};
-		
+
+#ifdef CONFIG_HAS_EARLYSUSPEND
+struct early_suspend tegra_cpuquiet_early_suspender;
+#endif
+static bool screen_on = true;
+
 static struct clk *cpu_clk;
 static struct clk *cpu_g_clk;
 static struct clk *cpu_lp_clk;
@@ -178,10 +184,17 @@ static int update_core_config(unsigned int cpunumber, bool up)
         return -EBUSY;
 	}
 			
-	if (up) {
-		if(is_lp_cluster())
-			tegra_cpuquiet_force_gmode();
-
+	if (up) { 
+		/* disable hotplugging based force g-mode on screen off */
+		if(is_lp_cluster()){
+			if (screen_on){
+				show_status("LP -> off - hotplug", 1, -1);
+				tegra_cpuquiet_force_gmode();
+			} else {
+				mutex_unlock(&hotplug_lock);
+				return -EBUSY;
+			}
+		}
 		if (nr_cpus < max_cpus){
 			show_status("UP", 0, cpunumber);
 			ret = cpu_up(cpunumber);
@@ -872,6 +885,18 @@ static struct miscdevice cpusallowed_device = {
 	.name = "cpusallowed",
 };
 
+#ifdef CONFIG_HAS_EARLYSUSPEND
+static void tegra_cpuquiet_early_suspend(struct early_suspend *h)
+{
+	screen_on = false;
+}
+
+static void tegra_cpuquiet_late_resume(struct early_suspend *h)
+{
+	screen_on = true;
+}
+#endif
+
 int tegra_auto_hotplug_init(struct mutex *cpu_lock)
 {
 	int err;
@@ -915,6 +940,13 @@ int tegra_auto_hotplug_init(struct mutex *cpu_lock)
 		pr_err(CPUQUIET_TAG "%s: Failed to register max cpus PM QoS notifier\n",
 			__func__);
 
+#ifdef CONFIG_HAS_EARLYSUSPEND	
+	tegra_cpuquiet_early_suspender.suspend = tegra_cpuquiet_early_suspend;
+	tegra_cpuquiet_early_suspender.resume = tegra_cpuquiet_late_resume;
+	tegra_cpuquiet_early_suspender.level = EARLY_SUSPEND_LEVEL_DISABLE_FB + 100;
+	register_early_suspend(&tegra_cpuquiet_early_suspender);
+#endif
+
 	err = cpuquiet_register_driver(&tegra_cpuquiet_driver);
 	if (err) {
 		destroy_workqueue(cpuquiet_wq);
@@ -950,6 +982,10 @@ error:
 
 void tegra_auto_hotplug_exit(void)
 {
+#ifdef CONFIG_HAS_EARLYSUSPEND
+	unregister_early_suspend(&tegra_cpuquiet_early_suspender);
+#endif
+
 	destroy_workqueue(cpuquiet_wq);
 	cpuquiet_unregister_driver(&tegra_cpuquiet_driver);
 	kobject_put(tegra_auto_sysfs_kobject);
