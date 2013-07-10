@@ -72,10 +72,12 @@ static int cpu_below_core = VDD_CPU_BELOW_VDD_CORE;
 
 #define GPU_MAX_FREQ			600
 
+#ifdef CONFIG_TEGRA_GPU_OC
 static bool gpu_quick_oc_enabled = false;
 static const char* gpu_default="200 267 304 361 408 446 484 520 600";
 static const char* gpu_quick_oc="200 267 380 492 528 564 600 600 600";
 static const unsigned long pll_c_default[MAX_DVFS_FREQS] = { 533000, 667000, 667000, 800000, 800000, 1066000, 1066000, 1066000, 1200000 };
+#endif
 
 static int curr_cpu_vdd_change = 0;
 extern struct mutex dvfs_lock;

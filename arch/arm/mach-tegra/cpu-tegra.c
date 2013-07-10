@@ -165,13 +165,16 @@ unsigned int tegra_cpu_freq_max(unsigned int cpu)
 
 unsigned int tegra_lpmode_freq_max(void)
 {
-	struct clk *cpu_lp_clk;
 	unsigned int max_rate; 
+
+#ifdef CONFIG_TEGRA3_VARIANT_CPU_OVERCLOCK
+	struct clk *cpu_lp_clk;
 
 	if (enable_lp_oc) {
     	cpu_lp_clk = clk_get_sys(NULL, "cpu_lp");
     	max_rate = clk_get_max_rate(cpu_lp_clk) / 1000;
     } else
+#endif
     	max_rate = T3_LP_MAX_FREQ_DEFAULT;
 	return max_rate;
 }
