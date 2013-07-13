@@ -539,7 +539,7 @@ static void load_stats_stop(void)
 static int load_stats_start(void)
 {
 	int err;
-	struct sched_param param = { .sched_priority = 1 };
+	struct sched_param param = { .sched_priority = MAX_RT_PRIO-1 };
 	
 	err = load_stats_sysfs();
 	if (err)
@@ -561,7 +561,7 @@ static int load_stats_start(void)
 	if (IS_ERR(input_boost_task))
 		pr_err("%s: failed to create input boost task\n", __func__);
 	else {
-		sched_setscheduler_nocheck(input_boost_task, SCHED_RR, &param);
+		sched_setscheduler_nocheck(input_boost_task, SCHED_FIFO, &param);
 		get_task_struct(input_boost_task);
 		input_boost_task_alive = true;
 		hotplug_info("%s: input boost task created\n", __func__);
