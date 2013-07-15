@@ -211,6 +211,7 @@ static void rq_stats_work_func(struct work_struct *work)
 static int load_stats_boost_task(void *data) {
 	unsigned int nr_cpu_online;
 	int i;
+	unsigned int max_cpus;
 
 	while (1) {
 		set_current_state(TASK_INTERRUPTIBLE);
@@ -231,10 +232,13 @@ static int load_stats_boost_task(void *data) {
 		/* do boost work */
 		nr_cpu_online = num_online_cpus();
 		if (nr_cpu_online < input_boost_cpus){
+			max_cpus = tegra_cpq_max_cpus();
 			for (i = nr_cpu_online; i < input_boost_cpus; i++){
-				rq_stats_state = UP;
-				hotplug_info("UP because of input boost\n");
-				__rq_stats_work_func();
+				if (i < max_cpus){
+					rq_stats_state = UP;
+					hotplug_info("UP because of input boost\n");
+					__rq_stats_work_func();
+				}
 			}
 		}
 		input_boost_end_time = ktime_to_ms(ktime_get()) + input_boost_duration;
