@@ -9,6 +9,8 @@
  *
  * load_stats based cpuquiet governor
  * uses load status to hotplug cpus
+ * uses also rq_stats to detect situations with lots of threads
+ * but low load
  */
 
 #include <linux/kernel.h>
@@ -200,6 +202,7 @@ static unsigned int get_lightest_loaded_cpu_n(void)
 
 static void update_load_stats_state(void)
 {
+	unsigned int rq_depth;
 	unsigned int load;
 	unsigned int nr_cpu_online;
 	unsigned int max_cpus = tegra_cpq_max_cpus();
@@ -224,6 +227,7 @@ static void update_load_stats_state(void)
 	}
 	total_time += this_time;
 	load = report_load();
+	rq_depth = get_rq_info();
 	nr_cpu_online = num_online_cpus();
 	load_stats_state = IDLE;
 
@@ -249,6 +253,11 @@ static void update_load_stats_state(void)
 		}
 	} else {
 		total_time = 0;
+	}
+
+	if (rq_depth > 30 && load_stats_state != UP){
+		hotplug_info("UP because of rq_depth\n");
+		load_stats_state = UP;
 	}
 
 	if (input_boost_running && current_time > input_boost_end_time)
