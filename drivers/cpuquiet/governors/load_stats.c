@@ -61,6 +61,10 @@ static unsigned int input_boost_enabled = true;
 static bool input_boost_task_alive = false;
 static struct task_struct *input_boost_task;
 
+static unsigned int rq_depth_threshold = 40;
+static unsigned int rq_depth_load_threshold = 70;
+static unsigned int rq_depth_cpus_threshold = 4;
+
 static bool first_call = true;
 static cputime64_t total_time;
 static cputime64_t last_time;
@@ -255,8 +259,12 @@ static void update_load_stats_state(void)
 		total_time = 0;
 	}
 
-	if (rq_depth > 30 && load_stats_state != UP && nr_cpu_online < max_cpus){
-		hotplug_info("UP because of rq_depth\n");
+	if (rq_depth > rq_depth_threshold 
+			&& load < rq_depth_load_threshold 
+			&& nr_cpu_online < rq_depth_cpus_threshold 
+			&& load_stats_state != UP 
+			&& nr_cpu_online < max_cpus){
+		hotplug_info("UP because of rq_depth %d load %d\n", rq_depth, load);
 		load_stats_state = UP;
 	}
 
@@ -469,6 +477,9 @@ CPQ_BASIC_ATTRIBUTE(input_boost_duration, 0644, uint);
 CPQ_ATTRIBUTE_CUSTOM(twts_threshold, 0644, show_twts_threshold, store_twts_threshold);
 CPQ_ATTRIBUTE_CUSTOM(load_threshold, 0644, show_load_threshold, store_load_threshold);
 CPQ_ATTRIBUTE_CUSTOM(log_hotplugging, 0644, show_log_hotplugging, store_log_hotplugging);
+CPQ_BASIC_ATTRIBUTE(rq_depth_threshold, 0644, uint);
+CPQ_BASIC_ATTRIBUTE(rq_depth_load_threshold, 0644, uint);
+CPQ_BASIC_ATTRIBUTE(rq_depth_cpus_threshold, 0644, uint);
 
 static struct attribute *load_stats_attributes[] = {
 	&sample_rate_attr.attr,
@@ -478,6 +489,9 @@ static struct attribute *load_stats_attributes[] = {
 	&twts_threshold_attr.attr,
 	&load_threshold_attr.attr,
 	&log_hotplugging_attr.attr,
+	&rq_depth_threshold_attr.attr,
+	&rq_depth_load_threshold_attr.attr,
+	&rq_depth_cpus_threshold_attr.attr,
 	NULL,
 };
 
