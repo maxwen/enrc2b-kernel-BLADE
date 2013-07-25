@@ -960,11 +960,17 @@ static void dbs_refresh_callback(struct work_struct *unused)
 	unsigned int touch_poke_freq;
 	unsigned int cpu = smp_processor_id();
 
+	get_online_cpus();
+
 	if (lock_policy_rwsem_write(cpu) < 0)
-		return;
+		goto bail_acq_sema_failed;
 
 	this_dbs_info = &per_cpu(od_cpu_dbs_info, cpu);
 	policy = this_dbs_info->cur_policy;
+    
+    if (!policy)
+		/* CPU not using ondemand governor */
+		goto bail_incorrect_governor;
 
 	g_ui_counter = dbs_tuners_ins.ui_counter;
 	if(dbs_tuners_ins.ui_counter > 0)
@@ -978,17 +984,19 @@ static void dbs_refresh_callback(struct work_struct *unused)
 
 	touch_poke_freq = Touch_poke_attr[nr_cpus-1];
 
-	if(touch_poke_freq == 0 || policy->cur >= touch_poke_freq){
-		unlock_policy_rwsem_write(cpu);
-		return;
+	if(touch_poke_freq != 0 && policy->cur < touch_poke_freq){
+		__cpufreq_driver_target(policy, touch_poke_freq,
+			CPUFREQ_RELATION_L);
+		this_dbs_info->prev_cpu_idle = get_cpu_idle_time(cpu,
+			&this_dbs_info->prev_cpu_wall);
 	}
 
-	__cpufreq_driver_target(policy, touch_poke_freq,
-		CPUFREQ_RELATION_L);
-	this_dbs_info->prev_cpu_idle = get_cpu_idle_time(cpu,
-		&this_dbs_info->prev_cpu_wall);
-
+bail_incorrect_governor:
 	unlock_policy_rwsem_write(cpu);
+
+bail_acq_sema_failed:
+	put_online_cpus();
+	return;
 }
 
 static DECLARE_WORK(dbs_refresh_work, dbs_refresh_callback);
