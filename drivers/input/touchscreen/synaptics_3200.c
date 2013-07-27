@@ -170,6 +170,8 @@ static unsigned int s2w_double_tap_barrier_y = 1300;
 // should the I2C sleep command be used on resume
 static bool s2w_resume_tweak_enabled = true;
 
+static bool s2w_pocket_detect = true; 
+
 static bool s2w_switch = true;
 static bool scr_suspended = false;
 static bool exec_count = true;
@@ -189,6 +191,9 @@ extern void sweep2wake_setdev(struct input_dev * input_device) {
 EXPORT_SYMBOL(sweep2wake_setdev);
 
 static void sweep2wake_presspwr(struct work_struct * sweep2wake_presspwr_work) {
+	if (scr_suspended && s2w_pocket_detect && power_key_check_in_pocket())
+		return;
+
 	if (!mutex_trylock(&pwrkeyworklock))
         return;
 
@@ -1661,7 +1666,38 @@ static ssize_t synaptics_s2w_resume_tweak_enabled_dump(struct device *dev,
 
 static DEVICE_ATTR(s2w_resume_tweak_enabled, (S_IWUSR|S_IRUGO),
 	synaptics_s2w_resume_tweak_enabled_show, synaptics_s2w_resume_tweak_enabled_dump);
-	
+
+static ssize_t synaptics_s2w_pocket_detect_show(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	size_t count = 0;
+
+	count += sprintf(buf, "%d\n", s2w_pocket_detect);
+
+	return count;
+}
+
+static ssize_t synaptics_s2w_pocket_detect_dump(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t count)
+{
+	unsigned long value;
+    int ret = 0;
+
+	ret = strict_strtoul(buf, 10, &value);
+    if (ret < 0 || value < 0 || value > 1) {
+        return -EINVAL;
+    }
+    if (value == 0)
+        s2w_pocket_detect = false;
+    else if (value == 1)
+        s2w_pocket_detect = true;
+
+    pr_info(S2W_TAG "s2w_pocket_detect=%d", s2w_pocket_detect);
+	return count;
+}
+
+static DEVICE_ATTR(s2w_pocket_detect, (S_IWUSR|S_IRUGO),
+	synaptics_s2w_pocket_detect_show, synaptics_s2w_pocket_detect_dump);
 #endif
 
 static ssize_t synaptics_calibration_control_show(struct device *dev,
@@ -1735,7 +1771,8 @@ static int synaptics_touch_sysfs_init(void)
         sysfs_create_file(android_touch_kobj, &dev_attr_s2w_double_tap_duration.attr) ||        
         sysfs_create_file(android_touch_kobj, &dev_attr_s2w_double_tap_threshold.attr) ||
         sysfs_create_file(android_touch_kobj, &dev_attr_s2w_double_tap_barrier_y.attr) ||
-        sysfs_create_file(android_touch_kobj, &dev_attr_s2w_resume_tweak_enabled.attr)
+        sysfs_create_file(android_touch_kobj, &dev_attr_s2w_resume_tweak_enabled.attr) ||
+        sysfs_create_file(android_touch_kobj, &dev_attr_s2w_pocket_detect.attr)
 	    )
         return -ENOMEM;
 #endif
@@ -1767,6 +1804,7 @@ static void synaptics_touch_sysfs_remove(void)
 	sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_double_tap_threshold.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_double_tap_barrier_y.attr);
 	sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_resume_tweak_enabled.attr);	
+	sysfs_remove_file(android_touch_kobj, &dev_attr_s2w_pocket_detect.attr);	
 #endif
 	kobject_del(android_touch_kobj);
 }
