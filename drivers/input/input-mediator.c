@@ -52,27 +52,10 @@ static void mediator_input_event(struct input_handle *handle, unsigned int type,
 		handler->event(handle, type, code, value);
 }
 
-static int input_dev_filter(const char* input_dev_name) {
-	int ret = 0;
-	if (strstr(input_dev_name, "touchscreen")
-			|| strstr(input_dev_name, "-ts")
-			|| strstr(input_dev_name, "-keypad")
-			|| strstr(input_dev_name, "-nav")
-			|| strstr(input_dev_name, "-oj")) {
-	} else {
-		ret = 1;
-	}
-	return ret;
-}
-
 static int mediator_input_connect(struct input_handler *handler,
 		struct input_dev *dev, const struct input_device_id *id) {
 	struct input_handle *handle;
 	int error;
-
-	/* filter out those input_dev that we don't care */
-	if (input_dev_filter(dev->name))
-		return 0;
 
 	pr_info("%s input connect to %s\n", __func__, dev->name);
 
@@ -105,7 +88,24 @@ static void mediator_input_disconnect(struct input_handle *handle) {
 	kfree(handle);
 }
 
-static const struct input_device_id mediator_ids[] = { { .driver_info = 1 }, { }, };
+static const struct input_device_id mediator_ids[] = {
+{
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
+			 INPUT_DEVICE_ID_MATCH_ABSBIT,
+		.evbit = { BIT_MASK(EV_ABS) },
+		.absbit = { [BIT_WORD(ABS_MT_POSITION_X)] =
+			    BIT_MASK(ABS_MT_POSITION_X) |
+			    BIT_MASK(ABS_MT_POSITION_Y) },
+	}, /* multi-touch touchscreen */
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_KEYBIT |
+			 INPUT_DEVICE_ID_MATCH_ABSBIT,
+		.keybit = { [BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
+		.absbit = { [BIT_WORD(ABS_X)] =
+			    BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) },
+	}, /* touchpad */
+	{ },
+};
 
 static struct input_handler mediator_input_handler = { 
 	.event = mediator_input_event,

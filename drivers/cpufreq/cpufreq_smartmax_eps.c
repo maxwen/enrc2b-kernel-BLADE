@@ -124,14 +124,14 @@ extern int tegra_input_boost (struct cpufreq_policy *policy,
 #define DEFAULT_AWAKE_IDEAL_FREQ 702000
 #define DEFAULT_RAMP_UP_STEP 300000
 #define DEFAULT_RAMP_DOWN_STEP 200000
-#define DEFAULT_MAX_CPU_LOAD 80
-#define DEFAULT_MIN_CPU_LOAD 50
+#define DEFAULT_MAX_CPU_LOAD 70
+#define DEFAULT_MIN_CPU_LOAD 40
 #define DEFAULT_UP_RATE 30000
 #define DEFAULT_DOWN_RATE 60000
 #define DEFAULT_SAMPLING_RATE 30000
-#define DEFAULT_INPUT_BOOST_DURATION 90000
-#define DEFAULT_TOUCH_POKE_FREQ 1134000
-#define DEFAULT_BOOST_FREQ 1134000
+#define DEFAULT_INPUT_BOOST_DURATION 1200000
+#define DEFAULT_TOUCH_POKE_FREQ 1350000
+#define DEFAULT_BOOST_FREQ 1350000
 #define DEFAULT_IO_IS_BUSY 0
 #define DEFAULT_IGNORE_NICE 1
 #endif
@@ -227,15 +227,9 @@ struct smartmax_info_s {
 };
 static DEFINE_PER_CPU(struct smartmax_info_s, smartmax_info);
 
-#define SMARTMAX_DEBUG 0
-
-#if SMARTMAX_DEBUG
 #define dprintk(flag,msg...) do { \
-	if (debug_mask & flag) printk(KERN_DEBUG "[smartmax_eps]" ":" msg); \
+	if (debug_mask & flag) pr_info("[smartmax]" ":" msg); \
 	} while (0)
-#else
-#define dprintk(flag,msg...)
-#endif
 
 enum {
 	SMARTMAX_DEBUG_JUMPS = 1,
@@ -249,11 +243,8 @@ enum {
 /*
  * Combination of the above debug flags.
  */
-#if SMARTMAX_DEBUG
-static unsigned long debug_mask = SMARTMAX_DEBUG_LOAD|SMARTMAX_DEBUG_JUMPS|SMARTMAX_DEBUG_ALG|SMARTMAX_DEBUG_BOOST|SMARTMAX_DEBUG_INPUT|SMARTMAX_DEBUG_SUSPEND;
-#else
+//static unsigned long debug_mask = SMARTMAX_DEBUG_LOAD|SMARTMAX_DEBUG_JUMPS|SMARTMAX_DEBUG_ALG|SMARTMAX_DEBUG_BOOST|SMARTMAX_DEBUG_INPUT|SMARTMAX_DEBUG_SUSPEND;
 static unsigned long debug_mask;
-#endif
 
 #define SMARTMAX_STAT 0
 #if SMARTMAX_STAT
@@ -264,6 +255,7 @@ static u64 timer_stat[4] = {0, 0, 0, 0};
  * dbs_mutex protects dbs_enable in governor start/stop.
  */
 static DEFINE_MUTEX(dbs_mutex);
+static struct workqueue_struct *smartmax_wq;
 
 static bool boost_task_alive = false;
 static struct task_struct *boost_task;
@@ -340,11 +332,14 @@ static inline u64 get_cpu_idle_time_jiffy(unsigned int cpu, u64 *wall) {
 	return jiffies_to_usecs(idle_time);
 }
 
-static inline u64 get_cpu_idle_time(unsigned int cpu, u64 *wall) {
-	u64 idle_time = get_cpu_idle_time_us(cpu, wall);
+static inline u64 get_cpu_idle_time(unsigned int cpu, u64 *wall)
+{
+	u64 idle_time = get_cpu_idle_time_us(cpu, NULL);
 
 	if (idle_time == -1ULL)
 		return get_cpu_idle_time_jiffy(cpu, wall);
+	else
+		idle_time += get_cpu_iowait_time_us(cpu, wall);
 
 	return idle_time;
 }
@@ -418,20 +413,14 @@ inline static void target_freq(struct cpufreq_policy *policy,
 		int prefered_relation) {
 	int index, target;
 	struct cpufreq_frequency_table *table = this_smartmax->freq_table;
-#if SMARTMAX_DEBUG
 	unsigned int cpu = this_smartmax->cpu;
-#endif
 
 	dprintk(SMARTMAX_DEBUG_ALG, "%d: %s\n", old_freq, __func__);
 
-	if (new_freq == old_freq)
-		return;
+	// apply policy limits - just to be sure
 	new_freq = validate_freq(policy, new_freq);
-	if (new_freq == old_freq)
-		return;
 
-	if (table
-			&& !cpufreq_frequency_table_target(policy, table, new_freq,
+	if (!cpufreq_frequency_table_target(policy, table, new_freq,
 					prefered_relation, &index)) {
 		target = table[index].frequency;
 		if (target == old_freq) {
@@ -450,16 +439,13 @@ inline static void target_freq(struct cpufreq_policy *policy,
 				target = table[index].frequency;
 		}
 
-		if (target == old_freq) {
-			// We should not get here:
-			// If we got here we tried to change to a validated new_freq which is different
-			// from old_freq, so there is no reason for us to remain at same frequency.
-			dprintk(SMARTMAX_DEBUG_ALG, "%d: frequency change failed to %d (%d)\n",
-					old_freq, new_freq, target);
+		// no change
+		if (target == old_freq)
 			return;
-		}
-	} else
-		target = new_freq;
+	} else {
+		dprintk(SMARTMAX_DEBUG_ALG, "frequency change failed\n");
+		return;
+	}
 
 	dprintk(SMARTMAX_DEBUG_JUMPS, "%d: jumping to %d (%d) cpu %d\n", old_freq, new_freq, target, cpu);
 
@@ -557,12 +543,9 @@ static void cpufreq_smartmax_timer(struct smartmax_info_s *this_smartmax) {
 	struct cpufreq_policy *policy = this_smartmax->cur_policy;
 	u64 now = ktime_to_us(ktime_get());
 	unsigned int j = 0;
-#if SMARTMAX_DEBUG
 	unsigned int cpu = this_smartmax->cpu;
-#endif
 
 #if SMARTMAX_STAT 
-	unsigned int cpu = this_smartmax->cpu;
 	u64 diff = 0;
 
 	if (timer_stat[cpu])
@@ -674,7 +657,7 @@ static void do_dbs_timer(struct work_struct *work) {
 
 	cpufreq_smartmax_timer(this_smartmax);
 
-	schedule_delayed_work_on(cpu, &this_smartmax->work, delay);
+	queue_delayed_work_on(cpu, smartmax_wq, &this_smartmax->work, delay);
 	mutex_unlock(&this_smartmax->timer_mutex);
 }
 
@@ -1160,9 +1143,7 @@ static int cpufreq_smartmax_boost_task(void *data) {
 
 			if (policy->cur < cur_boost_freq) {
 				start_boost = true;
-#if SMARTMAX_DEBUG
 				dprintk(SMARTMAX_DEBUG_BOOST, "input boost cpu %d to %d\n", cpu, cur_boost_freq);
-#endif
 				target_freq(policy, this_smartmax, cur_boost_freq, this_smartmax->old_freq, CPUFREQ_RELATION_H);
 				this_smartmax->prev_cpu_idle = get_cpu_idle_time(cpu, &this_smartmax->prev_cpu_wall);
 			}
@@ -1186,9 +1167,7 @@ static int cpufreq_smartmax_boost_task(void *data) {
 #endif
 	}
 
-#if SMARTMAX_DEBUG
 	pr_info("[smartmax]:" "%s boost_thread stopped\n", __func__);
-#endif
 	return 0;
 }
 
@@ -1230,31 +1209,12 @@ static void dbs_input_event(struct input_handle *handle, unsigned int type,
 	}
 }
 
-static int input_dev_filter(const char* input_dev_name) {
-	int ret = 0;
-	if (strstr(input_dev_name, "touchscreen")
-			|| strstr(input_dev_name, "-ts")
-			|| strstr(input_dev_name, "-keypad")
-			|| strstr(input_dev_name, "-nav")
-			|| strstr(input_dev_name, "-oj")) {
-	} else {
-		ret = 1;
-	}
-	return ret;
-}
-
 static int dbs_input_connect(struct input_handler *handler,
 		struct input_dev *dev, const struct input_device_id *id) {
 	struct input_handle *handle;
 	int error;
 
-	/* filter out those input_dev that we don't care */
-	if (input_dev_filter(dev->name))
-		return 0;
-
-#if SMARTMAX_DEBUG
 	pr_info("[smartmax]:" "%s input connect to %s\n", __func__, dev->name);
-#endif
 
 	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
 	if (!handle)
@@ -1275,6 +1235,7 @@ static int dbs_input_connect(struct input_handler *handler,
 	return 0;
 	err1: input_unregister_handle(handle);
 	err2: kfree(handle);
+	pr_err("[smartmax]:" "%s faild to connect input handler %d\n", __func__, error);
 	return error;
 }
 
@@ -1284,7 +1245,24 @@ static void dbs_input_disconnect(struct input_handle *handle) {
 	kfree(handle);
 }
 
-static const struct input_device_id dbs_ids[] = { { .driver_info = 1 }, { }, };
+static const struct input_device_id dbs_ids[] = {
+{
+		.flags = INPUT_DEVICE_ID_MATCH_EVBIT |
+			 INPUT_DEVICE_ID_MATCH_ABSBIT,
+		.evbit = { BIT_MASK(EV_ABS) },
+		.absbit = { [BIT_WORD(ABS_MT_POSITION_X)] =
+			    BIT_MASK(ABS_MT_POSITION_X) |
+			    BIT_MASK(ABS_MT_POSITION_Y) },
+	}, /* multi-touch touchscreen */
+	{
+		.flags = INPUT_DEVICE_ID_MATCH_KEYBIT |
+			 INPUT_DEVICE_ID_MATCH_ABSBIT,
+		.keybit = { [BIT_WORD(BTN_TOUCH)] = BIT_MASK(BTN_TOUCH) },
+		.absbit = { [BIT_WORD(ABS_X)] =
+			    BIT_MASK(ABS_X) | BIT_MASK(ABS_Y) },
+	}, /* touchpad */
+	{ },
+};
 
 static struct input_handler dbs_input_handler = { 
 	.event = dbs_input_event,
@@ -1334,6 +1312,10 @@ static int cpufreq_governor_smartmax_eps(struct cpufreq_policy *new_policy,
 		smartmax_update_min_max(this_smartmax,new_policy);
 
 		this_smartmax->freq_table = cpufreq_frequency_get_table(cpu);
+		if (!this_smartmax->freq_table){
+			mutex_unlock(&dbs_mutex);
+			return -EINVAL;
+		}
 
 		update_idle_time(false);
 
@@ -1353,9 +1335,7 @@ static int cpufreq_governor_smartmax_eps(struct cpufreq_policy *new_policy,
 					return PTR_ERR(boost_task);
 				}
 
-#if SMARTMAX_DEBUG
 				pr_info("[smartmax]:" "%s input boost task created\n", __func__);
-#endif
 				sched_setscheduler_nocheck(boost_task, SCHED_FIFO, &param);
 				get_task_struct(boost_task);
 				boost_task_alive = true;
@@ -1461,6 +1441,12 @@ static int __init cpufreq_smartmax_init(void) {
 		min_sampling_rate = MIN_SAMPLING_RATE_RATIO * jiffies_to_usecs(10);
 	}
 
+	smartmax_wq = alloc_workqueue("smartmax_wq", WQ_HIGHPRI, 0);
+	if (!smartmax_wq) {
+		printk(KERN_ERR "Failed to create smartmax_wq workqueue\n");
+		return -EFAULT;
+	}
+
 	up_rate = DEFAULT_UP_RATE;
 	down_rate = DEFAULT_DOWN_RATE;
 	suspend_ideal_freq = DEFAULT_SUSPEND_IDEAL_FREQ;
@@ -1514,6 +1500,7 @@ static void __exit cpufreq_smartmax_exit(void) {
 		this_smartmax = &per_cpu(smartmax_info, i);
 		mutex_destroy(&this_smartmax->timer_mutex);
 	}
+	destroy_workqueue(smartmax_wq);
 }
 
 module_exit(cpufreq_smartmax_exit);

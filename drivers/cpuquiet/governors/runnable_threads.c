@@ -252,8 +252,7 @@ static int runnables_start(void)
 	if (err)
 		return err;
 
-	runnables_wq = alloc_workqueue("cpuquiet-runnables",
-			WQ_UNBOUND | WQ_RESCUER | WQ_FREEZABLE, 1);
+	runnables_wq = alloc_workqueue("cpuquiet-runnables", WQ_HIGHPRI, 0);
 	if (!runnables_wq)
 		return -ENOMEM;
 
